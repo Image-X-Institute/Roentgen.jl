@@ -5,7 +5,8 @@ makedocs(
     modules = [DoseCalculations],
     sitename="DoseCalculations.jl Documentation",
     pages = [
-        "Dose Calculation Algorithms"=>["ScaledIsoplaneKernel.md",
-        ]
+        "Dose Volume"=>["ExternalSurfaces.md",],
+        "Dose Calculation Algorithms"=>["ScaledIsoplaneKernel.md",],
+        "API"=>["API.md",]
     ]
     )
