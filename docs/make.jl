@@ -1,5 +1,4 @@
-using Documenter
-using DoseCalculations
+using Documenter, DoseCalculations
 
 makedocs(
     modules = [DoseCalculations],
@@ -8,4 +7,8 @@ makedocs(
         "Dose Calculation Algorithms"=>["ScaledIsoplaneKernel.md",
         ]
     ]
+    )
+
+deploydocs(
+    repo = "github.com/ACRF-Image-X-Institute/DoseCalculations.jl.git",
     )
