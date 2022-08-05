@@ -368,7 +368,14 @@ end
 
 #--- Moving Aperture fluences ------------------------------------------------------------------------------------------
 
+"""
+    fluence(bixel::AbstractBixel{T}, mlcx1, mlcx2, mlc::MultiLeafCollimator)
 
+From MLC leaf positions which move from `mlcx1` to `mlcx2`.
+
+Computes the time-weighted fluence as the MLC moves from position `mlcx1` to `mlcx2`.
+Assumes the MLC leaves move in a straight line.
+"""
 function fluence(bixel::AbstractBixel{T}, mlcx1, mlcx2, mlc::MultiLeafCollimator) where T<:AbstractFloat
     j = max(1, locate(mlc, bixel[2]))
     xL = bixel[1] - 0.5*width(bixel, 1)
@@ -397,7 +404,20 @@ function fluence(bixel::AbstractBixel{T}, mlcx1, mlcx2, mlc::MultiLeafCollimator
     max(zero(T), ΨB - ΨA)
 end
 
+"""
+    tfun(x, x1, x2)
+
+Linear interpolation of `x` between `(x1, 0)` and `(x2, 1)`
+
+Used in `area_under_path`.
+"""
 tfun(x, x1, x2) = min(1, max(0, (x-x1)/(x2-x1))) 
+
+"""
+    area_under_path(x1, x2, xL, xU)
+
+Area of intersection between MLC leaf trajectory and bixel.
+"""
 function area_under_path(x1, x2, xL, xU)
 
     xB = max(x1, xL)
