@@ -366,33 +366,48 @@ function fluence(bixel::AbstractBixel{T}, index::Int, mlcx) where T<:AbstractFlo
     overlap(position(bixel, 1), width(bixel, 1), mlcx[1, index], mlcx[2, index])
 end
 
-#=-- Moving Aperture fluences ------------------------------------------------------------------------------------------
+#--- Moving Aperture fluences ------------------------------------------------------------------------------------------
 
-    Deprecated.
 
-    These functions compute the fluence from a leaf moving linearly from one position to another.
-=#
+function fluence(bixel::AbstractBixel{T}, mlcx1, mlcx2, mlc::MultiLeafCollimator) where T<:AbstractFloat
+    j = max(1, locate(mlc, bixel[2]))
+    xL = bixel[1] - 0.5*width(bixel, 1)
+    xU = bixel[1] + 0.5*width(bixel, 1)
 
-function fluence_from_moving_leaf(leafx_start, leafx_end, xb1, xb2)
-    leafx1, leafx2 = min(leafx1, leafx2), max(leafx1, leafx2)
-    t1 = (xb1 - leafx1)/(leafx2 - leafx1)
-    t2 = (xb2 - leafx1)/(leafx2 - leafx1)
-
-    if isnan(t1) || isnan(t2)
-        A_triangle = 0.
+    x1 = mlcx1[1, j]
+    x2 = mlcx2[1, j]
+    if(x2 > x1)
+        ΨB = area_under_path(x1, x2, xL, xU)
+    elseif(x1 > x2)
+        ΨB = area_under_path(x2, x1, xL, xU)
     else
-        T = minmax(t1, 0., 1.) + minmax(t2, 0., 1.)
-        D = min(leafx2, xb2) - max(leafx1, xb1)
-
-        A_triangle = 0.5*T*D
+        ΨB = min(1, max(zero(T), xU-x1))
     end
 
-    A_triangle + max(0., xb2 - leafx2)
+    x1 = mlcx1[2, j]
+    x2 = mlcx2[2, j]
+    if(x2 > x1)
+        ΨA = area_under_path(x1, x2, xL, xU)
+    elseif(x1 > x2)
+        ΨA = area_under_path(x2, x1, xL, xU)
+    else
+        ΨA = min(1, max(zero(T), xU-x1))
+    end
+
+    max(zero(T), ΨB - ΨA)
 end
 
-function fluence_from_moving_leaf(xb, Δx, mlcx1::Vector, mlcx2::Vector)
-    xb2 = xb + Δx
-    ΨA = fluence_from_moving_leaf(mlcx1[2], mlcx2[2], xb1, xb2)
-    ΨB = fluence_from_moving_leaf(mlcx1[1], mlcx2[1], xb1, xb2)
-    max(0., ΨB - ΨA)
+tfun(x, x1, x2) = min(1, max(0, (x-x1)/(x2-x1))) 
+function area_under_path(x1, x2, xL, xU)
+
+    xB = max(x1, xL)
+    xA = min(x2, xU)
+
+    tL = tfun(xB, x1, x2)
+    tU = tfun(xA, x1, x2)
+    
+    A1 = (tU + tL)/2*(xA - xB)
+    A2 = xU - xA
+    (A1 + A2)*(xU-xL)
+
 end
