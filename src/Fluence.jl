@@ -420,13 +420,6 @@ function fluence_onesided(xs, xf, xL, xU)
 end
 
 """
-    minmax(x, l, u)
-
-Return `x` if `l<=x<=u`, `l` if `x<l` or `u` if `u<x`
-"""
-minmax(x, l, u) = max(l, min(x, u)) # Ensures l<=x<=u
-
-"""
     leaf_trajectory(x, x1, x2)
 
 Compute the height of position `x` between `(x1, 0)` and `(x2, 1)`
