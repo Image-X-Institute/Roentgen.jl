@@ -381,53 +381,56 @@ function fluence(bixel::AbstractBixel{T}, mlcx1, mlcx2, mlc::MultiLeafCollimator
     xL = bixel[1] - 0.5*width(bixel, 1)
     xU = bixel[1] + 0.5*width(bixel, 1)
 
-    x1 = mlcx1[1, j]
-    x2 = mlcx2[1, j]
-    if(x2 > x1)
-        ΨB = area_under_path(x1, x2, xL, xU)
-    elseif(x1 > x2)
-        ΨB = area_under_path(x2, x1, xL, xU)
-    else
-        ΨB = min(1, max(zero(T), xU-x1))
-    end
+    ΨB = fluence_onesided(mlcx1[1, j], mlcx2[1, j], xL, xU)
+    ΨA = fluence_onesided(mlcx1[2, j], mlcx2[2, j], xL, xU)
 
-    x1 = mlcx1[2, j]
-    x2 = mlcx2[2, j]
-    if(x2 > x1)
-        ΨA = area_under_path(x1, x2, xL, xU)
-    elseif(x1 > x2)
-        ΨA = area_under_path(x2, x1, xL, xU)
-    else
-        ΨA = min(1, max(zero(T), xU-x1))
-    end
-
-    max(zero(T), ΨB - ΨA)
+    max(zero(T), ΨB - ΨA) # This is needed for cases where xA < xB
 end
 
 """
-    tfun(x, x1, x2)
+    fluence_onesided(xs, xf, xL, xU)
 
-Linear interpolation of `x` between `(x1, 0)` and `(x2, 1)`
+Compute fluence for 1 leaf position, assuming the other is infinitely far away
 
-Used in `area_under_path`.
+Computes the fluence for a leaf trajectory from `xs` to `xf`, over a bixel from
+`xL` to `xU`. The aperture is considered open to the right of the leaf position
+(*i.e.* leaf on the B bank). Assumes the bixel is fully in the leaf track.
 """
-tfun(x, x1, x2) = min(1, max(0, (x-x1)/(x2-x1))) 
+function fluence_onesided(xs, xf, xL, xU)
 
-"""
-    area_under_path(x1, x2, xL, xU)
+    # If leaf positions are the same, compute static fluence
+    xs == xf && return (xU - minmax(xs, xL, xU))/(xU-xL)
 
-Area of intersection between MLC leaf trajectory and bixel.
-"""
-function area_under_path(x1, x2, xL, xU)
 
-    xB = max(x1, xL)
-    xA = min(x2, xU)
+    # Otherwise compute moving fluence
 
-    tL = tfun(xB, x1, x2)
-    tU = tfun(xA, x1, x2)
+    x1, x2 = min(xs, xf), max(xs, xf) # If xf < xs, swap
+
+    xl = max(x1, xL) # Get left, centre and right segment positions
+    xc = min(x2, xU)
+    xr = xU
+
+    tl = leaf_trajectory(xl, x1, x2) # Compute the height of each segment pos.
+    tr = leaf_trajectory(xr, x1, x2)
     
-    A1 = (tU + tL)/2*(xA - xB)
-    A2 = xU - xA
-    (A1 + A2)*(xU-xL)
+    A1 = 0.5*(tl + tr)*(xc-xl)  # Calculate trapezium segment are
+    A2 = xr-xc  # Calculate the remaining rectangular area
+    (A1 + A2)/(xU-xL)   # Add and scale
 
 end
+
+"""
+    minmax(x, l, u)
+
+Return `x` if `l<=x<=u`, `l` if `x<l` or `u` if `u<x`
+"""
+minmax(x, l, u) = max(l, min(x, u)) # Ensures l<=x<=u
+
+"""
+    leaf_trajectory(x, x1, x2)
+
+Compute the height of position `x` between `(x1, 0)` and `(x2, 1)`
+
+Used in `intersection_area`.
+"""
+leaf_trajectory(x, x1, x2) = minmax((x-x1)/(x2-x1), 0, 1)
