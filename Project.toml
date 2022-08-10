@@ -1,7 +1,7 @@
 name = "DoseCalculations"
 uuid = "b0d14063-c48a-4081-83d5-5a5ab48cb495"
 authors = ["lmejn <33491793+lmejn@users.noreply.github.com>"]
-version = "0.1"
+version = "0.2"
 
 [deps]
 CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"

@@ -13,13 +13,6 @@ Scale the position `xi` within the positions `x1` and `x2`.
 """
 scale_to_cell(x1, x2, xi) = (xi - x1)/(x2 - x1)
 
-"""
-    minmax(xmin, xmax, xi)
-
-Limit the position `xi` between `xmin` and `xmax`.
-"""
-minmax(xmin, xmax, x) = max(xmin, min(xmax, x))
-
 #--- Non-Uniform Grid Location ------------------------------------------------
 
 """

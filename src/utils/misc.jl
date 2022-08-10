@@ -26,3 +26,10 @@ function scale_to_isoplane(pᵢ, z_plane)
     α = z_plane/z
     SVector(α*x, α*y)
 end
+
+"""
+    minmax(x, l, u)
+
+Return `x` if `l<=x<=u`, `l` if `x<l` or `u` if `u<x`
+"""
+minmax(x, l, u) = max(l, min(x, u)) # Ensures l<=x<=u

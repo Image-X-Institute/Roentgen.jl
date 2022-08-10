@@ -157,6 +157,11 @@ end
 
 extract_subset(mlcx, mlc::MultiLeafCollimator, ylim::AbstractVector) = extract_subset(mlcx, mlc, ylim...)
 
+#--- MultiLeafCollimator Positions -------------------------------------------------------------------------------------
+
+AbstractMLCAperture{T} = AbstractMatrix{T}
+AbstractMLCSequence{T} = AbstractArray{T, 3}
+
 #--- Jaws --------------------------------------------------------------------------------------------------------------
 
 """ 

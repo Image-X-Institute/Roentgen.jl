@@ -341,7 +341,7 @@ fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, jaws.x, jaws.y
 
 From an MLC aperture.
 """
-function fluence(bixel::AbstractBixel{T}, mlcx, mlc::MultiLeafCollimator) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCAperture, mlc::MultiLeafCollimator) where T<:AbstractFloat
 
     hw = 0.5*width(bixel, 2)
     i1 = max(1, locate(mlc, bixel[2]-hw))
@@ -362,37 +362,92 @@ From an MLC aperture using a given leaf index.
 This method assumes the bixel is entirely within the `i`th leaf track, and does
 not overlap with other leaves. Does not check whether these assumptions are true.
 """
-function fluence(bixel::AbstractBixel{T}, index::Int, mlcx) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCAperture) where T<:AbstractFloat
     overlap(position(bixel, 1), width(bixel, 1), mlcx[1, index], mlcx[2, index])
 end
 
-#=-- Moving Aperture fluences ------------------------------------------------------------------------------------------
+#--- Moving Aperture fluences ------------------------------------------------------------------------------------------
 
-    Deprecated.
+"""
+    fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCSequence, mlc::MultiLeafCollimator)
 
-    These functions compute the fluence from a leaf moving linearly from one position to another.
-=#
+From an MLC aperture sequence.
+"""
+function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCSequence, mlc::MultiLeafCollimator) where T<:AbstractFloat
+    hw = 0.5*width(bixel, 2)
+    i1 = max(1, locate(mlc, bixel[2]-hw))
+    i2 = min(length(mlc), locate(mlc, bixel[2]-hw))
 
-function fluence_from_moving_leaf(leafx_start, leafx_end, xb1, xb2)
-    leafx1, leafx2 = min(leafx1, leafx2), max(leafx1, leafx2)
-    t1 = (xb1 - leafx1)/(leafx2 - leafx1)
-    t2 = (xb2 - leafx1)/(leafx2 - leafx1)
-
-    if isnan(t1) || isnan(t2)
-        A_triangle = 0.
-    else
-        T = minmax(t1, 0., 1.) + minmax(t2, 0., 1.)
-        D = min(leafx2, xb2) - max(leafx1, xb1)
-
-        A_triangle = 0.5*T*D
+    Ψ = zero(T)
+    @inbounds for j=i1:i2
+        Ψ += fluence_from_moving_aperture(bixel, (@view mlcx[:, j, 1]), (@view mlcx[:, j, 2]))
     end
-
-    A_triangle + max(0., xb2 - leafx2)
+    Ψ
 end
 
-function fluence_from_moving_leaf(xb, Δx, mlcx1::Vector, mlcx2::Vector)
-    xb2 = xb + Δx
-    ΨA = fluence_from_moving_leaf(mlcx1[2], mlcx2[2], xb1, xb2)
-    ΨB = fluence_from_moving_leaf(mlcx1[1], mlcx2[1], xb1, xb2)
-    max(0., ΨB - ΨA)
+"""
+    fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCSequence)
+
+From an MLC aperture sequence using a given leaf index.
+"""
+function fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCSequence) where T<:AbstractFloat
+    fluence_from_moving_aperture(bixel, (@view mlcx[:, index, 1]), (@view mlcx[:, index, 2]))
 end
+
+"""
+    fluence_from_moving_aperture(bixel::AbstractBixel{T}, mlcx1, mlcx2)
+
+From MLC leaf positions which move from `mlcx1` to `mlcx2`.
+
+Computes the time-weighted fluence as the MLC moves from position `mlcx1` to `mlcx2`.
+Assumes the MLC leaves move in a straight line.
+"""
+function fluence_from_moving_aperture(bixel::AbstractBixel{T}, mlcx1, mlcx2) where T<:AbstractFloat
+    xL = bixel[1] - 0.5*width(bixel, 1)
+    xU = bixel[1] + 0.5*width(bixel, 1)
+
+    ΨB = fluence_onesided(mlcx1[1], mlcx2[1], xL, xU)
+    ΨA = fluence_onesided(mlcx1[2], mlcx2[2], xL, xU)
+
+    max(zero(T), ΨB - ΨA) # This is needed for cases where xA < xB
+end
+
+"""
+    fluence_onesided(xs, xf, xL, xU)
+
+Compute fluence for 1 leaf position, assuming the other is infinitely far away
+
+Computes the fluence for a leaf trajectory from `xs` to `xf`, over a bixel from
+`xL` to `xU`. The aperture is considered open to the right of the leaf position
+(*i.e.* leaf on the B bank). Assumes the bixel is fully in the leaf track.
+"""
+function fluence_onesided(xs, xf, xL, xU)
+
+    # If leaf positions are the same, compute static fluence
+    xs == xf && return (xU - minmax(xs, xL, xU))/(xU-xL)
+
+    # Otherwise compute moving fluence
+
+    x1, x2 = min(xs, xf), max(xs, xf) # If xf < xs, swap
+
+    xl = max(x1, xL) # Get left, centre and right segment positions
+    xc = min(x2, xU)
+    xr = xU
+
+    tl = leaf_trajectory(xl, x1, x2) # Compute the height of each segment pos.
+    tr = leaf_trajectory(xr, x1, x2)
+    
+    A1 = 0.5*(tl + tr)*(xc-xl)  # Calculate trapezium segment are
+    A2 = xr-xc  # Calculate the remaining rectangular area
+    (A1 + A2)/(xU-xL)   # Add and scale
+
+end
+
+"""
+    leaf_trajectory(x, x1, x2)
+
+Compute the height of position `x` between `(x1, 0)` and `(x2, 1)`
+
+Used in `intersection_area`.
+"""
+leaf_trajectory(x, x1, x2) = minmax((x-x1)/(x2-x1), 0, 1)
