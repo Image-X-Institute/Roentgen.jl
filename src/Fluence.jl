@@ -341,7 +341,7 @@ fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, jaws.x, jaws.y
 
 From an MLC aperture.
 """
-function fluence(bixel::AbstractBixel{T}, mlcx, mlc::MultiLeafCollimator) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCAperture, mlc::MultiLeafCollimator) where T<:AbstractFloat
 
     hw = 0.5*width(bixel, 2)
     i1 = max(1, locate(mlc, bixel[2]-hw))
@@ -362,27 +362,52 @@ From an MLC aperture using a given leaf index.
 This method assumes the bixel is entirely within the `i`th leaf track, and does
 not overlap with other leaves. Does not check whether these assumptions are true.
 """
-function fluence(bixel::AbstractBixel{T}, index::Int, mlcx) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCAperture) where T<:AbstractFloat
     overlap(position(bixel, 1), width(bixel, 1), mlcx[1, index], mlcx[2, index])
 end
 
 #--- Moving Aperture fluences ------------------------------------------------------------------------------------------
 
 """
-    fluence(bixel::AbstractBixel{T}, mlcx1, mlcx2, mlc::MultiLeafCollimator)
+    fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCSequence, mlc::MultiLeafCollimator)
+
+From an MLC aperture sequence.
+"""
+function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCSequence, mlc::MultiLeafCollimator) where T<:AbstractFloat
+    hw = 0.5*width(bixel, 2)
+    i1 = max(1, locate(mlc, bixel[2]-hw))
+    i2 = min(length(mlc), locate(mlc, bixel[2]-hw))
+
+    Ψ = zero(T)
+    @inbounds for j=i1:i2
+        Ψ += fluence_from_moving_aperture(bixel, (@view mlcx[:, j, 1]), (@view mlcx[:, j, 2]))
+    end
+    Ψ
+end
+
+"""
+    fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCSequence)
+
+From an MLC aperture sequence using a given leaf index.
+"""
+function fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCSequence) where T<:AbstractFloat
+    fluence_from_moving_aperture(bixel, (@view mlcx[:, index, 1]), (@view mlcx[:, index, 2]))
+end
+
+"""
+    fluence_from_moving_aperture(bixel::AbstractBixel{T}, mlcx1, mlcx2)
 
 From MLC leaf positions which move from `mlcx1` to `mlcx2`.
 
 Computes the time-weighted fluence as the MLC moves from position `mlcx1` to `mlcx2`.
 Assumes the MLC leaves move in a straight line.
 """
-function fluence(bixel::AbstractBixel{T}, mlcx1, mlcx2, mlc::MultiLeafCollimator) where T<:AbstractFloat
-    j = max(1, locate(mlc, bixel[2]))
+function fluence_from_moving_aperture(bixel::AbstractBixel{T}, mlcx1, mlcx2) where T<:AbstractFloat
     xL = bixel[1] - 0.5*width(bixel, 1)
     xU = bixel[1] + 0.5*width(bixel, 1)
 
-    ΨB = fluence_onesided(mlcx1[1, j], mlcx2[1, j], xL, xU)
-    ΨA = fluence_onesided(mlcx1[2, j], mlcx2[2, j], xL, xU)
+    ΨB = fluence_onesided(mlcx1[1], mlcx2[1], xL, xU)
+    ΨA = fluence_onesided(mlcx1[2], mlcx2[2], xL, xU)
 
     max(zero(T), ΨB - ΨA) # This is needed for cases where xA < xB
 end
@@ -400,7 +425,6 @@ function fluence_onesided(xs, xf, xL, xU)
 
     # If leaf positions are the same, compute static fluence
     xs == xf && return (xU - minmax(xs, xL, xU))/(xU-xL)
-
 
     # Otherwise compute moving fluence
 
