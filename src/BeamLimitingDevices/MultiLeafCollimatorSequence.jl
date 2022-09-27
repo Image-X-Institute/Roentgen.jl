@@ -50,10 +50,26 @@ Base.view(mlc::MultiLeafCollimatorSequence, i::UnitRange{Int}) = MultiLeafCollim
 function Base.show(io::IO, mlc::MultiLeafCollimatorSequence)
     maxdigits = 6
     println(join(size(mlc.positions), "x", "x"), " MultiLeafCollimatorSequence")
-    for n in eachindex(mlc)
-        print(io, "n = $n")
-        show_leaf_positions(io, mlc[n], maxdigits)
-        println(io)
+    if(length(mlc)<=5)
+        for n in eachindex(mlc)
+            print(io, "n = $n")
+            show_leaf_positions(io, mlc[n], maxdigits)
+            println(io)
+        end
+    else
+        for n in eachindex(mlc[1:2])
+            print(io, "n = $n")
+            show_leaf_positions(io, mlc[n], maxdigits)
+            println(io)
+        end
+        for _=1:3
+            println(io, "⋮")
+        end
+        for n in eachindex(mlc[end-1:end])
+            print(io, "n = $(lastindex(mlc)-2+n)")
+            show_leaf_positions(io, mlc[n], maxdigits)
+            println(io)
+        end
     end
 end
 
