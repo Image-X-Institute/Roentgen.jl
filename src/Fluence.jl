@@ -338,11 +338,11 @@ fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, jaws.x, jaws.y
 #--- Fluence from an MLC Aperture --------------------------------------------------------------------------------------
 
 """
-    fluence(bixel::Bixel, mlcx, mlc::MultiLeafCollimator)
+    fluence(bixel::Bixel, mlc::MultiLeafCollimator)
 
 From an MLC aperture.
 """
-function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCAperture, mlc::MultiLeafCollimator) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, mlc::MultiLeafCollimator) where T<:AbstractFloat
 
     hw = 0.5*width(bixel, 2)
     i1 = max(1, locate(mlc, bixel[2]-hw))
@@ -350,7 +350,7 @@ function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCAperture, mlc::MultiL
 
     Ψ = zero(T)
     @inbounds for j=i1:i2
-        Ψ += fluence_from_rectangle(bixel, (@view mlcx[:, j]), (@view mlc[j]))
+        Ψ += fluence_from_rectangle(bixel, mlc[j]...)
     end
     Ψ
 end
@@ -363,25 +363,27 @@ From an MLC aperture using a given leaf index.
 This method assumes the bixel is entirely within the `i`th leaf track, and does
 not overlap with other leaves. Does not check whether these assumptions are true.
 """
-function fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCAperture) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, index::Int, mlcx) where T<:AbstractFloat
     overlap(position(bixel, 1), width(bixel, 1), mlcx[1, index], mlcx[2, index])
 end
 
 #--- Moving Aperture fluences ------------------------------------------------------------------------------------------
 
 """
-    fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCSequence, mlc::MultiLeafCollimator)
+    fluence(bixel::AbstractBixel{T}, mlc::MultiLeafCollimatorSequence)
 
 From an MLC aperture sequence.
 """
-function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCSequence, mlc::MultiLeafCollimator) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, mlc::MultiLeafCollimatorSequence) where T<:AbstractFloat
+    @assert length(mlc) == 2 "Only two apertures are required."
+
     hw = 0.5*width(bixel, 2)
     i1 = max(1, locate(mlc, bixel[2]-hw))
-    i2 = min(length(mlc), locate(mlc, bixel[2]-hw))
+    i2 = min(mlc.nleaves, locate(mlc, bixel[2]-hw))
 
     Ψ = zero(T)
     @inbounds for j=i1:i2
-        Ψ += fluence_from_moving_aperture(bixel, (@view mlcx[:, j, 1]), (@view mlcx[:, j, 2]))
+        Ψ += fluence_from_moving_aperture(bixel, (@view mlc.positions[:, j, 1]), (@view mlc.positions[:, j, 2]))
     end
     Ψ
 end
