@@ -173,7 +173,7 @@ Uses the start and end positions and step of each range to construct the bixel g
 bixel_grid(x::AbstractRange, y::AbstractRange) = bixel_grid(x, y, step(x), step(y))
 
 """
-    bixel_grid(mlc::MultiLeafCollimator, jaws::Jaws, Δx)
+    bixel_grid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
 
 Grid that fits in an MLC and the jaws.
 
@@ -181,15 +181,16 @@ Bixel y widths are of the same width as the MLC leaf widths. Creates smaller wid
 in the case where the jaws are halfway within a leaf width. Bixel x widths are
 set by `Δx`.`
 """
-function bixel_grid(mlc::MultiLeafCollimator, jaws::Jaws, Δx)
+function bixel_grid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
 
-    iL, iU = subset_indices(mlc, jaws.y)
+    iL = locate(mlc, jaws.y[1])
+    iU = locate(mlc, jaws.y[2])
 
     y = Float64[]
     Δy = Float64[]
 
     for i = iL:iU
-        yL, yU = mlc[i]
+        yL, yU = getedges(mlc, i)
 
         yL = max(yL, jaws.y[1])
         yU = min(yU, jaws.y[2])

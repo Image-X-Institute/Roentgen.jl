@@ -16,6 +16,10 @@ Locate the index `i` such that `mlc.edges[i]<=x<mlc.edges[i+1]`.
 """
 locate(mlc::AbstractMultiLeafCollimator, x) = locate(mlc.edges, x)
 
+getedges(mlc::AbstractMultiLeafCollimator) = mlc.edges
+getedges(mlc::AbstractMultiLeafCollimator, i::Int) = mlc.edges[i:i+1]
+getedges(mlc::AbstractMultiLeafCollimator, i::UnitRange{Int}) = mlc.edges[i[1]:i[end]+1]
+
 #--- MultiLeafCollimator ------------------------------------------------------
 
 """
