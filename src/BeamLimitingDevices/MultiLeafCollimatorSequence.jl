@@ -23,12 +23,18 @@ struct MultiLeafCollimatorSequence{Tpos<:AbstractArray, Tedge<:AbstractVector} <
     edges::Tedge
     nleaves::Int
     napertures::Int
-    function MultiLeafCollimatorSequence(positions, edges)
+    function MultiLeafCollimatorSequence(positions::AbstractArray, edges::AbstractVector)
         _, nleaves, napertures = size(positions)
         @assert size(positions, 1) == 2 "Number of leaf positions per track != 2"
         @assert size(positions, 2) == length(edges)-1 "Length of positions and edges do not match"
         new{typeof(positions), typeof(edges)}(positions, edges, nleaves, napertures)
     end
+end
+
+function MultiLeafCollimatorSequence(napertures::Int, edges::AbstractVector)
+    nleaves = length(edges)-1
+    positions = zeros(2, nleaves, napertures)
+    MultiLeafCollimatorSequence(positions, edges)
 end
 
 # Size and Length

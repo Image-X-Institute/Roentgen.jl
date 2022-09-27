@@ -47,26 +47,23 @@ function load_beam(beam, total_meterset)
     jaws_y = controlpoint[tag"BeamLimitingDevicePositionSequence"][2][tag"LeafJawPositions"]
     jaws = Jaws(jaws_x, jaws_y)
 
-    mlc_boundaries = beam[tag"BeamLimitingDeviceSequence"][3]["LeafPositionBoundaries"]
-    mlc = MultiLeafCollimator(mlc_boundaries)
-    nleaves = length(mlc)
+    mlc_edges = beam[tag"BeamLimitingDeviceSequence"][3]["LeafPositionBoundaries"]
+    mlc = MultiLeafCollimatorSequence(ncontrol, mlc_edges)
+    nleaves = length(mlc_edges)-1
 
     ϕg = zeros(ncontrol)
-    mlcx = zeros(2, length(mlc), ncontrol)
     meterset = zeros(ncontrol)
 
     for (i, controlpoint) in enumerate(controlpoints)
-        ϕg[i] = deg2rad(controlpoint[tag"GantryAngle"])
-        if(ϕg[i] > π)
-            ϕg[i] -= 2π
-        end
-        mlcx[:,:,i] .= reshape(controlpoint[tag"BeamLimitingDevicePositionSequence"][end][tag"LeafJawPositions"],
-                               nleaves, 2)'
+        ϕg[i] = fixangle(deg2rad(controlpoint[tag"GantryAngle"]))
+
+        mlc.positions[:,:,i] .= reshape(controlpoint[tag"BeamLimitingDevicePositionSequence"][end][tag"LeafJawPositions"],
+                                        nleaves, 2)'
 
         meterset[i] = total_meterset*controlpoint[tag"CumulativeMetersetWeight"]
     end
 
-    VMATField(ncontrol, mlcx, mlc, jaws, θb, ϕg, meterset, :cumulative, Ḋ, isocenter, SAD)
+    VMATField(mlc, jaws, ϕg, θb, SAD, diff(meterset), Ḋ, isocenter)
 end
 
 """
