@@ -1,5 +1,21 @@
 abstract type AbstractMultiLeafCollimator <: AbstractBeamLimitingDevice end
 
+# Iteration
+Base.iterate(mlc::AbstractMultiLeafCollimator) = (mlc[1], 1)
+Base.iterate(mlc::AbstractMultiLeafCollimator, state) = state>=length(mlc) ? nothing : (mlc[state+1], state+1)
+
+# Required for tests.
+function Base.:(==)(mlc1::AbstractMultiLeafCollimator, mlc2::AbstractMultiLeafCollimator)
+    mlc1.positions == mlc2.positions && mlc1.edges == mlc2.edges
+end
+
+"""
+    locate(mlc::AbstractMultiLeafCollimator, x)
+
+Locate the index `i` such that `mlc.edges[i]<=x<mlc.edges[i+1]`.
+"""
+locate(mlc::AbstractMultiLeafCollimator, x) = locate(mlc.edges, x)
+
 #--- MultiLeafCollimator ------------------------------------------------------
 
 """
@@ -60,9 +76,7 @@ Base.firstindex(mlc::MultiLeafCollimator) = 1
 Base.lastindex(mlc::MultiLeafCollimator) = mlc.n
 Base.eachindex(mlc::MultiLeafCollimator) = Base.OneTo(mlc.n)
 
-function Base.show(io::IO, mlc::MultiLeafCollimator)
-    maxdigits = 6
-    print(size(mlc.positions, 1), "x", size(mlc.positions, 2), " MultiLeafCollimator")
+function show_leaf_positions(io::IO, mlc::MultiLeafCollimator, maxdigits)
     for j =1:2
         println(io)
         for i in eachindex(mlc)
@@ -84,14 +98,11 @@ Base.getindex(mlc::MultiLeafCollimator, i::UnitRange{Int}) = MultiLeafCollimator
 Base.view(mlc::MultiLeafCollimator, i::Int) = (@view mlc.positions[:, i]), (@view mlc.edges[i:i+1])
 Base.view(mlc::MultiLeafCollimator, i::UnitRange{Int}) = MultiLeafCollimator((@view mlc.positions[:, i]), (@view mlc.edges[i[1]:i[end]+1]))
 
-# Iteration
-Base.iterate(mlc::MultiLeafCollimator) = (mlc[1], 1)
-Base.iterate(mlc::MultiLeafCollimator, state) = state>=length(mlc) ? nothing : (mlc[state+1], state+1)
 
-
-# Required for tests.
-function Base.:(==)(mlc1::MultiLeafCollimator, mlc2::MultiLeafCollimator)
-    mlc1.positions == mlc2.positions && mlc1.edges == mlc2.edges && mlc1.n == mlc2.n
+function Base.show(io::IO, mlc::MultiLeafCollimator)
+    maxdigits = 6
+    print(size(mlc.positions, 1), "x", size(mlc.positions, 2), " MultiLeafCollimator")
+    show_leaf_positions(io, mlc, maxdigits)
 end
 
 #= Shifting the MLC
@@ -107,9 +118,3 @@ for op in (:+, :-, :*, :/)
     end)
 end
 
-"""
-    locate(mlc::MultiLeafCollimator, x)
-
-Locate the index `i` such that `mlc.edges[i]<=x<mlc.edges[i+1]`.
-"""
-locate(mlc::MultiLeafCollimator, x) = locate(mlc.edges, x)

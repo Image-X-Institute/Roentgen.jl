@@ -1,4 +1,4 @@
-begin "MultiLeafCollimator"
+@testset "MultiLeafCollimator" begin 
 
     function test_constructor(mlc, x, y)
         @test mlc.positions == x

@@ -9,4 +9,5 @@ using DoseCalculations
     include("Fluence.jl")
     include("ScaledIsoplaneKernel.jl")
     include("MultiLeafCollimator.jl")
+    include("MultiLeafCollimatorSequence.jl")
 end

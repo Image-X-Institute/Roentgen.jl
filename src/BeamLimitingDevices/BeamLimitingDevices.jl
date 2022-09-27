@@ -12,6 +12,7 @@ export Jaws, MultiLeafCollimator, getx, gety, inaperture, centerposition, edgepo
 abstract type AbstractBeamLimitingDevice end
 
 include("MultiLeafCollimator.jl")
+include("MultiLeafCollimatorSequence.jl")
 
 #--- Jaws --------------------------------------------------------------------------------------------------------------
 
