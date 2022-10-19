@@ -188,6 +188,7 @@ function save(filename::String, pos::DoseGrid, data::Vararg)
         end
     end
 end
+save(filename::String, pos::DoseGrid, data::Dict) =  save(filename, pos, data...)
 
 #--- DoseGridMasked ----------------------------------------------------------------------------------------------------
 
