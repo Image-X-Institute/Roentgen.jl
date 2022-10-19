@@ -63,7 +63,7 @@ function load_beam(beam, total_meterset)
         meterset[i] = total_meterset*controlpoint[tag"CumulativeMetersetWeight"]
     end
 
-    VMATField(mlc, jaws, ϕg, θb, SAD, diff(meterset), Ḋ, isocenter)
+    VMATField(mlc, jaws, ϕg, θb, SAD, meterset, Ḋ, isocenter)
 end
 
 """

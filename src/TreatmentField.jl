@@ -1,7 +1,7 @@
 import Base.getindex, Base.lastindex, Base.length, Base.iterate, Base.show
 
 export getmlc, getjaws, getϕg, getθb, getmeterset, getdoserate, getisocenter, getSAD, getmetersettype
-export limit_to_jaws, resample, discretise
+export resample, getgantry, getΔMU
 
 fixangle(angle) = angle > π ? angle - 2π : angle
 
@@ -27,6 +27,8 @@ function Base.iterate(field::AbstractTreatmentField, i)
     field[i], i+1
 end
 
+Base.length(field::AbstractTreatmentField) = field.ncontrol
+
 Base.eachindex(field::AbstractTreatmentField) = Base.OneTo(length(field))
 Base.lastindex(field::AbstractTreatmentField) = length(field)
 
@@ -38,9 +40,17 @@ getθb(field::AbstractTreatmentField, args...) = field.collimator_angle
 getϕg(field::AbstractTreatmentField, args...) = field.gantry_angle
 getSAD(field::AbstractTreatmentField, args...) = field.source_axis_distance
 getmeterset(field::AbstractTreatmentField, args...) = field.meterset
-getmetersettype(field::AbstractTreatmentField, args...) = field.metersettype
-getdoserate(field::AbstractTreatmentField, args...) = field.Ḋ
+getdoserate(field::AbstractTreatmentField, args...) = field.dose_rate
 getisocenter(field::AbstractTreatmentField, args...) = field.isocenter
+
+function Base.show(io::IO, field::AbstractTreatmentField)
+    msg = "$(length(field)),"*
+          " ϕg: $(show_angle(field.gantry_angle[1]))->$(show_angle(field.gantry_angle[end])),"*
+          " θb: $(show_angle(field.collimator_angle)),"*
+          " MU: $(field.meterset[end])"
+
+    println(io, msg)
+end
 
 #--- Control Point ------------------------------------------------------------
 
@@ -55,7 +65,7 @@ struct ControlPoint{T<:AbstractFloat, TMLC<:AbstractMultiLeafCollimator} <: Abst
     source_axis_distance::T
 
     meterset::T # Meterset   (MU)
-    Ḋ::T        # Dose Rate (MU/s)
+    dose_rate::T        # Dose Rate (MU/s)
     isocenter::SVector{3, T}    # Isocenter Position
 end
 
@@ -68,6 +78,8 @@ function Base.show(io::IO, pt::ControlPoint)
 end
 
 fixed_to_bld(pt::ControlPoint) = fixed_to_bld(getϕg(pt), getθb(pt), getSAD(pt))
+getgantry(pt::ControlPoint) = GantryPosition(getϕg(pt), getθb(pt), getSAD(pt))
+
 
 #--- VMAT --------------------------------------------------------------------------------------------------------------
 
@@ -87,132 +99,137 @@ struct VMATField{T<:AbstractFloat, TMLC<:AbstractMultiLeafCollimator} <: Abstrac
     source_axis_distance::T
 
     meterset::Vector{T}  # Cumulative Meterset   (MU)
-    Ḋ::T   # Dose Rate (MU/s)
+    dose_rate::T   # Dose Rate (MU/s)
 
     isocenter::SVector{3, T} # Isocenter Position (in patient based coords)
 
-    function VMATField(mlc, jaws, gantry_angles, collimator_angle, source_axis_distance, meterset, dose_rate, isocenter)
+    function VMATField(mlc, jaws, gantry_angles, collimator_angle, source_axis_distance, meterset, doserate, isocenter)
         ncontrol = length(gantry_angles)
 
         @assert length(mlc) == ncontrol
-        @assert length(meterset) == ncontrol-1
-        new{typeof(dose_rate), typeof(mlc)}(ncontrol,
+        @assert length(meterset) == ncontrol "length(meterset) ($(length(meterset))) != $ncontrol"
+        new{typeof(doserate), typeof(mlc)}(ncontrol,
                                             mlc, jaws,
                                             gantry_angles, collimator_angle, source_axis_distance,
-                                            meterset, dose_rate, isocenter)
+                                            meterset, doserate, isocenter)
     end
 end
 
-function Base.getindex(field::VMATField, i::Int) 
-    ControlPoint(field.mlc[i:i+1],
-                 field.jaws,
-                 0.5*(field.ϕg[i]+field.ϕg[i+1]),
-                 field.θb,
-                 field.SAD,
-                 field.meterset[i],
-                 field.Ḋ,
-                 field.isocenter)
+function save(file::HDF5.H5DataStore, field::VMATField)
+
+    save(file, getmlc(field))
+    save(file, getjaws(field))
+
+    file["gantry_angle"] = getϕg(field)
+    file["collimator_angle"] = getθb(field)
+    file["source_axis_distance"] = getSAD(field)
+
+    file["meterset"] = getmeterset(field)
+    file["dose_rate"] = getdoserate(field)
+
+    file["isocenter"] = Vector(getisocenter(field))
+
+    nothing
 end
 
-function Base.show(io::IO, field::AbstractTreatmentField)
-    msg = "$(length(field)),"*
-          " ϕg: $(show_angle(field.gantry_angle[1]))->$(show_angle(field.gantry_angle[end])),"*
-          " θb: $(show_angle(field.collimator_angle)),"
-          " MU: $(sum(field.meterset))"
 
-    println(io, msg)
+function Base.getindex(field::AbstractVMATField, i::Int)
+    ControlPoint(getmlc(field, i),
+                 getjaws(field),
+                 getϕg(field, i),
+                 getθb(field, i),
+                 getSAD(field, i),
+                 getmeterset(field, i),
+                 getdoserate(field, i),
+                 getisocenter(field, i))
 end
 
-Base.length(field::AbstractVMATField) = field.ncontrol-1
 
+function Base.getindex(field::AbstractVMATField, i::UnitRange{Int})
+    VMATField(getmlc(field, i),
+              getjaws(field),
+              getϕg(field, i),
+              getθb(field, i),
+              getSAD(field, i),
+              getmeterset(field, i),
+              getdoserate(field, i),
+              getisocenter(field, i))
+end
+
+Base.length(field::AbstractVMATField) = field.ncontrol
+
+getgantry(field::AbstractVMATField) = GantryPosition.(getϕg(field),
+                                                      getθb(field),
+                                                      getSAD(field))
+
+getgantry(field::AbstractVMATField, i::Int) = GantryPosition(getϕg(field, i),
+                                                             getθb(field),
+                                                             getSAD(field))
+
+getmlc(field::AbstractVMATField, i) = field.mlc[i]
 getϕg(field::AbstractVMATField, i) = field.gantry_angle[i]
+
 getmeterset(field::AbstractVMATField, i) = field.meterset[i]
 
-# Limit Plan to Jaws
-
-"""
-    limit_to_jaws(field::AbstractTreatmentField)
-
-Apply to a `TreatmentField`, using the jaws as the lower and upper positions.
-"""
-function limit_to_jaws(field::AbstractTreatmentField)
-    jaws = getjaws(field)
-    mlc = getmlc(field)
-
-    i1, i2 = subset_indices(mlc, jaws.y)
-
-    mlcx = mlcx[:, i1:i2, :]
-    mlc = MultiLeafCollimator(mlc[i1:i2])
-
-    VMATField(length(field), mlcx, mlc, jaws, field.θb, field.ϕg, field.meterset, field.metersettype, field.Ḋ, field.isocenter, field.SAD)
+function getΔMU(field::AbstractVMATField, i::Int)
+    i == 1 && return 0.5*(field.meterset[2]-field.meterset[1])
+    i == length(field) && return 0.5*(field.meterset[end]-field.meterset[end-1])
+    0.5*(field.meterset[i+1]-field.meterset[i-1])
 end
+
+#--- Resampling --------------------------------------------------------------------------------------------------------
 
 """
     resample(field, ηₛ::AbstractVector{T}; by=:time)
 
 Resample a treatment field onto new times or meterset values.
 
-Can resample either by time (`by=:time`, default) or MU (`by=:MU`).
+Can resample either by time (`by=:time`) or MU (`by=:MU`, default).
 """
-function resample(field::AbstractTreatmentField, ηₛ::AbstractVector{T}; by=:time) where T<:AbstractFloat
-
-    if(getmetersettype(field)!=:cumulative)
-        throw(ErrorException("getmetersettype(field) != :cumulative"))
-    end
+function resample(field::AbstractTreatmentField, ηₛ::AbstractVector{T}; by=:MU) where T<:AbstractFloat
 
     if(by==:time)
-        η = field.meterset./field.Ḋ
+        η = field.meterset./field.dose_rate
     elseif(by==:MU)
         η = field.meterset
     end
     Δη = @. η[2:end]-η[1:end-1]
 
     ncontrol = length(ηₛ)
-    mlcx = zeros(2, length(field.mlc), ncontrol)
     ϕg = zeros(ncontrol)
     meterset = zeros(ncontrol)
 
-    mlcx = zeros(2, length(field.mlc), length(ηₛ))
+    mlc = MultiLeafCollimatorSequence(ncontrol, getedges(field.mlc))
 
     for i in eachindex(ηₛ)
         j = min(length(Δη), searchsortedlast(η, ηₛ[i]))
         α = (ηₛ[i] - η[j])/Δη[j]
 
         # Interpolate Gantry Angle
-        ϕg[i] = interp(field.ϕg[j], field.ϕg[j+1], α)
+        ϕg[i] = interp(field.gantry_angle[j], field.gantry_angle[j+1], α)
         meterset[i] = interp(field.meterset[j], field.meterset[j+1], α)
 
         # Interpolate MLC x
-        mlcxi = @view mlcx[:,:,i]
-        mlcxi .= interp(field.mlcx[:,:,j], field.mlcx[:,:,j+1], α)        
+        mlc.positions[:, :, i] .= interp(field.mlc.positions[:,:,j], field.mlc.positions[:,:,j+1], α)        
 
-        # for j=1:size(mlcxi, 2)
-        #     if(mlcxi[1,j] <= field.jaws.x[1] || mlcxi[2,j] >= field.jaws.x[2])
-        #         mlcxi[:, j] .= 0.
-        #     end
-        # end
     end
-
-    # mlcx = @. max(field.jaws.x[1], min(field.jaws.x[2], mlcx))
-
-    VMATField(ncontrol,
-              mlcx, field.mlc, field.jaws,
-              field.θb, ϕg,
-              meterset, getmetersettype(field), field.Ḋ,
-              field.isocenter, field.SAD)
+    VMATField(mlc, field.jaws,
+              ϕg, field.collimator_angle, field.source_axis_distance,
+              meterset, field.dose_rate,
+              field.isocenter)
 end
 
 """
-    resample(field, Δη::T; by=:time)
+    resample(field, Δη::T; by=:MU)
 
 Resample at uniform steps `Δη`, from start to finish.
 
-See `resample(field, ηₛ::AbstractVector{T}; by=:time)` for details.
+See `resample(field, ηₛ::AbstractVector{T}; by=:MU)` for details.
 """
-function resample(field, Δη::T; by=:time, include_end=true) where T<:Number
+function resample(field, Δη::T; by=:MU, include_end=true) where T<:Number
 
     if(by==:time)
-        η_end = field.meterset[end]/field.Ḋ
+        η_end = field.meterset[end]/field.dose_rate
     elseif(by==:MU)
         η_end = field.meterset[end]
     end
@@ -222,32 +239,4 @@ function resample(field, Δη::T; by=:time, include_end=true) where T<:Number
         push!(η, η_end)
     end
     resample(field, η; by=by)
-end
-
-
-"""
-    discretise(field)
-
-Discretise a treatment field.
-
-Returns a field of length `length(field)-1`. Two consecutive control points are
-combined by averaging the apertures and differencing the meterset value.
-"""
-function discretise(field::AbstractTreatmentField)
-
-    if(getmetersettype(field)!=:cumulative)
-        throw(ErrorException("getmetersettype(field) != :cumulative"))
-    end
-
-    ncontrol = length(field)-1
-
-    ϕg = @. 0.5*(field.ϕg[1:end-1] + field.ϕg[2:end])
-
-    ΔMU = field.meterset[2:end] - field.meterset[1:end-1]
-
-    VMATField(ncontrol,
-              field.mlcx, field.mlc, field.jaws,
-              field.θb, ϕg,
-              ΔMU, :discrete, field.Ḋ,
-              field.isocenter, field.SAD)
 end

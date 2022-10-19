@@ -10,6 +10,9 @@ include("utils/misc.jl")
 
 
 include("CoordinateSystems.jl")
+
+include("Gantry.jl")
+
 include("BeamLimitingDevices/BeamLimitingDevices.jl")
 include("DicomPlan.jl")
 
