@@ -57,7 +57,11 @@ When applied to MultiLeafCollimator with leaf positions, plot the open aperture.
 
 Fills the area obstructed by leaves, unless `invert=true` where it fills the open aperture.
 """
-function plot_bld!(p, mlcx, mlc::MultiLeafCollimator; invert=false, leaf_length=125., fill=true, fillalpha=0.1, kwargs...)
+function plot_bld!(p, mlc::MultiLeafCollimator; invert=false, leaf_length=125., fill=true, fillalpha=0.1, kwargs...)
+
+    mlcx = mlc.positions
+    mlcy = mlc.edges
+
 
     # Set fill=false if fillalpha = 0. (completely transparent)
     if(fill)
@@ -69,7 +73,7 @@ function plot_bld!(p, mlcx, mlc::MultiLeafCollimator; invert=false, leaf_length=
     end
 
     # Segment the MLC positions
-    x, y = segment_mlc(mlcx, mlc)
+    x, y = segment_mlc(mlcx, mlcy)
 
     # Plot the first segment
     plot!(p, x[1], y[1]; aspect_ratio=1, kwargs...)
@@ -84,14 +88,14 @@ function plot_bld!(p, mlcx, mlc::MultiLeafCollimator; invert=false, leaf_length=
     # Otherwise, fill the outside, up to the leaf length
     else
         # Plot the outside edge of the mlc
-        x, y = segment_mlc(mlcx .+ leaf_length*[-1., 1.], mlc)
+        x, y = segment_mlc(mlcx .+ leaf_length*[-1., 1.], mlcy)
         plot!(p, x, y; primary=false, kwargs...)
         
         # Fill the areas obstructed by the leaves
         if(fill)
             xB = segmentx(mlcx[1, :], mlcx[1, :].-leaf_length)
             xA = segmentx(mlcx[2, :], mlcx[2, :].+leaf_length)
-            y = segmenty(mlc[1:end])
+            y = segmenty(mlcy)
             plot!(p, xB, y; line=false, primary=false, fill=true, fillalpha=fillalpha, kwargs...)
             plot!(p, xA, y; line=false, primary=false, fill=true, fillalpha=fillalpha, kwargs...)
         end
@@ -179,7 +183,7 @@ function segment_indices(mlcx)
 end
 
 """
-    segment_mlc(mlcx, mlc)
+    segment_mlc(mlcx, mlcy)
 
 Segment the MLC aperture into separate contained "openings", return the x and y
 positions of the aperture.
@@ -187,7 +191,7 @@ positions of the aperture.
 Calls `segment_indices` to get the indices for each section, then `segmentx` 
 and `segmenty` to retrieve the positions of the aperture.
 """
-function segment_mlc(mlcx::AbstractMatrix{T}, mlc) where T<:AbstractFloat
+function segment_mlc(mlcx::AbstractMatrix{T}, mlcy) where T<:AbstractFloat
     indices = segment_indices(mlcx)
     
     x = Vector{T}[]
@@ -198,20 +202,13 @@ function segment_mlc(mlcx::AbstractMatrix{T}, mlc) where T<:AbstractFloat
         i_end = indices[i+1]-1
 
         xi = segmentx(mlcx[1, i_start:i_end], mlcx[2, i_start:i_end])
-        yi = segmenty(mlc[i_start:i_end])
+        yi = segmenty(mlcy[i_start:i_end+1])
         
         push!(x, xi)
         push!(y, yi)
     end
     x, y
 end
-
-"""
-    plot_bld!(p, mlc::MultiLeafCollimator; kwargs...)
-
-When applied to MultiLeafCollimator, plot a series of horizontal lines at each leaf y edge.
-"""
-plot_bld!(p::Plots.Plot, mlc::MultiLeafCollimator; kwargs...) = hline!(p, gety(mlc); kwargs...)
 
 
 #--- Axes Limits -------------------------------------------------------------------------------------------------------

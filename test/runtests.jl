@@ -2,6 +2,7 @@ using Test
 using DoseCalculations
 
 @testset "DoseCalculations" begin
+    include("utils.jl")
     include("interpolation.jl")
     include("CoordinateSystems.jl")
     include("ExternalSurfaces.jl")
@@ -9,4 +10,5 @@ using DoseCalculations
     include("Fluence.jl")
     include("ScaledIsoplaneKernel.jl")
     include("MultiLeafCollimator.jl")
+    include("MultiLeafCollimatorSequence.jl")
 end

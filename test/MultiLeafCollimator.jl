@@ -1,73 +1,80 @@
-function test_subsetting(TVec)
+@testset "MultiLeafCollimator" begin 
 
-    @testset "Subset Indices" begin
-        y_test = TVec(-2.:1:2.)
-        mlc = MultiLeafCollimator(y_test)
-
-        @testset "Within leaf edges" begin
-            y1, y2 = -0.8, 1.2
-            iL, iU = DoseCalculations.subset_indices(mlc, y1, y2)
-            @test iL == 2
-            @test iU == 4
-            @test y_test[iL]<=y1<y_test[iL+1]
-            @test y_test[iU]<y2<=y_test[iU+1]
-        end
-
-        @testset "On lower leaf edge" begin
-            y1, y2 = -1., 1.2
-            iL, _ = DoseCalculations.subset_indices(mlc, y1, y2)
-            @test iL == 2
-            @test y_test[iL]<=y1<y_test[iL+1]
-        end
-
-        @testset "On upper leaf edge" begin
-            y1, y2 = -0.8, 2.
-            _, iU = DoseCalculations.subset_indices(mlc, y1, y2)
-            @test iU == 4
-            @test y_test[iU]<y2<=y_test[iU+1]
-        end
-
-        @testset "Below lower bound" begin
-            y1, y2 = -2.8, 2.
-            iL, _ = DoseCalculations.subset_indices(mlc, y1, y2)
-            @test iL == 1
-        end
-
-        @testset "Above upper bound" begin
-            y1, y2 = -0.8, 3.
-            _, iU = DoseCalculations.subset_indices(mlc, y1, y2)
-            @test iU == length(mlc)
-        end
+    function test_constructor(mlc, x, y)
+        @test mlc.positions == x
+        @test mlc.edges == y
+        @test mlc.n == length(y)-1
+        @test mlc.n == size(x, 2)
     end
 
-    @testset "Subset of MLC" begin
-        y_test = TVec(-10.:1:10.)
-        mlc = MultiLeafCollimator(y_test)
+    function test_constructor_errors(mlc, x, y)
 
-        function test_subset(mlc, y1, y2)
-            mlc_subset = extract_subset(mlc, y1, y2)
-            @test edgeposition(mlc_subset, 1)<=y1
-            @test y2<=edgeposition(mlc_subset, length(mlc_subset)+1)
-        end
+        @test mlc.positions == x
+        @test mlc.edges == y
+        @test mlc.n == length(y)-1
+        @test mlc.n == size(x, 2)
+    end
 
-        @testset "Within leaf edges" begin
-            test_subset(mlc, -4.5, 6.3)
-        end
+    function test_methods(mlc)
+        @test length(mlc) == mlc.n
+        @test size(mlc) == (mlc.n,)
+        @test firstindex(mlc) == 1
+        @test lastindex(mlc) == mlc.n
+        @test eachindex(mlc) == Base.OneTo(mlc.n)
+    end
 
-        @testset "On lower edge" begin
-            test_subset(mlc, -5., 6.3) 
-        end
+    function test_indexing(mlc)
+        i = 3
+        @test mlc[i] == (mlc.positions[:, i], mlc.edges[i:i+1])
 
-        @testset "On upper edge" begin
-            test_subset(mlc, -4.5, 6.) 
-        end
+        i = 2:6
+        x = mlc.positions[:, i]
+        y = mlc.edges[i[1]:i[end]+1]
+        @test mlc[i] == MultiLeafCollimator(x, y)
+    end
+
+    function test_operations(mlc, Δ)
+        x = mlc.positions
+        y = mlc.edges
         
+        @test mlc + Δ == MultiLeafCollimator(x.+Δ[1], y.+Δ[2])
+        @test mlc - Δ == MultiLeafCollimator(x.-Δ[1], y.-Δ[2])
+        @test mlc / Δ == MultiLeafCollimator(x./Δ[1], y./Δ[2])
+        @test mlc * Δ == MultiLeafCollimator(x.*Δ[1], y.*Δ[2])
     end
-end
 
-@testset "MultiLeafCollimator Tests" begin
-    vector_types = [typeof(-1.:1.:1.), Vector{Float64}]
-    @testset for TVec in vector_types
-        test_subsetting(TVec)
+    y = -30.:5:30.
+    @testset "With $(typeof(yᵢ)) edges" for yᵢ in [y, collect(y)]
+        x = rand(2, length(yᵢ)-1)
+        mlc = MultiLeafCollimator(x, yᵢ)
+        
+        @testset "Constructor" test_constructor(mlc, x, yᵢ)
+
+        @testset "Constructor Errors" test_constructor(mlc, x, yᵢ)
+
+        @testset "Basic Methods" test_methods(mlc)
+        @testset "Indexing" test_indexing(mlc)
+        
+        @testset "Operate with Vector" test_operations(mlc, rand(2))
+        @testset "Operate with Tuple" test_operations(mlc, tuple(rand(2)...))
+    end
+
+    @testset "Basic Constructor" begin
+        y = -60:10.:60
+        n = length(y)-1
+        Δ = step(y)
+        mlc = MultiLeafCollimator(n, Δ)
+        
+        @test mlc.edges == y
+        @test mlc.positions == zeros(2, n)
+    end
+
+    y = -30.:5:30.
+    @testset "Assertion Errors" begin
+        x = rand(2, length(y)-10)
+        @test_throws AssertionError("Length of positions and edges do not match") MultiLeafCollimator(x, y)
+
+        x = rand(1, length(y)-1)
+        @test_throws AssertionError("Number of leaf positions per track != 2") MultiLeafCollimator(x, y)
     end
 end

@@ -114,21 +114,6 @@ end
 #--- Bixel Grid ---------------------------------------------------------------
 
 """
-    snapped_range(x1, x2, Δ)
-
-Create a range from x1 to x2 which is "snapped" to the step Δ.
-
-Positions are "snapped" to the step value (e.g. a starting position of
-x[1]-0.2Δx snaps to x[1]-Δx). The new range always includes the start and end
-points of the original range
-
-Examples:
-- 0.1:1.:9.4 -> 0:1.:10.
-
-"""
-snapped_range(x1, x2, Δ) = Δ*(floor(Int, x1/Δ):ceil(Int, x2/Δ))
-
-"""
     bixel_grid(x, y, Δx[, Δy])
 
 Construct a grid of bixels.
@@ -173,7 +158,7 @@ Uses the start and end positions and step of each range to construct the bixel g
 bixel_grid(x::AbstractRange, y::AbstractRange) = bixel_grid(x, y, step(x), step(y))
 
 """
-    bixel_grid(mlc::MultiLeafCollimator, jaws::Jaws, Δx)
+    bixel_grid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
 
 Grid that fits in an MLC and the jaws.
 
@@ -181,25 +166,21 @@ Bixel y widths are of the same width as the MLC leaf widths. Creates smaller wid
 in the case where the jaws are halfway within a leaf width. Bixel x widths are
 set by `Δx`.`
 """
-function bixel_grid(mlc::MultiLeafCollimator, jaws::Jaws, Δx)
+function bixel_grid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
 
-    iL, iU = subset_indices(mlc, jaws.y)
+    iL = locate(mlc, jaws.y[1])
+    iU = locate(mlc, jaws.y[2])
 
-    y = Float64[]
-    Δy = Float64[]
-
-    for i = iL:iU
-        yL, yU = mlc[i]
-
-        yL = max(yL, jaws.y[1])
-        yU = min(yU, jaws.y[2])
-
-        push!(y, 0.5*(yL + yU))
-        push!(Δy, yU - yL)
-
-    end
+    y = getedges(mlc)[iL:iU]
+    y = minmax.(y, jaws.y[1], jaws.y[2])
+    Δy = diff(y)
 
     x = snapped_range(jaws.x[1], jaws.x[end], Δx)
+    x = minmax.(x, jaws.x[1], jaws.x[2])
+    Δx = diff(x)
+
+    x = 0.5*(x[1:end-1] + x[2:end])
+    y = 0.5*(y[1:end-1] + y[2:end])
 
     Bixel.(x, y', Δx, Δy')
 end
@@ -231,11 +212,11 @@ end
 
 From MultiLeafCollimator and Jaws.
 """
-function bixels_from_bld(mlcx::AbstractMatrix{T}, mlc::MultiLeafCollimator, jaws::Jaws{T}) where T<:AbstractFloat
+function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T}) where T<:AbstractFloat
 
     bixels = Bixel{T}[]
 
-    @inbounds for i in eachindex(mlc)
+    @inbounds for mlc₍ in eachindex(mlc)
         xL, xU = mlcx[:, i]
         yL, yU = mlc[i]
 
@@ -270,9 +251,9 @@ Bixel fully within range (xL<=x-w/2 && x+w/2<=xU), return 1. If the bixel is
 fully outside the range (xU<=x-w/2 || x+w/2<=xL), return 0.
 
 """
-function overlap(x::T, w::T, xL::T, xU::T) where T<:AbstractFloat
-    hw = T(0.5)*w
-    max(zero(T), min(x + hw, xU) - max(x - hw, xL))/w
+function overlap(x::Number, w::Number, xL::Number, xU::Number)
+    hw = 0.5*w
+    max(0., min(x + hw, xU) - max(x - hw, xL))/w
 end
 
 """
@@ -290,8 +271,7 @@ end
     fluence(bixel::AbstractBixel, bld::AbstractBeamLimitingDevice, args...)
 
 Compute the fluence of `bixel` from beam limiting device (e.g. an MLC or jaws).
-"""
-function fluence(bixel::AbstractBixel, bld::AbstractBeamLimitingDevice, args...) end
+""" fluence(bixel::AbstractBixel, bld::AbstractBeamLimitingDevice, args...)
 
 """
     fluence(bixels::AbstractArray{<:AbstractBixel}, bld::AbstractBeamLimitingDevice, args...)
@@ -337,11 +317,11 @@ fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, jaws.x, jaws.y
 #--- Fluence from an MLC Aperture --------------------------------------------------------------------------------------
 
 """
-    fluence(bixel::Bixel, mlcx, mlc::MultiLeafCollimator)
+    fluence(bixel::Bixel, mlc::MultiLeafCollimator)
 
 From an MLC aperture.
 """
-function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCAperture, mlc::MultiLeafCollimator) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, mlc::MultiLeafCollimator) where T<:AbstractFloat
 
     hw = 0.5*width(bixel, 2)
     i1 = max(1, locate(mlc, bixel[2]-hw))
@@ -349,7 +329,7 @@ function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCAperture, mlc::MultiL
 
     Ψ = zero(T)
     @inbounds for j=i1:i2
-        Ψ += fluence_from_rectangle(bixel, (@view mlcx[:, j]), (@view mlc[j]))
+        Ψ += fluence_from_rectangle(bixel, mlc[j]...)
     end
     Ψ
 end
@@ -362,36 +342,37 @@ From an MLC aperture using a given leaf index.
 This method assumes the bixel is entirely within the `i`th leaf track, and does
 not overlap with other leaves. Does not check whether these assumptions are true.
 """
-function fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCAperture) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel, index::Int, mlcx::AbstractMatrix)
     overlap(position(bixel, 1), width(bixel, 1), mlcx[1, index], mlcx[2, index])
 end
 
 #--- Moving Aperture fluences ------------------------------------------------------------------------------------------
 
 """
-    fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCSequence, mlc::MultiLeafCollimator)
+    fluence(bixel::AbstractBixel{T}, mlc1::MultiLeafCollimator, mlc2::MultiLeafCollimator)
 
 From an MLC aperture sequence.
 """
-function fluence(bixel::AbstractBixel{T}, mlcx::AbstractMLCSequence, mlc::MultiLeafCollimator) where T<:AbstractFloat
+function fluence(bixel::AbstractBixel{T}, mlc1::MultiLeafCollimator, mlc2::MultiLeafCollimator) where T<:AbstractFloat
+
     hw = 0.5*width(bixel, 2)
-    i1 = max(1, locate(mlc, bixel[2]-hw))
-    i2 = min(length(mlc), locate(mlc, bixel[2]-hw))
+    i1 = max(1, locate(mlc1, bixel[2]-hw))
+    i2 = min(length(mlc1), locate(mlc1, bixel[2]-hw))
 
     Ψ = zero(T)
     @inbounds for j=i1:i2
-        Ψ += fluence_from_moving_aperture(bixel, (@view mlcx[:, j, 1]), (@view mlcx[:, j, 2]))
+        Ψ += fluence_from_moving_aperture(bixel, getpositions(mlc1, j), getpositions(mlc2, j))
     end
     Ψ
 end
 
 """
-    fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCSequence)
+    fluence(bixel::AbstractBixel{T}, index::Int, mlcx1, mlcx2)
 
 From an MLC aperture sequence using a given leaf index.
 """
-function fluence(bixel::AbstractBixel{T}, index::Int, mlcx::AbstractMLCSequence) where T<:AbstractFloat
-    fluence_from_moving_aperture(bixel, (@view mlcx[:, index, 1]), (@view mlcx[:, index, 2]))
+function fluence(bixel::AbstractBixel, index::Int, mlcx1::AbstractMatrix, mlcx2::AbstractMatrix)
+    fluence_from_moving_aperture(bixel, (@view mlcx1[:, index]), (@view mlcx2[:, index]))
 end
 
 """

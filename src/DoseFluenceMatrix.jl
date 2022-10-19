@@ -12,11 +12,11 @@ dose calculation algorithm.
 
 See `dose_fluence_matrix!` for implementation.
 """
-function dose_fluence_matrix(pos::AbstractVector, bixels::AbstractVector{<:AbstractBixel},
+function dose_fluence_matrix(pos, bixels::AbstractVector{<:AbstractBixel},
+                             gantry::GantryPosition,
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
     D = spzeros(length(bixels), length(pos))
-    dose_fluence_matrix!(D, pos, bixels, surf, calc)
-    D
+    dose_fluence_matrix!(D, pos, bixels, gantry, surf, calc)
 end
 
 """
@@ -29,20 +29,22 @@ Requires the `point_kernel!` method to be defined for the given dose calculation
 algorithm (`calc`). `point_kernel!` computes the dose calculated from the set of
 bixels a given dose point. Stores result in `D`.
 """
-function dose_fluence_matrix!(D::SparseMatrixCSC, pos::AbstractVector, bixels::AbstractVector{<:AbstractBixel},
+function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:AbstractBixel},
+                              gantry::GantryPosition,
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
 
     colptr = D.colptr
     rowval = D.rowval
     nzval = D.nzval
 
-    SAD = 1000.
+    trans = fixed_to_bld(gantry)
+    SAD = getSAD(gantry)
 
     # Fill colptr
     colptr[1] = 1
-    @batch per=thread for j in eachindex(pos)
+    @batch per=thread for j in eachindex(pos) #
          # Temporarily store number of values in colptr
-        colptr[j+1] = kernel_size(calc, pos[j], bixels, SAD)
+        colptr[j+1] = kernel_size(calc, trans(pos[j]), bixels, SAD)
     end
     cumsum!(colptr, colptr) # Compute colptr from number of values
 
@@ -52,7 +54,7 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos::AbstractVector, bixels::A
     resize!(rowval, n_prealloc)
 
     # Compute row and matrix values
-    @batch per=thread for j in eachindex(pos)
+    @batch per=thread for j in eachindex(pos) #
 
         ptr = colptr[j]:(colptr[j+1]-1)
 
@@ -61,6 +63,8 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos::AbstractVector, bixels::A
         V = @view nzval[ptr]
         
         # Calculate the row and matrix value for given position
-        point_kernel!(I, V, pos[j], bixels, surf, calc)
+        point_kernel!(I, V, trans(pos[j]), bixels, surf, calc)
     end
+
+    D
 end
