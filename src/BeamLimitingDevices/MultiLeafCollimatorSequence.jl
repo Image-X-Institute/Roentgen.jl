@@ -3,7 +3,7 @@ export MultiLeafCollimatorSequence
 """
     MultiLeafCollimatorSequence
 
-`MultiLeafCollimatorSequence` stores the leaf positions and edges of an MLC.
+`MultiLeafCollimatorSequence` stores a sequence of MLC apertures.
 
 The 2 by `n` leaf positions are stored in the `positions` matrix. The leaf position
 boundaries are stored in the `edges` vector, which is 1 element longer than the
@@ -18,7 +18,7 @@ scaled with multplication and division.
 
 The `locate` method is implemented to return the leaf index containing edge position.
 """
-struct MultiLeafCollimatorSequence{Tpos<:AbstractArray, Tedge<:AbstractVector} <: AbstractMultiLeafCollimator
+struct MultiLeafCollimatorSequence{Tpos<:AbstractArray, Tedge<:AbstractVector}
     positions::Tpos
     edges::Tedge
     nleaves::Int
@@ -37,13 +37,31 @@ function MultiLeafCollimatorSequence(napertures::Int, edges::AbstractVector)
     MultiLeafCollimatorSequence(positions, edges)
 end
 
+# Required for tests.
+function Base.:(==)(mlc1::MultiLeafCollimatorSequence, mlc2::MultiLeafCollimatorSequence)
+    getpositions(mlc1) == getpositions(mlc2) && getedges(mlc1) == getedges(mlc2)
+end
+
+# Iteration
+Base.iterate(mlc::MultiLeafCollimatorSequence) = (mlc[1], 1)
+Base.iterate(mlc::MultiLeafCollimatorSequence, state) = state>=length(mlc) ? nothing : (mlc[state+1], state+1)
+
+function Base.copy(mlc::MultiLeafCollimatorSequence)
+    MultiLeafCollimatorSequence(copy(getpositions(mlc)), copy(getedges(mlc)))
+end
+function Base.similar(mlc::MultiLeafCollimatorSequence)
+    MultiLeafCollimatorSequence(similar(getpositions(mlc)), getedges(mlc))
+end
+
 # Size and Length
 Base.length(mlc::MultiLeafCollimatorSequence) = mlc.napertures
 Base.size(mlc::MultiLeafCollimatorSequence) = (length(mlc),)
 
 Base.firstindex(mlc::MultiLeafCollimatorSequence) = 1
-Base.lastindex(mlc::MultiLeafCollimatorSequence) = mlc.napertures
-Base.eachindex(mlc::MultiLeafCollimatorSequence) = Base.OneTo(mlc.napertures)
+Base.lastindex(mlc::MultiLeafCollimatorSequence) = length(mlc)
+Base.eachindex(mlc::MultiLeafCollimatorSequence) = Base.OneTo(length(mlc))
+
+Base.setindex(mlc::AbstractMultiLeafCollimator, x, i::Vararg{3}) = mlc.positions[i] .= x
 
 # Indexing
 Base.getindex(mlc::MultiLeafCollimatorSequence, i::Int) = MultiLeafCollimator(mlc.positions[:, :, i], mlc.edges)
@@ -55,26 +73,24 @@ Base.view(mlc::MultiLeafCollimatorSequence, i::UnitRange{Int}) = MultiLeafCollim
 
 function Base.show(io::IO, mlc::MultiLeafCollimatorSequence)
     maxdigits = 6
-    println(join(size(mlc.positions), "x", "x"), " MultiLeafCollimatorSequence")
+    print(join(size(mlc.positions), "x", "x"), " MultiLeafCollimatorSequence")
     if(length(mlc)<=5)
         for n in eachindex(mlc)
+            println(io)
             print(io, "n = $n")
             show_leaf_positions(io, mlc[n], maxdigits)
-            println(io)
         end
     else
         for n in eachindex(mlc[1:2])
+            println(io)
             print(io, "n = $n")
             show_leaf_positions(io, mlc[n], maxdigits)
-            println(io)
         end
-        for _=1:3
-            println(io, "⋮")
-        end
+        print(io, "\n⋮\n⋮\n⋮")
         for n in eachindex(mlc[end-1:end])
+            println(io)
             print(io, "n = $(lastindex(mlc)-2+n)")
             show_leaf_positions(io, mlc[n], maxdigits)
-            println(io)
         end
     end
 end
@@ -87,3 +103,14 @@ for op in (:+, :-, :*, :/)
         end
     end)
 end
+
+# Methods
+
+locate(mlc::MultiLeafCollimatorSequence, x) = locate(mlc.edges, x)
+
+getedges(mlc::MultiLeafCollimatorSequence) = mlc.edges
+getedges(mlc::MultiLeafCollimatorSequence, i::Int) = mlc.edges[i:i+1]
+getedges(mlc::MultiLeafCollimatorSequence, i::UnitRange{Int}) = mlc.edges[i[1]:i[end]+1]
+
+getpositions(mlc::MultiLeafCollimatorSequence) = mlc.positions
+getpositions(mlc::MultiLeafCollimatorSequence, i) = mlc.positions[i]
