@@ -226,3 +226,4 @@ function save(filename::String, pos::DoseGrid, data::Vararg) #
     end
     vtk_save(vtkfile)
 end
+save(filename::String, pos::DoseGrid, data::Dict) =  save(filename, pos, data...)
