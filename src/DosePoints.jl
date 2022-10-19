@@ -29,11 +29,11 @@ Returns `true` if the point `p` is within bounds
 """ within(bounds::AbstractBounds, p)
 
 """
-    boundingbox(bounds::AbstractBounds)
+    boundsextent(bounds::AbstractBounds)
 
 Returns the bounding box of the bounds as a 6 element tuple:
 `xmin`, `xmax`, `ymin`, `ymax`, `zmin`, `zmax`
-""" boundingbox(bounds::AbstractBounds)
+""" boundsextent(bounds::AbstractBounds)
 
 """
     CylinderBounds{T}
@@ -57,11 +57,11 @@ struct CylinderBounds{T} <: AbstractBounds
 end
 
 """
-    boundingbox(bounds::CylinderBounds)
+    boundsextent(bounds::CylinderBounds)
 
 For a cylinder
 """
-function boundingbox(bounds::CylinderBounds)
+function boundsextent(bounds::CylinderBounds)
     xmin, xmax = bounds.center[1] .+ 0.5*bounds.diameter*SVector(-1., 1.)
     ymin, ymax = bounds.center[2] .+ 0.5*bounds.diameter*SVector(-1., 1.)
     zmin, zmax = bounds.center[3] .+ 0.5*bounds.height*SVector(-1., 1.)
@@ -110,11 +110,11 @@ function MeshBounds(mesh, pad=10.) <: AbstractBounds
 end
 
 """
-    boundingbox(bounds::MeshBounds)
+    boundsextent(bounds::MeshBounds)
 
 For a mesh
 """
-boundingbox(bounds::MeshBounds) = bounds.box...
+boundsextent(bounds::MeshBounds) = bounds.box
 
 """
     within(bounds::MeshBounds, p)
@@ -125,7 +125,7 @@ function within(bounds::MeshBounds, p)
     dmin = minimum(norm.(Ref(Point(p)) .- vertices(bounds.mesh)))
     dmin<=bounds.pad && return true
 
-    xmin, xmax, ymin, ymax, zmin, zmax = boundingbox(bounds)
+    xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
     line = Segment(Point(xmin, ymin, zmin), Point(p))
     pI = intersect_mesh(line, bounds.mesh)
     
