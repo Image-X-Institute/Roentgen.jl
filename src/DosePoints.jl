@@ -105,7 +105,7 @@ function vtk_generate_file(filename, pos::DoseGrid)
     vtk_grid(filename, points, cells)
 end
 
-function save(filename::String, pos::DoseGrid, data)
+function save(filename::String, pos::DoseGrid, data::Vararg) #
     vtkfile = vtk_generate_file(filename, pos)
     for (key, value) in data
         vtkfile[key, VTKPointData()] = value
