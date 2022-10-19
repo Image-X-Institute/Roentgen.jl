@@ -18,52 +18,112 @@ function Base.:+(pos::T, x) where T<:DosePositions
     T(pos.x .+ x[1], pos.y .+ x[2], pos.z .+ x[3])
 end
 
-# Bounds
-struct CylinderBounds{T}
+#--- Bounds ------------------------------------------------------------------------------------------------------------
+
+abstract type AbstractBounds end
+
+"""
+    within(bounds::AbstractBounds, p)
+
+Returns `true` if the point `p` is within bounds
+""" within(bounds::AbstractBounds, p)
+
+"""
+    boundingbox(bounds::AbstractBounds)
+
+Returns the bounding box of the bounds as a 6 element tuple:
+`xmin`, `xmax`, `ymin`, `ymax`, `zmin`, `zmax`
+""" boundingbox(bounds::AbstractBounds)
+
+"""
+    CylinderBounds{T}
+
+Represents a cylinder about the `z` axis.
+"""
+struct CylinderBounds{T} <: AbstractBounds
     diameter::T
     height::T
     center::SVector{3, T}
+
+    function CylinderBounds(diameter, height)
+        T = typeof(diameter)
+        new{T}(diameter, height, zeros(SVector{3}))
+    end
+
+    function CylinderBounds(diameter, height, center)
+        T = typeof(diameter)
+        new{T}(diameter, height, SVector{3}(center))
+    end
 end
 
+"""
+    boundingbox(bounds::CylinderBounds)
+
+For a cylinder
+"""
 function boundingbox(bounds::CylinderBounds)
     xmin, xmax = bounds.center[1] .+ 0.5*bounds.diameter*SVector(-1., 1.)
-    ymin, ymax = bounds.center[2] .+ 0.5*bounds.height*SVector(-1., 1.)
-    zmin, zmax = bounds.center[3] .+ 0.5*bounds.diameter*SVector(-1., 1.)
+    ymin, ymax = bounds.center[2] .+ 0.5*bounds.diameter*SVector(-1., 1.)
+    zmin, zmax = bounds.center[3] .+ 0.5*bounds.height*SVector(-1., 1.)
 
     xmin, xmax, ymin, ymax, zmin, zmax
 end
 
+"""
+    within(bounds::CylinderBounds, p)
+
+Whether `p` is within the cylinder
+"""
 function within(bounds::CylinderBounds, p)
     p′ = p - bounds.center
-    p′[1]^2 + p′[3]^2 <= 0.25*bounds.diameter^2 && abs(p′[2]) <= 0.5*bounds.height
+    p′[1]^2 + p′[2]^2 <= 0.25*bounds.diameter^2 && abs(p′[3]) <= 0.5*bounds.height
 end
 
-struct MeshBounds{T<:AbstractFloat, TMesh<:SimpleMesh}
+"""
+    MeshBounds{T, TMesh}
+
+Represents a mesh surface.
+"""
+struct MeshBounds{T<:AbstractFloat, TMesh<:SimpleMesh} <: AbstractBounds
     mesh::TMesh
-    xlim::SVector{2, T}
-    ylim::SVector{2, T}
-    zlim::SVector{2, T}
+    box::SVector{6, T}
     pad::T
 end
 
-function MeshBounds(mesh, pad=10.)
+"""
+    MeshBounds
+
+Construct a `MeshBounds` with a mesh
+
+Optionally, can specify a `pad` which defines the distance from the mesh that is
+still considered within bounds.
+"""
+function MeshBounds(mesh, pad=10.) <: AbstractBounds
     pos = coordinates.(vertices(mesh))
     x = getindex.(pos, 1)
     y = getindex.(pos, 2)
     z = getindex.(pos, 3)
-    xlim = SVector(minimum(x)-pad, maximum(x)+pad)
-    ylim = SVector(minimum(y)-pad, maximum(y)+pad)
-    zlim = SVector(minimum(z)-pad, maximum(z)+pad)
-    MeshBounds(mesh, xlim, ylim, zlim, pad)
+    box = SVector(minimum(x)-pad, maximum(x)+pad,
+                  minimum(y)-pad, maximum(y)+pad,
+                  minimum(z)-pad, maximum(z)+pad)
+    MeshBounds(mesh, box, pad)
 end
 
-boundingbox(bounds::MeshBounds) = bounds.xlim..., bounds.ylim..., bounds.zlim...
+"""
+    boundingbox(bounds::MeshBounds)
 
+For a mesh
+"""
+boundingbox(bounds::MeshBounds) = bounds.box...
+
+"""
+    within(bounds::MeshBounds, p)
+
+Whether `p` is within the mesh
+"""
 function within(bounds::MeshBounds, p)
     dmin = minimum(norm.(Ref(Point(p)) .- vertices(bounds.mesh)))
-    if(dmin<=bounds.pad)
-        return true
-    end
+    dmin<=bounds.pad && return true
 
     xmin, xmax, ymin, ymax, zmin, zmax = boundingbox(bounds)
     line = Segment(Point(xmin, ymin, zmin), Point(p))
