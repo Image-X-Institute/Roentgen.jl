@@ -64,7 +64,7 @@ struct ControlPoint{T<:AbstractFloat, TMLC<:AbstractMultiLeafCollimator} <: Abst
     collimator_angle::T
     source_axis_distance::T
 
-    meterset::T # Meterset   (MU)
+    ΔMU::T # Meterset   (MU)
     dose_rate::T        # Dose Rate (MU/s)
     isocenter::SVector{3, T}    # Isocenter Position
 end
@@ -72,20 +72,20 @@ end
 function Base.show(io::IO, pt::ControlPoint)
     msg = "ϕg: $(show_angle(getϕg(pt))),"*
           "θb: $(show_angle(getθb(pt))),"*
-          "MU: $(getmeterset(pt))"
+          "ΔMU: $(getΔMU(pt))"
 
     println(io, msg)
 end
 
 fixed_to_bld(pt::ControlPoint) = fixed_to_bld(getϕg(pt), getθb(pt), getSAD(pt))
 getgantry(pt::ControlPoint) = GantryPosition(getϕg(pt), getθb(pt), getSAD(pt))
-
+getΔMU(pt::ControlPoint) = pt.ΔMU
 
 #--- VMAT --------------------------------------------------------------------------------------------------------------
 
 abstract type AbstractVMATField <: AbstractTreatmentField end
 
-struct VMATField{T<:AbstractFloat, TMLC<:AbstractMultiLeafCollimator} <: AbstractVMATField
+struct VMATField{T<:AbstractFloat, TMLC} <: AbstractVMATField
     ncontrol::Int   # Number of Control Points
 
     # Beam Limiting Devices
@@ -115,31 +115,13 @@ struct VMATField{T<:AbstractFloat, TMLC<:AbstractMultiLeafCollimator} <: Abstrac
     end
 end
 
-function save(file::HDF5.H5DataStore, field::VMATField)
-
-    save(file, getmlc(field))
-    save(file, getjaws(field))
-
-    file["gantry_angle"] = getϕg(field)
-    file["collimator_angle"] = getθb(field)
-    file["source_axis_distance"] = getSAD(field)
-
-    file["meterset"] = getmeterset(field)
-    file["dose_rate"] = getdoserate(field)
-
-    file["isocenter"] = Vector(getisocenter(field))
-
-    nothing
-end
-
-
 function Base.getindex(field::AbstractVMATField, i::Int)
     ControlPoint(getmlc(field, i),
                  getjaws(field),
                  getϕg(field, i),
                  getθb(field, i),
                  getSAD(field, i),
-                 getmeterset(field, i),
+                 getΔMU(field, i),
                  getdoserate(field, i),
                  getisocenter(field, i))
 end
