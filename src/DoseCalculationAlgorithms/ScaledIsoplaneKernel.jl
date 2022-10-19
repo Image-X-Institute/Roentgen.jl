@@ -17,9 +17,8 @@ end
 
 function ScaledIsoplaneKernel(filename::String, max_kernel_radius; δsub=SVector(1., 1.))
 
-    data = Dict()
-    open(filename, "r") do f
-        data = JSON.parse(read(f, String))
+    data = open(filename, "r") do f
+        JSON.parse(read(f, String))
     end
 
     ref_depth = data["Ref. Depth"]
