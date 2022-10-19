@@ -1,26 +1,22 @@
+
+#--- AbstractMultiLeafCollimator ---------------------------------------------------------------------------------------
+
 abstract type AbstractMultiLeafCollimator <: AbstractBeamLimitingDevice end
 
-# Iteration
-Base.iterate(mlc::AbstractMultiLeafCollimator) = (mlc[1], 1)
-Base.iterate(mlc::AbstractMultiLeafCollimator, state) = state>=length(mlc) ? nothing : (mlc[state+1], state+1)
+export getedges, getpositions, setpositions!
 
 # Required for tests.
 function Base.:(==)(mlc1::AbstractMultiLeafCollimator, mlc2::AbstractMultiLeafCollimator)
-    mlc1.positions == mlc2.positions && mlc1.edges == mlc2.edges
+    getpositions(mlc1) == getpositions(mlc2) && getedges(mlc1) == getedges(mlc2)
 end
 
 """
-    locate(mlc::AbstractMultiLeafCollimator, x)
+    locate(mlc::AbstractMultiLeafCollimator, x::Number)
 
-Locate the index `i` such that `mlc.edges[i]<=x<mlc.edges[i+1]`.
-"""
-locate(mlc::AbstractMultiLeafCollimator, x) = locate(mlc.edges, x)
+Locate the track index `i` which contains the position `x`
+""" locate(mlc::AbstractMultiLeafCollimator, x)
 
-getedges(mlc::AbstractMultiLeafCollimator) = mlc.edges
-getedges(mlc::AbstractMultiLeafCollimator, i::Int) = mlc.edges[i:i+1]
-getedges(mlc::AbstractMultiLeafCollimator, i::UnitRange{Int}) = mlc.edges[i[1]:i[end]+1]
-
-#--- MultiLeafCollimator ------------------------------------------------------
+#--- MultiLeafCollimator -----------------------------------------------------------------------------------------------
 
 """
     MultiLeafCollimator
@@ -67,10 +63,10 @@ MultiLeafCollimator(n::Int, Δy::Real) = MultiLeafCollimator(zeros(2, n), Δy*(-
 
 Construct an MLC with leaf edges.
 """
-function MultiLeafCollimator(edges)
-    n = length(edges)-1
-    MultiLeafCollimator(zeros(2, n), y)
-end
+MultiLeafCollimator(edges) = MultiLeafCollimator(zeros(2, n), length(edges)-1)
+
+Base.copy(mlc::MultiLeafCollimator) = MultiLeafCollimator(getpositions(mlc), getedges(mlc))
+Base.similar(mlc::MultiLeafCollimator) = MultiLeafCollimator(getedges(mlc))
 
 # Size and Length
 Base.length(mlc::MultiLeafCollimator) = mlc.n
@@ -101,6 +97,21 @@ Base.getindex(mlc::MultiLeafCollimator, i::UnitRange{Int}) = MultiLeafCollimator
 
 Base.view(mlc::MultiLeafCollimator, i::Int) = (@view mlc.positions[:, i]), (@view mlc.edges[i:i+1])
 Base.view(mlc::MultiLeafCollimator, i::UnitRange{Int}) = MultiLeafCollimator((@view mlc.positions[:, i]), (@view mlc.edges[i[1]:i[end]+1]))
+
+Base.setindex(mlc::MultiLeafCollimator, x, i::Vararg{2}) = mlc.positions[i] .= x
+
+# Methods
+
+locate(mlc::MultiLeafCollimator, x) = locate(mlc.edges, x)
+
+getedges(mlc::MultiLeafCollimator) = mlc.edges
+getedges(mlc::MultiLeafCollimator, i::Int) = mlc.edges[i:i+1]
+getedges(mlc::MultiLeafCollimator, i::UnitRange{Int}) = mlc.edges[i[1]:i[end]+1]
+
+getpositions(mlc::MultiLeafCollimator) = mlc.positions
+getpositions(mlc::MultiLeafCollimator, i) = mlc.positions[i]
+
+setpositions!(mlc::MultiLeafCollimator, x) = vec(mlc.positions) .= vec(x)
 
 
 function Base.show(io::IO, mlc::MultiLeafCollimator)
