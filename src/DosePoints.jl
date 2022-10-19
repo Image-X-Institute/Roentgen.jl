@@ -2,7 +2,7 @@ import Base.+, Base.length, Base.getindex, Base.eachindex
 using WriteVTK
 using SparseArrays, StaticArrays
 
-export save, DoseGridMasked, CylinderBounds, gridsize, MeshBounds
+export save, DoseGrid, DoseGridMasked, CylinderBounds, gridsize, MeshBounds
 
 #--- Bounds ------------------------------------------------------------------------------------------------------------
 
@@ -128,12 +128,59 @@ function Base.iterate(pos::DosePositions, i)
     pos[i], i+1
 end
 
-#--- DoseGridMasked ----------------------------------------------------------------------------------------------------------
+#--- AbstractDoseGrid ----------------------------------------------------------------------------------------------------------
 
-struct DoseGridMasked{Tx<:AbstractVector, Ty<:AbstractVector, Tz<:AbstractVector} <: DosePositions
-    x::Tx
-    y::Ty
-    z::Tz
+"""
+    AbstractDoseGrid <: DosePositions
+
+A type of Dose Positions on a regular grid.
+
+Must have the fields `x`, `y`, and `z`.
+"""
+abstract type AbstractDoseGrid <: DosePositions end
+
+Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i)...)
+Base.getindex(pos::AbstractDoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
+
+#--- DoseGrid ----------------------------------------------------------------------------------------------------------
+
+struct DoseGrid{TVec<:AbstractVector} <: AbstractDoseGrid
+    axes::SVector{3, TVec}
+    DoseGrid(x, y, z) = new{typeof(x)}(SVector(x, y, z))
+end
+
+function DoseGrid(Δ, bounds::AbstractBounds)
+    xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
+
+    x = xmin:Δ:xmax
+    y = ymin:Δ:ymax
+    z = zmin:Δ:zmax
+
+    DoseGrid(x, y, z)
+end
+
+Base.size(pos::DoseGrid) = tuple(length.(pos.axes)...)
+Base.length(pos::DoseGrid) = prod(length.(pos.axes))
+
+Base.eachindex(pos::DoseGrid) = Base.OneTo(length(pos))
+Base.CartesianIndices(pos::DoseGrid) = CartesianIndices(size(pos))
+
+Base.getindex(pos::DoseGrid, i::Int) = pos[CartesianIndices(pos)[i]]
+
+#-- IO 
+
+function save(filename::String, pos::DoseGrid, data::Vararg)
+    vtk_grid(filename, pos.axes...) do vtkfile
+        for (key, value) in data
+            vtkfile[key, VTKPointData()] = value
+        end
+    end
+end
+
+#--- DoseGridMasked ----------------------------------------------------------------------------------------------------
+
+struct DoseGridMasked{TVec<:AbstractVector} <: AbstractDoseGrid
+    axes::SVector{3, TVec}
     indices::Vector{CartesianIndex{3}}
     cells::Vector{Vector{Int}}
 end
@@ -177,7 +224,7 @@ function DoseGridMasked(Δ, bounds::AbstractBounds)
         end
     end
 
-    DoseGridMasked(x, y, z, indices, cells)
+    DoseGridMasked(SVector(x, y, z), indices, cells)
 end
 
 Base.:+(pos::DoseGridMasked, x) = DoseGridMasked(pos.x .+ x[1], pos.y .+ x[2], pos.z .+ x[3], pos.indices)
@@ -187,8 +234,6 @@ Base.size(pos::DoseGridMasked) = (length(pos),)
 
 gridsize(pos::DoseGridMasked) = (length(pos.x), length(pos.y), length(pos.z))
 
-Base.getindex(pos::DoseGridMasked, i::Int, j::Int, k::Int) = SVector(pos.x[i], pos.y[j], pos.z[k])
-Base.getindex(pos::DoseGridMasked, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
 Base.getindex(pos::DoseGridMasked, i::Int) = pos[pos.indices[i]]
 
 Base.eachindex(pos::DoseGridMasked) = eachindex(pos.indices)
@@ -198,11 +243,11 @@ Base.CartesianIndices(pos::DoseGridMasked) = pos.indices
 
 function Base.show(io::IO, pos::DoseGridMasked)
     print(io, "x=")
-    Base.show(io, pos.x)
+    Base.show(io, pos.axes[1])
     print(io, " y=")
-    Base.show(io, pos.y)
+    Base.show(io, pos.axes[2])
     print(io, " z=")
-    Base.show(io, pos.z)
+    Base.show(io, pos.axes[3])
     println(io, " npts=", length(pos.indices))
 end
 
@@ -213,17 +258,14 @@ function vtk_create_cell(cell)
     n==8 && return MeshCell(VTKCellTypes.VTK_VOXEL, cell)
 end
 
-function vtk_generate_file(filename, pos::DoseGridMasked)
+function save(filename::String, pos::DoseGridMasked, data::Vararg)
     points = [pos[i] for i in eachindex(pos)]
     cells = vtk_create_cell.(pos.cells)
-    vtk_grid(filename, points, cells)
-end
 
-function save(filename::String, pos::DoseGridMasked, data::Vararg)
-    vtkfile = vtk_generate_file(filename, pos)
-    for (key, value) in data
-        vtkfile[key, VTKPointData()] = value
+    vtk_grid(filename, points, cells) do vtkfile
+        for (key, value) in data
+            vtkfile[key, VTKPointData()] = value
+        end
     end
-    vtk_save(vtkfile)
 end
 save(filename::String, pos::DoseGridMasked, data::Dict) =  save(filename, pos, data...)
