@@ -4,6 +4,8 @@ using SparseArrays, StaticArrays
 
 export save, DoseGrid, DoseGridMasked, CylinderBounds, gridsize, MeshBounds
 
+export getx, gety, getz
+
 #--- Bounds ------------------------------------------------------------------------------------------------------------
 
 abstract type AbstractBounds end
@@ -142,11 +144,21 @@ abstract type AbstractDoseGrid <: DosePositions end
 Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i)...)
 Base.getindex(pos::AbstractDoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
 
+getx(pos::AbstractDoseGrid) = pos.axes[1]
+gety(pos::AbstractDoseGrid) = pos.axes[2]
+getz(pos::AbstractDoseGrid) = pos.axes[3]
+
 #--- DoseGrid ----------------------------------------------------------------------------------------------------------
 
 struct DoseGrid{TVec<:AbstractVector} <: AbstractDoseGrid
     axes::SVector{3, TVec}
-    DoseGrid(x, y, z) = new{typeof(x)}(SVector(x, y, z))
+    function DoseGrid(x, y, z)
+        ax = x, y, z
+        if(!all(@. typeof(ax) <: StepRangeLen))
+            ax = collect.(ax)
+        end
+        new{typeof(ax[1])}(SVector(ax...))
+    end
 end
 
 function DoseGrid(Δ, bounds::AbstractBounds)
