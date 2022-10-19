@@ -109,7 +109,7 @@ getedges(mlc::MultiLeafCollimator, i::Int) = mlc.edges[i:i+1]
 getedges(mlc::MultiLeafCollimator, i::UnitRange{Int}) = mlc.edges[i[1]:i[end]+1]
 
 getpositions(mlc::MultiLeafCollimator) = mlc.positions
-getpositions(mlc::MultiLeafCollimator, i) = mlc.positions[i]
+getpositions(mlc::MultiLeafCollimator, i) = mlc.positions[:, i]
 
 setpositions!(mlc::MultiLeafCollimator, x) = vec(mlc.positions) .= vec(x)
 
