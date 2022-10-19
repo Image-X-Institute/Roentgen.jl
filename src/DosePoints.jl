@@ -97,21 +97,12 @@ function vtk_create_cell(cell)
     n==5 && return MeshCell(VTKCellTypes.VTK_PYRAMID, cell)
     n==6 && return MeshCell(VTKCellTypes.VTK_WEDGE, cell)
     n==8 && return MeshCell(VTKCellTypes.VTK_VOXEL, cell)
-    
 end
 
 function vtk_generate_file(filename, pos::DoseGrid)
     points = [pos[i] for i in eachindex(pos)]
-    cells = [vtk_create_cell(cell) for cell in pos.cells]
+    cells = vtk_create_cell.(pos.cells)
     vtk_grid(filename, points, cells)
-end
-
-function vtk_grid_data(pos::DoseGrid, arr)  
-    grid_arr = zeros(size(pos))
-    for i in eachindex(arr)
-        grid_arr[pos.indices[i]] = arr[i]
-    end
-    grid_arr
 end
 
 function save(filename::String, pos::DoseGrid, data)
