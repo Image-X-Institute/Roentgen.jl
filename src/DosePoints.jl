@@ -2,7 +2,7 @@ import Base.+, Base.length, Base.getindex, Base.eachindex
 using WriteVTK
 using SparseArrays, StaticArrays
 
-export save, DoseGrid, CylinderBounds, gridsize, MeshBounds
+export save, DoseGridMasked, CylinderBounds, gridsize, MeshBounds
 
 #--- Bounds ------------------------------------------------------------------------------------------------------------
 
@@ -128,9 +128,9 @@ function Base.iterate(pos::DosePositions, i)
     pos[i], i+1
 end
 
-#--- DoseGrid ----------------------------------------------------------------------------------------------------------
+#--- DoseGridMasked ----------------------------------------------------------------------------------------------------------
 
-struct DoseGrid{Tx<:AbstractVector, Ty<:AbstractVector, Tz<:AbstractVector} <: DosePositions
+struct DoseGridMasked{Tx<:AbstractVector, Ty<:AbstractVector, Tz<:AbstractVector} <: DosePositions
     x::Tx
     y::Ty
     z::Tz
@@ -138,7 +138,7 @@ struct DoseGrid{Tx<:AbstractVector, Ty<:AbstractVector, Tz<:AbstractVector} <: D
     cells::Vector{Vector{Int}}
 end
 
-function DoseGrid(Δ, bounds::AbstractBounds)
+function DoseGridMasked(Δ, bounds::AbstractBounds)
     xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
 
     x = xmin:Δ:xmax
@@ -177,26 +177,26 @@ function DoseGrid(Δ, bounds::AbstractBounds)
         end
     end
 
-    DoseGrid(x, y, z, indices, cells)
+    DoseGridMasked(x, y, z, indices, cells)
 end
 
-Base.:+(pos::DoseGrid, x) = DoseGrid(pos.x .+ x[1], pos.y .+ x[2], pos.z .+ x[3], pos.indices)
+Base.:+(pos::DoseGridMasked, x) = DoseGridMasked(pos.x .+ x[1], pos.y .+ x[2], pos.z .+ x[3], pos.indices)
 
-Base.length(pos::DoseGrid) = length(pos.indices)
-Base.size(pos::DoseGrid) = (length(pos),)
+Base.length(pos::DoseGridMasked) = length(pos.indices)
+Base.size(pos::DoseGridMasked) = (length(pos),)
 
-gridsize(pos::DoseGrid) = (length(pos.x), length(pos.y), length(pos.z))
+gridsize(pos::DoseGridMasked) = (length(pos.x), length(pos.y), length(pos.z))
 
-Base.getindex(pos::DoseGrid, i::Int, j::Int, k::Int) = SVector(pos.x[i], pos.y[j], pos.z[k])
-Base.getindex(pos::DoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
-Base.getindex(pos::DoseGrid, i::Int) = pos[pos.indices[i]]
+Base.getindex(pos::DoseGridMasked, i::Int, j::Int, k::Int) = SVector(pos.x[i], pos.y[j], pos.z[k])
+Base.getindex(pos::DoseGridMasked, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
+Base.getindex(pos::DoseGridMasked, i::Int) = pos[pos.indices[i]]
 
-Base.eachindex(pos::DoseGrid) = eachindex(pos.indices)
-Base.CartesianIndices(pos::DoseGrid) = pos.indices
+Base.eachindex(pos::DoseGridMasked) = eachindex(pos.indices)
+Base.CartesianIndices(pos::DoseGridMasked) = pos.indices
 
 #--- IO
 
-function Base.show(io::IO, pos::DoseGrid)
+function Base.show(io::IO, pos::DoseGridMasked)
     print(io, "x=")
     Base.show(io, pos.x)
     print(io, " y=")
@@ -213,17 +213,17 @@ function vtk_create_cell(cell)
     n==8 && return MeshCell(VTKCellTypes.VTK_VOXEL, cell)
 end
 
-function vtk_generate_file(filename, pos::DoseGrid)
+function vtk_generate_file(filename, pos::DoseGridMasked)
     points = [pos[i] for i in eachindex(pos)]
     cells = vtk_create_cell.(pos.cells)
     vtk_grid(filename, points, cells)
 end
 
-function save(filename::String, pos::DoseGrid, data::Vararg) #
+function save(filename::String, pos::DoseGridMasked, data::Vararg)
     vtkfile = vtk_generate_file(filename, pos)
     for (key, value) in data
         vtkfile[key, VTKPointData()] = value
     end
     vtk_save(vtkfile)
 end
-save(filename::String, pos::DoseGrid, data::Dict) =  save(filename, pos, data...)
+save(filename::String, pos::DoseGridMasked, data::Dict) =  save(filename, pos, data...)
