@@ -114,21 +114,6 @@ end
 #--- Bixel Grid ---------------------------------------------------------------
 
 """
-    snapped_range(x1, x2, Δ)
-
-Create a range from x1 to x2 which is "snapped" to the step Δ.
-
-Positions are "snapped" to the step value (e.g. a starting position of
-x[1]-0.2Δx snaps to x[1]-Δx). The new range always includes the start and end
-points of the original range
-
-Examples:
-- 0.1:1.:9.4 -> 0:1.:10.
-
-"""
-snapped_range(x1, x2, Δ) = Δ*(floor(Int, x1/Δ):ceil(Int, x2/Δ))
-
-"""
     bixel_grid(x, y, Δx[, Δy])
 
 Construct a grid of bixels.

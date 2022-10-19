@@ -2,6 +2,7 @@ using Test
 using DoseCalculations
 
 @testset "DoseCalculations" begin
+    include("utils.jl")
     include("interpolation.jl")
     include("CoordinateSystems.jl")
     include("ExternalSurfaces.jl")
