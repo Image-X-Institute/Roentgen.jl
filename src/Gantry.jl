@@ -1,3 +1,4 @@
+export GantryPosition
 
 struct GantryPosition{T}
     gantry_angle::T

@@ -49,6 +49,8 @@ function reconstruct_dose(pos, surf, plan, calc; Δx=1., ΔMU=2., show_progess=t
         D = spzeros(length(bixels), length(pos))
         Ψ = zeros(size(bixels))
 
+        pos_fixed = patient_to_fixed(getisocenter(field)).(pos)
+
         if(show_progess)
             totalMU = 0.
             p = Progress(length(beams))
@@ -56,7 +58,7 @@ function reconstruct_dose(pos, surf, plan, calc; Δx=1., ΔMU=2., show_progess=t
 
         # Iterate through each control point in the field
         for i in eachindex(beams)
-            dose .+= dose_from_beam(pos, surf, beams[i], calc, bixels, D, Ψ)
+            dose .+= dose_from_beam(pos_fixed, surf, beams[i], calc, bixels, D, Ψ)
             # break
             
             if(show_progess)

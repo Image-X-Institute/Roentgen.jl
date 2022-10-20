@@ -2,102 +2,265 @@ import Base.+, Base.length, Base.getindex, Base.eachindex
 using WriteVTK
 using SparseArrays, StaticArrays
 
-export save, DoseGrid, CylinderBounds, gridsize, MeshBounds
+export save, DoseGrid, DoseGridMasked, CylinderBounds, gridsize, MeshBounds
 
+export getx, gety, getz
 
-# Dose Positions
-abstract type DosePositions end
+#--- Bounds ------------------------------------------------------------------------------------------------------------
 
-Base.iterate(pos::DosePositions) = iterate(pos, 1)
-function Base.iterate(pos::DosePositions, i)
-    if(i>length(pos)) return nothing end
-    pos[i], i+1
-end
+abstract type AbstractBounds end
 
-function Base.:+(pos::T, x) where T<:DosePositions
-    T(pos.x .+ x[1], pos.y .+ x[2], pos.z .+ x[3])
-end
+"""
+    within(bounds::AbstractBounds, p)
 
-# Bounds
-struct CylinderBounds{T}
+Returns `true` if the point `p` is within bounds
+""" within(bounds::AbstractBounds, p)
+
+"""
+    boundsextent(bounds::AbstractBounds)
+
+Returns the bounding box of the bounds as a 6 element tuple:
+`xmin`, `xmax`, `ymin`, `ymax`, `zmin`, `zmax`
+""" boundsextent(bounds::AbstractBounds)
+
+"""
+    CylinderBounds{T}
+
+Represents a cylinder about the `z` axis.
+"""
+struct CylinderBounds{T} <: AbstractBounds
     diameter::T
     height::T
     center::SVector{3, T}
+
+    function CylinderBounds(diameter, height)
+        T = typeof(diameter)
+        new{T}(diameter, height, zeros(SVector{3}))
+    end
+
+    function CylinderBounds(diameter, height, center)
+        T = typeof(diameter)
+        new{T}(diameter, height, SVector{3}(center))
+    end
 end
 
-function boundingbox(bounds::CylinderBounds)
+"""
+    boundsextent(bounds::CylinderBounds)
+
+For a cylinder
+"""
+function boundsextent(bounds::CylinderBounds)
     xmin, xmax = bounds.center[1] .+ 0.5*bounds.diameter*SVector(-1., 1.)
-    ymin, ymax = bounds.center[2] .+ 0.5*bounds.height*SVector(-1., 1.)
-    zmin, zmax = bounds.center[3] .+ 0.5*bounds.diameter*SVector(-1., 1.)
+    ymin, ymax = bounds.center[2] .+ 0.5*bounds.diameter*SVector(-1., 1.)
+    zmin, zmax = bounds.center[3] .+ 0.5*bounds.height*SVector(-1., 1.)
 
     xmin, xmax, ymin, ymax, zmin, zmax
 end
 
+"""
+    within(bounds::CylinderBounds, p)
+
+Whether `p` is within the cylinder
+"""
 function within(bounds::CylinderBounds, p)
     p′ = p - bounds.center
-    p′[1]^2 + p′[3]^2 <= 0.25*bounds.diameter^2 && abs(p′[2]) <= 0.5*bounds.height
+    p′[1]^2 + p′[2]^2 <= 0.25*bounds.diameter^2 && abs(p′[3]) <= 0.5*bounds.height
 end
 
-struct MeshBounds{T<:AbstractFloat, TMesh<:SimpleMesh}
+"""
+    MeshBounds{T, TMesh}
+
+Represents a surface from a mesh.
+"""
+struct MeshBounds{T<:AbstractFloat, TMesh<:SimpleMesh} <: AbstractBounds
     mesh::TMesh
-    xlim::SVector{2, T}
-    ylim::SVector{2, T}
-    zlim::SVector{2, T}
+    box::SVector{6, T}
     pad::T
 end
 
-function MeshBounds(mesh, pad=10.)
+"""
+    MeshBounds
+
+Construct a `MeshBounds` with a mesh
+
+Optionally, can specify a `pad` which defines the distance from the mesh that is
+still considered within bounds.
+"""
+function MeshBounds(mesh, pad=10.) <: AbstractBounds
     pos = coordinates.(vertices(mesh))
     x = getindex.(pos, 1)
     y = getindex.(pos, 2)
     z = getindex.(pos, 3)
-    xlim = SVector(minimum(x)-pad, maximum(x)+pad)
-    ylim = SVector(minimum(y)-pad, maximum(y)+pad)
-    zlim = SVector(minimum(z)-pad, maximum(z)+pad)
-    MeshBounds(mesh, xlim, ylim, zlim, pad)
+    box = SVector(minimum(x)-pad, maximum(x)+pad,
+                  minimum(y)-pad, maximum(y)+pad,
+                  minimum(z)-pad, maximum(z)+pad)
+    MeshBounds(mesh, box, pad)
 end
 
-boundingbox(bounds::MeshBounds) = bounds.xlim..., bounds.ylim..., bounds.zlim...
+"""
+    boundsextent(bounds::MeshBounds)
 
+For a mesh
+"""
+boundsextent(bounds::MeshBounds) = bounds.box
+
+"""
+    within(bounds::MeshBounds, p)
+
+Whether `p` is within the mesh
+"""
 function within(bounds::MeshBounds, p)
     dmin = minimum(norm.(Ref(Point(p)) .- vertices(bounds.mesh)))
-    if(dmin<=bounds.pad)
-        return true
-    end
+    dmin<=bounds.pad && return true
 
-    xmin, xmax, ymin, ymax, zmin, zmax = boundingbox(bounds)
+    xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
     line = Segment(Point(xmin, ymin, zmin), Point(p))
     pI = intersect_mesh(line, bounds.mesh)
     
     length(pI) % 2 != 0
 end
 
-# DoseGrid
+#--- Dose Positions ----------------------------------------------------------------------------------------------------
 
-struct DoseGrid{T}
-    x::StepRangeLen{T,Base.TwicePrecision{T},Base.TwicePrecision{T}}
-    y::StepRangeLen{T,Base.TwicePrecision{T},Base.TwicePrecision{T}}
-    z::StepRangeLen{T,Base.TwicePrecision{T},Base.TwicePrecision{T}}
+abstract type DosePositions end
+
+Base.iterate(pos::DosePositions) = iterate(pos, 1)
+function Base.iterate(pos::DosePositions, i)
+    i>length(pos) && return nothing
+    pos[i], i+1
+end
+
+for op in (:+, :-)
+    eval(quote
+        function Base.$op(pos::DosePositions, v::AbstractVector{<:AbstractVector})
+            ($op).(pos, v)
+        end
+        function Base.$op(pos::DosePositions, v::AbstractVector{<:Real})
+            ($op).(pos, (v,))
+        end
+    end)
+end
+
+#--- AbstractDoseGrid ----------------------------------------------------------------------------------------------------------
+
+"""
+    AbstractDoseGrid <: DosePositions
+
+A type of Dose Positions on a regular grid.
+
+Must have the fields `x`, `y`, and `z`.
+"""
+abstract type AbstractDoseGrid <: DosePositions end
+
+Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i)...)
+Base.getindex(pos::AbstractDoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
+
+"""
+    getx(pos::AbstractDoseGrid)
+
+Return the x axis of the grid
+"""
+getx(pos::AbstractDoseGrid) = pos.axes[1]
+
+"""
+    gety(pos::AbstractDoseGrid)
+
+Return the y axis of the grid
+"""
+gety(pos::AbstractDoseGrid) = pos.axes[2]
+
+"""
+    getz(pos::AbstractDoseGrid)
+
+Return the z axis of the grid
+"""
+getz(pos::AbstractDoseGrid) = pos.axes[3]
+
+#--- DoseGrid ----------------------------------------------------------------------------------------------------------
+"""
+    DoseGrid
+
+Cartesian Dose Grid
+"""
+struct DoseGrid{TVec<:AbstractVector} <: AbstractDoseGrid
+    axes::SVector{3, TVec}
+    function DoseGrid(x, y, z)
+        ax = x, y, z
+        if(!all(@. typeof(ax) <: StepRangeLen))
+            ax = collect.(ax)
+        end
+        new{typeof(ax[1])}(SVector(ax...))
+    end
+end
+
+"""
+    DoseGrid(Δ, bounds::AbstractBounds)
+
+Construct a `DoseGrid` with spacing `Δ` within `bounds`
+"""
+function DoseGrid(Δ, bounds::AbstractBounds)
+    xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
+
+    x = xmin:Δ:xmax
+    y = ymin:Δ:ymax
+    z = zmin:Δ:zmax
+
+    DoseGrid(x, y, z)
+end
+
+Base.size(pos::DoseGrid) = tuple(length.(pos.axes)...)
+Base.length(pos::DoseGrid) = prod(length.(pos.axes))
+
+Base.eachindex(pos::DoseGrid) = Base.OneTo(length(pos))
+Base.CartesianIndices(pos::DoseGrid) = CartesianIndices(size(pos))
+
+Base.getindex(pos::DoseGrid, i::Int) = pos[CartesianIndices(pos)[i]]
+
+for op in (:+, :-, :*, :/)
+    eval(quote
+        function Base.$op(pos::DoseGrid, v::AbstractVector{<:Real})
+            DoseGrid( ($op).(getx(pos), v[1]), ($op).(gety(pos), v[2]), ($op).(getz(pos), v[3]))
+        end
+    end)
+end
+
+#-- IO 
+
+"""
+    save(filename::String, pos::DoseGrid, data::Union{Vararg, Dict})
+
+Save `DoseGrid` to the VTK Image data (vti) format.
+"""
+function save(filename::String, pos::DoseGrid, data::Vararg)
+    vtk_grid(filename, pos.axes...) do vtkfile
+        for (key, value) in data
+            vtkfile[key, VTKPointData()] = value
+        end
+    end
+end
+save(filename::String, pos::DoseGrid, data::Dict) =  save(filename, pos, data...)
+
+#--- DoseGridMasked ----------------------------------------------------------------------------------------------------
+"""
+    DoseGridMasked
+
+Cartesian Dose Grid with a mask to reduce the number of dose points used.
+"""
+struct DoseGridMasked{TVec<:AbstractVector} <: AbstractDoseGrid
+    axes::SVector{3, TVec}
     indices::Vector{CartesianIndex{3}}
     cells::Vector{Vector{Int}}
 end
 
-Base.:+(pos::DoseGrid, x) = DoseGrid(pos.x .+ x[1], pos.y .+ x[2], pos.z .+ x[3], pos.indices)
+"""
+    DoseGridMasked(Δ, bounds::AbstractBounds)
 
-Base.length(pos::DoseGrid) = length(pos.indices)
-Base.size(pos::DoseGrid) = (length(pos),)
+Construct a `DoseGridMasked` with spacing `Δ` within `bounds`.
 
-gridsize(pos::DoseGrid) = (length(pos.x), length(pos.y), length(pos.z))
-
-Base.getindex(pos::DoseGrid, i::Vararg{Int, 3}) = SVector(pos.x[i[1]], pos.y[i[2]], pos.z[i[3]])
-Base.getindex(pos::DoseGrid, i::CartesianIndex{3}) = SVector(pos.x[i[1]], pos.y[i[2]], pos.z[i[3]])
-Base.getindex(pos::DoseGrid, i::Int) = pos[pos.indices[i]]
-
-Base.eachindex(pos::DoseGrid) = eachindex(pos.indices)
-Base.CartesianIndices(pos::DoseGrid) = pos.indices
-
-function DoseGrid(Δ::T, bounds) where T<:Number
-    xmin, xmax, ymin, ymax, zmin, zmax = boundingbox(bounds)
+The mask applies to all points within `bounds`
+"""
+function DoseGridMasked(Δ, bounds::AbstractBounds)
+    xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
 
     x = xmin:Δ:xmax
     y = ymin:Δ:ymax
@@ -116,19 +279,18 @@ function DoseGrid(Δ::T, bounds) where T<:Number
         end
     end
 
+    # Cells
+
     neighbours = vec([CartesianIndex(i,j,k) for i=0:1, j=0:1, k=0:1])[2:end]
 
-    # Cells
     cells = Vector{Int}[]
     for i in eachindex(indices)
         cell = [i]
         for n in neighbours
             index = indices[i] + n
 
-            if(checkbounds(Bool, linear_index, index))
-                if(linear_index[index] != 0)
-                    push!(cell, linear_index[index])
-                end
+            if(checkbounds(Bool, linear_index, index) && linear_index[index] != 0)
+                push!(cell, linear_index[index])
             end
         end
         if(length(cell)==8)
@@ -136,39 +298,67 @@ function DoseGrid(Δ::T, bounds) where T<:Number
         end
     end
 
-    DoseGrid(x, y, z, indices, cells)
+    DoseGridMasked(SVector(x, y, z), indices, cells)
 end
 
+for op in (:+, :-, :*, :/)
+    eval(quote
+        function Base.$op(pos::DoseGridMasked, v::AbstractVector{<:Real})
+            x = ($op).(getx(pos), v[1])
+            y = ($op).(gety(pos), v[2])
+            z = ($op).(getz(pos), v[3])
+            DoseGridMasked( SVector(x, y, z), pos.indices, pos.cells)
+        end
+    end)
+end
+
+Base.length(pos::DoseGridMasked) = length(pos.indices)
+Base.size(pos::DoseGridMasked) = (length(pos),)
+
+gridsize(pos::DoseGridMasked) = (length(pos.x), length(pos.y), length(pos.z))
+
+Base.getindex(pos::DoseGridMasked, i::Int) = pos[pos.indices[i]]
+
+Base.eachindex(pos::DoseGridMasked) = eachindex(pos.indices)
+Base.CartesianIndices(pos::DoseGridMasked) = pos.indices
+
+#--- IO
+
+function Base.show(io::IO, pos::DoseGridMasked)
+    print(io, "x=")
+    Base.show(io, pos.axes[1])
+    print(io, " y=")
+    Base.show(io, pos.axes[2])
+    print(io, " z=")
+    Base.show(io, pos.axes[3])
+    println(io, " npts=", length(pos.indices))
+end
+
+"""
+    vtk_create_cell(cell)
+
+Return the VTK cell type for a list of cell indices.
+"""
 function vtk_create_cell(cell)
     n = length(cell)
-    c = tuple(cell...)
-    if(n==5)
-        return MeshCell(VTKCellTypes.VTK_PYRAMID, cell)
-    elseif(n==6)
-        return MeshCell(VTKCellTypes.VTK_WEDGE, cell)
-    elseif(n==8)
-        return MeshCell(VTKCellTypes.VTK_VOXEL, cell)
-    end
+    n==5 && return MeshCell(VTKCellTypes.VTK_PYRAMID, cell)
+    n==6 && return MeshCell(VTKCellTypes.VTK_WEDGE, cell)
+    n==8 && return MeshCell(VTKCellTypes.VTK_VOXEL, cell)
 end
 
-function vtk_generate_file(filename, pos::DoseGrid)
+"""
+    save(filename::String, pos::DoseGridMasked, data::Union{Vararg, Dict})
+
+Save `DoseGridMasked` to the VTK Unstructured Grid (vtu) format.
+"""
+function save(filename::String, pos::DoseGridMasked, data::Vararg)
     points = [pos[i] for i in eachindex(pos)]
-    cells = [vtk_create_cell(cell) for cell in pos.cells]
-    vtk_grid(filename, points, cells)
-end
+    cells = vtk_create_cell.(pos.cells)
 
-function vtk_grid_data(pos::DoseGrid, arr)  
-    grid_arr = zeros(size(pos))
-    for i in eachindex(arr)
-        grid_arr[pos.indices[i]] = arr[i]
+    vtk_grid(filename, points, cells) do vtkfile
+        for (key, value) in data
+            vtkfile[key, VTKPointData()] = value
+        end
     end
-    grid_arr
 end
-
-function save(filename, pos::DoseGrid, data)
-    vtkfile = vtk_generate_file(filename, pos)
-    for (key, value) in data
-        vtkfile[key, VTKPointData()] = value
-    end
-    vtk_save(vtkfile)
-end
+save(filename::String, pos::DoseGridMasked, data::Dict) =  save(filename, pos, data...)

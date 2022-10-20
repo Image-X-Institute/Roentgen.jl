@@ -9,7 +9,7 @@
 # It plots the fluence map, and save the dose to file in a VTK file format.
 # The dose can be visualised using Paraview.
 
-using DoseCalculations, StaticArrays
+using DoseCalculations
 
 # Load the DICOM plan
 plan = load_dicom("path/to/dicom/RP.....dcm")
@@ -17,7 +17,9 @@ field = plan[1] # Select the first field
 beams = resample(field, 2.) # Resample the first field for better accuracy
 controlpoint = beams[1] # Select the first control point
 
-pos = DoseGrid(5., CylinderBounds(200., 200., SVector(0., 0., 0.)))
+isocenter = getisocenter(controlpoint)
+pos = DoseGridMasked(5., CylinderBounds(200., 200., isocenter))
+pos_fixed = patient_to_fixed(isocenter).(pos)
 
 # Create Bixels
 bixels = bixel_grid(getmlc(controlpoint), getjaws(controlpoint), 1.)
@@ -31,7 +33,7 @@ surf = PlaneSurface(800.)
 
 # Create dose-fluence matrix
 gantry = getgantry(controlpoint)
-@time D = dose_fluence_matrix(pos, vec(bixels), gantry, surf, calc)
+@time D = dose_fluence_matrix(pos_fixed, vec(bixels), gantry, surf, calc)
 
 # Compute fluence map from aperture
 Ψ = fluence(bixels, getmlc(controlpoint)); # Compute the fluence
@@ -49,4 +51,4 @@ end
 dose = ΔMU*D'*vec(Ψ)
 
 # Save dose to VTK file format
-save("dose", pos, Dict("dose"=>dose))
+save("dose", pos, "dose"=>dose)

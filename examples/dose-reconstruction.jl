@@ -14,12 +14,13 @@ calc = ScaledIsoplaneKernel("examples/sample-data/dose-kernel/scaled-isoplane-ke
 calibrate!(calc, 100., 100., 1000.)
 
 # Create dose points
-pos = DoseGrid(5., CylinderBounds(200., 200., SVector(0., 0., 0.)))
+pos = DoseGridMasked(5., CylinderBounds(200., 200., getisocenter(plan[1])))
 
 # Load external surface
 surf = PlaneSurface(800.)
 
 # Reconstruct Dose
 dose = reconstruct_dose(pos, surf, plan, calc)
-save("dose", pos, Dict("dose"=>dose))
+
+save("dose", pos, "dose"=>dose)
 
