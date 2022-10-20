@@ -70,7 +70,7 @@ end
 """
     MeshBounds{T, TMesh}
 
-Represents a mesh surface.
+Represents a surface from a mesh.
 """
 struct MeshBounds{T<:AbstractFloat, TMesh<:SimpleMesh} <: AbstractBounds
     mesh::TMesh
@@ -155,12 +155,33 @@ abstract type AbstractDoseGrid <: DosePositions end
 Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i)...)
 Base.getindex(pos::AbstractDoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
 
+"""
+    getx(pos::AbstractDoseGrid)
+
+Return the x axis of the grid
+"""
 getx(pos::AbstractDoseGrid) = pos.axes[1]
+
+"""
+    gety(pos::AbstractDoseGrid)
+
+Return the y axis of the grid
+"""
 gety(pos::AbstractDoseGrid) = pos.axes[2]
+
+"""
+    getz(pos::AbstractDoseGrid)
+
+Return the z axis of the grid
+"""
 getz(pos::AbstractDoseGrid) = pos.axes[3]
 
 #--- DoseGrid ----------------------------------------------------------------------------------------------------------
+"""
+    DoseGrid
 
+Cartesian Dose Grid
+"""
 struct DoseGrid{TVec<:AbstractVector} <: AbstractDoseGrid
     axes::SVector{3, TVec}
     function DoseGrid(x, y, z)
@@ -172,6 +193,11 @@ struct DoseGrid{TVec<:AbstractVector} <: AbstractDoseGrid
     end
 end
 
+"""
+    DoseGrid(Δ, bounds::AbstractBounds)
+
+Construct a `DoseGrid` with spacing `Δ` within `bounds`
+"""
 function DoseGrid(Δ, bounds::AbstractBounds)
     xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
 
@@ -200,6 +226,11 @@ end
 
 #-- IO 
 
+"""
+    save(filename::String, pos::DoseGrid, data::Union{Vararg, Dict})
+
+Save `DoseGrid` to the VTK Image data (vti) format.
+"""
 function save(filename::String, pos::DoseGrid, data::Vararg)
     vtk_grid(filename, pos.axes...) do vtkfile
         for (key, value) in data
@@ -210,13 +241,24 @@ end
 save(filename::String, pos::DoseGrid, data::Dict) =  save(filename, pos, data...)
 
 #--- DoseGridMasked ----------------------------------------------------------------------------------------------------
+"""
+    DoseGridMasked
 
+Cartesian Dose Grid with a mask to reduce the number of dose points used.
+"""
 struct DoseGridMasked{TVec<:AbstractVector} <: AbstractDoseGrid
     axes::SVector{3, TVec}
     indices::Vector{CartesianIndex{3}}
     cells::Vector{Vector{Int}}
 end
 
+"""
+    DoseGridMasked(Δ, bounds::AbstractBounds)
+
+Construct a `DoseGridMasked` with spacing `Δ` within `bounds`.
+
+The mask applies to all points within `bounds`
+"""
 function DoseGridMasked(Δ, bounds::AbstractBounds)
     xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
 
@@ -292,6 +334,11 @@ function Base.show(io::IO, pos::DoseGridMasked)
     println(io, " npts=", length(pos.indices))
 end
 
+"""
+    vtk_create_cell(cell)
+
+Return the VTK cell type for a list of cell indices.
+"""
 function vtk_create_cell(cell)
     n = length(cell)
     n==5 && return MeshCell(VTKCellTypes.VTK_PYRAMID, cell)
@@ -299,6 +346,11 @@ function vtk_create_cell(cell)
     n==8 && return MeshCell(VTKCellTypes.VTK_VOXEL, cell)
 end
 
+"""
+    save(filename::String, pos::DoseGridMasked, data::Union{Vararg, Dict})
+
+Save `DoseGridMasked` to the VTK Unstructured Grid (vtu) format.
+"""
 function save(filename::String, pos::DoseGridMasked, data::Vararg)
     points = [pos[i] for i in eachindex(pos)]
     cells = vtk_create_cell.(pos.cells)
