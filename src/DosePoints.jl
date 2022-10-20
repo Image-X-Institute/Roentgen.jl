@@ -130,6 +130,17 @@ function Base.iterate(pos::DosePositions, i)
     pos[i], i+1
 end
 
+for op in (:+, :-)
+    eval(quote
+        function Base.$op(pos::DosePositions, v::AbstractVector{<:AbstractVector})
+            ($op).(pos, v)
+        end
+        function Base.$op(pos::DosePositions, v::AbstractVector{<:Real})
+            ($op).(pos, (v,))
+        end
+    end)
+end
+
 #--- AbstractDoseGrid ----------------------------------------------------------------------------------------------------------
 
 """
@@ -181,7 +192,7 @@ Base.getindex(pos::DoseGrid, i::Int) = pos[CartesianIndices(pos)[i]]
 
 for op in (:+, :-, :*, :/)
     eval(quote
-        function Base.$op(pos::DoseGrid, v::Union{AbstractVector,Tuple})
+        function Base.$op(pos::DoseGrid, v::AbstractVector{<:Real})
             DoseGrid( ($op).(getx(pos), v[1]), ($op).(gety(pos), v[2]), ($op).(getz(pos), v[3]))
         end
     end)
@@ -250,7 +261,7 @@ end
 
 for op in (:+, :-, :*, :/)
     eval(quote
-        function Base.$op(pos::DoseGridMasked, v::Union{AbstractVector,Tuple})
+        function Base.$op(pos::DoseGridMasked, v::AbstractVector{<:Real})
             x = ($op).(getx(pos), v[1])
             y = ($op).(gety(pos), v[2])
             z = ($op).(getz(pos), v[3])
