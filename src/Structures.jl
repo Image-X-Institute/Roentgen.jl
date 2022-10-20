@@ -1,8 +1,3 @@
-using Meshes
-import FileIO
-import MeshIO
-using WriteVTK
-
 export load_structure_from_ply, transform, transform!
 
 """

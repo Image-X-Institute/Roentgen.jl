@@ -2,8 +2,6 @@
 #   Scaled Isoplane Kernel Algorithm
 #
 
-using DelimitedFiles, Glob, LsqFit
-
 export ScaledIsoplaneKernel, kernel, norm_depth_dose, calibrate!
 
 mutable struct ScaledIsoplaneKernel{T<:AbstractFloat, TKernel, TPDD} <: AbstractDoseAlgorithm
