@@ -179,6 +179,14 @@ Base.CartesianIndices(pos::DoseGrid) = CartesianIndices(size(pos))
 
 Base.getindex(pos::DoseGrid, i::Int) = pos[CartesianIndices(pos)[i]]
 
+for op in (:+, :-, :*, :/)
+    eval(quote
+        function Base.$op(pos::DoseGrid, v::Union{AbstractVector,Tuple})
+            DoseGrid( ($op).(getx(pos), v[1]), ($op).(gety(pos), v[2]), ($op).(getz(pos), v[3]))
+        end
+    end)
+end
+
 #-- IO 
 
 function save(filename::String, pos::DoseGrid, data::Vararg)
@@ -240,7 +248,16 @@ function DoseGridMasked(Δ, bounds::AbstractBounds)
     DoseGridMasked(SVector(x, y, z), indices, cells)
 end
 
-Base.:+(pos::DoseGridMasked, x) = DoseGridMasked(pos.x .+ x[1], pos.y .+ x[2], pos.z .+ x[3], pos.indices)
+for op in (:+, :-, :*, :/)
+    eval(quote
+        function Base.$op(pos::DoseGridMasked, v::Union{AbstractVector,Tuple})
+            x = ($op).(getx(pos), v[1])
+            y = ($op).(gety(pos), v[2])
+            z = ($op).(getz(pos), v[3])
+            DoseGridMasked( SVector(x, y, z), pos.indices, pos.cells)
+        end
+    end)
+end
 
 Base.length(pos::DoseGridMasked) = length(pos.indices)
 Base.size(pos::DoseGridMasked) = (length(pos),)
