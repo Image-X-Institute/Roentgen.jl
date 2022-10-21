@@ -238,6 +238,34 @@ function save(filename::String, pos::DoseGrid, data::Vararg)
 end
 save(filename::String, pos::DoseGrid, data::Dict) =  save(filename, pos, data...)
 
+"""
+    save(file::HDF5.H5DataStore, pos::DoseGrid)
+
+Store `DoseGrid` data to an HDF5 file/group
+"""
+function save(file::HDF5.H5DataStore, pos::DoseGrid)
+    
+    file["pos/x"] = collect(getx(pos))
+    file["pos/y"] = collect(gety(pos))
+    file["pos/z"] = collect(getz(pos))
+
+    nothing
+end
+
+"""
+    load(::Type{DoseGrid}, file::HDF5.H5DataStore)
+
+Load `DoseGrid` data from an HDF5 file/group
+"""
+function load(::Type{DoseGrid}, file::HDF5.H5DataStore)
+    
+    x = read(file["pos/x"])
+    y = read(file["pos/y"])
+    z = read(file["pos/z"])
+
+    DoseGrid(x, y, z)
+end
+
 #--- DoseGridMasked ----------------------------------------------------------------------------------------------------
 """
     DoseGridMasked
@@ -248,6 +276,13 @@ struct DoseGridMasked{TVec<:AbstractVector} <: AbstractDoseGrid
     axes::SVector{3, TVec}
     indices::Vector{CartesianIndex{3}}
     cells::Vector{Vector{Int}}
+    function DoseGridMasked(x, y, z, indices, cells)
+        ax = x, y, z
+        if(!all(@. typeof(ax) <: StepRangeLen))
+            ax = collect.(ax)
+        end
+        new{typeof(ax[1])}(SVector(ax...), indices, cells)
+    end
 end
 
 """
@@ -296,7 +331,7 @@ function DoseGridMasked(Δ, bounds::AbstractBounds)
         end
     end
 
-    DoseGridMasked(SVector(x, y, z), indices, cells)
+    DoseGridMasked(x, y, z, indices, cells)
 end
 
 for op in (:+, :-, :*, :/)
@@ -305,7 +340,7 @@ for op in (:+, :-, :*, :/)
             x = ($op).(getx(pos), v[1])
             y = ($op).(gety(pos), v[2])
             z = ($op).(getz(pos), v[3])
-            DoseGridMasked( SVector(x, y, z), pos.indices, pos.cells)
+            DoseGridMasked(x, y, z, pos.indices, pos.cells)
         end
     end)
 end
@@ -331,6 +366,8 @@ function Base.show(io::IO, pos::DoseGridMasked)
     Base.show(io, pos.axes[3])
     println(io, " npts=", length(pos.indices))
 end
+
+# VTK
 
 """
     vtk_create_cell(cell)
@@ -360,3 +397,45 @@ function save(filename::String, pos::DoseGridMasked, data::Vararg)
     end
 end
 save(filename::String, pos::DoseGridMasked, data::Dict) =  save(filename, pos, data...)
+
+# HDF5
+
+"""
+    save(file::HDF5.H5DataStore, pos::DoseGridMasked)
+
+Store `DoseGridMasked` data to an HDF5 file/group
+"""
+function save(file::HDF5.H5DataStore, pos::DoseGridMasked)
+    
+    file["pos/x"] = collect(getx(pos))
+    file["pos/y"] = collect(gety(pos))
+    file["pos/z"] = collect(getz(pos))
+
+    file["pos/indices"] = hcat(collect.(Tuple.(pos.indices))...)
+
+    file["cells/index"] = cumsum(vcat(1, length.(pos.cells)))
+    file["cells/cells"] = vcat(pos.cells...)
+
+    nothing
+end
+
+"""
+    load(::Type{DoseGridMasked}, file::HDF5.H5DataStore)
+
+Load `DoseGridMasked` data from an HDF5 file/group
+"""
+function load(::Type{DoseGridMasked}, file::HDF5.H5DataStore)
+    
+    x = read(file["pos/x"])
+    y = read(file["pos/y"])
+    z = read(file["pos/z"])
+
+    indices = read(file["pos/indices"])
+    indices = [CartesianIndex(col...) for col in eachcol(indices)]
+
+    index = read(file["cells/index"])
+    cells = read(file["cells/cells"])
+    cells = [cells[index[i]:index[i+1]-1] for i in 1:length(index)-1]
+
+    DoseGridMasked(x, y, z, indices, cells)
+end
