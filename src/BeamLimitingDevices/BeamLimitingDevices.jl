@@ -12,6 +12,7 @@ abstract type AbstractBeamLimitingDevice end
 
 include("MultiLeafCollimator.jl")
 include("MultiLeafCollimatorSequence.jl")
+include("MultiLeafCollimatorIO.jl")
 
 #--- Jaws --------------------------------------------------------------------------------------------------------------
 
