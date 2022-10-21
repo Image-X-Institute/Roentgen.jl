@@ -47,3 +47,27 @@ Jaws(fieldsize::T) where T<:AbstractFloat = Jaws(-0.5*fieldsize, 0.5*fieldsize, 
 
 getx(jaws::Jaws) = jaws.x
 gety(jaws::Jaws) = jaws.y
+
+#--- IO
+
+"""
+    save(file::HDF5.H5DataStore, jaws::Jaws)
+
+Store `Jaws` data to an HDF5 file/group
+"""
+function save(file::HDF5.H5DataStore, jaws::Jaws)
+    file["jaws/x"] = Vector(jaws.x)
+    file["jaws/y"] = Vector(jaws.y)
+    nothing
+end
+
+"""
+    load(::Type{Jaws}, file::HDF5.H5DataStore)
+
+Load `Jaws` data from an HDF5 file/group
+"""
+function load(::Type{Jaws}, file::HDF5.H5DataStore)
+    x = read(file["jaws/x"])
+    y = read(file["jaws/y"])
+    Jaws(x, y)
+end
