@@ -14,7 +14,6 @@ It current contains two types of external surfaces:
  - PlaneSurface: Returns the distance from the source to a plane, but does not
                  account for the orientation of the treatment beam.
 =#
-using LinearAlgebra, Meshes
 
 export ConstantSurface, PlaneSurface, MeshSurface, IsoplaneSurface
 export getdepth, getSSD, compute_SSD!

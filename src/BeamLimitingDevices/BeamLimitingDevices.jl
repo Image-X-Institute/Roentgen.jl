@@ -1,6 +1,5 @@
 import Base.+, Base.-, Base.getindex, Base.lastindex, Base.size, Base.length
 import Base.(==), Base.view
-using StaticArrays
 
 export Jaws, MultiLeafCollimator, getx, gety, inaperture, centerposition, edgeposition, extract_subset
 

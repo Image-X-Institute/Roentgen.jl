@@ -1,4 +1,4 @@
-using Glob
+
 #export read_eclipse_kernel_data, read_eclipse_measured_data
 
 """

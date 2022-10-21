@@ -1,7 +1,5 @@
 export dose_fluence_matrix, dose_fluence_matrix!
 
-using Polyester
-
 #--- Dose-Fluence Matrix-------------------------------------------------------
 
 """

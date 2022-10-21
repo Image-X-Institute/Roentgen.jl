@@ -1,7 +1,30 @@
 module DoseCalculations
 
+# Arrays
+using SparseArrays
+using StaticArrays
+
+# Plotting
+using Plots
+
+# Coordinates
+using CoordinateTransformations
+using Rotations
+
+# IO
+import FileIO
+import MeshIO
+using DelimitedFiles
+using Glob
+using DICOM
+using WriteVTK
+
 using ProgressMeter
 using Interpolations
+using LinearAlgebra
+using Polyester
+using Meshes
+
 import JSON
 
 include("utils/FileConverters.jl")

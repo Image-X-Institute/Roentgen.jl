@@ -5,7 +5,6 @@
 # systems, such as IEC Fixed, IEC Gantry and IEC BeamLimitingDevice (BLD)
 #
 
-using CoordinateTransformations, Rotations, StaticArrays
 
 export fixed_to_gantry, gantry_to_fixed
 export gantry_to_bld, bld_to_gantry

@@ -6,8 +6,6 @@ Sets axes limits to jaw positions
 
 export plot_bld, plot_bld!, axes_lims!, axes_lims
 
-using Plots
-
 #--- Generic BeamLimitingDevice Plot -----------------------------------------------------------------------------------
 """
     plot_bld

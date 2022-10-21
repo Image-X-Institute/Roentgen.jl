@@ -1,6 +1,4 @@
 import Base.+, Base.length, Base.getindex, Base.eachindex
-using WriteVTK
-using SparseArrays, StaticArrays
 
 export save, DoseGrid, DoseGridMasked, CylinderBounds, gridsize, MeshBounds
 
