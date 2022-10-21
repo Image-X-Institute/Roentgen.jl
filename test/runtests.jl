@@ -1,5 +1,6 @@
 using Test
 using DoseCalculations
+using HDF5
 
 @testset "DoseCalculations" begin
     include("utils.jl")
