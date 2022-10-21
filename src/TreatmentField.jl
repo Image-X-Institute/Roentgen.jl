@@ -2,6 +2,7 @@ import Base.getindex, Base.lastindex, Base.length, Base.iterate, Base.show
 
 export getmlc, getjaws, getϕg, getθb, getmeterset, getdoserate, getisocenter, getSAD, getmetersettype
 export resample, getgantry, getΔMU
+export VMATField
 
 fixangle(angle) = angle > π ? angle - 2π : angle
 
@@ -157,6 +158,46 @@ function getΔMU(field::AbstractVMATField, i::Int)
     i == 1 && return 0.5*(field.meterset[2]-field.meterset[1])
     i == length(field) && return 0.5*(field.meterset[end]-field.meterset[end-1])
     0.5*(field.meterset[i+1]-field.meterset[i-1])
+end
+
+#--- IO
+
+"""
+    save(file::HDF5.H5DataStore, field::VMATField)
+
+Store `VMATField` data to an HDF5 file/group
+"""
+function save(file::HDF5.H5DataStore, field::VMATField)
+
+    save(file, getmlc(field))
+    save(file, getjaws(field))
+
+    file["gantry_angle"] = getϕg(field)
+    file["collimator_angle"] = getθb(field)
+    file["source_axis_distance"] = getSAD(field)
+
+    file["meterset"] = getmeterset(field)
+    file["dose_rate"] = getdoserate(field)
+
+    file["isocenter"] = Vector(getisocenter(field))
+
+    nothing
+end
+
+"""
+    load(file::HDF5.H5DataStore, field::VMATField)
+
+Load `VMATField` data to an HDF5 file/group
+"""
+function load(::Type{VMATField}, file::HDF5.H5DataStore)
+    mlc = load(MultiLeafCollimatorSequence, file)
+    jaws = load(Jaws, file)
+
+    names = ["gantry_angle", "collimator_angle", "source_axis_distance", "meterset", "dose_rate", "isocenter"]
+
+    data = read.(getindex.(Ref(file), names))
+
+    VMATField(mlc, jaws, data...)
 end
 
 #--- Resampling --------------------------------------------------------------------------------------------------------
