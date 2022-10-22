@@ -1,6 +1,7 @@
 .vscode
 output/
 *.vt?
+*.nrrd
 examples/sample-data/
 build
 

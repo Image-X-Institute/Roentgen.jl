@@ -238,6 +238,26 @@ function write_vtk(filename::String, pos::DoseGrid, data::Vararg)
 end
 write_vtk(filename::String, pos::DoseGrid, data::Dict) =  write_vtk(filename, pos, data...)
 
+function get_nrrd_props(pos::AbstractDoseGrid)
+    origin = tuple(pos[1, 1, 1]...)
+    directions = (step(getx(pos)), 0, 0), (0, step(gety(pos)), 0), (0, 0, step(getz(pos)))
+    
+    Dict("space origin"=>origin,
+         "space directions"=>directions,
+         "space"=>"left-posterior-superior",
+         "kinds"=>("domain", "domain", "domain"))
+end
+
+"""
+    write_nrrd(filename::String, pos::DoseGrid, data::AbstractArray)
+
+Write `DoseGrid` to the NRRD data format.
+"""
+function write_nrrd(filename::String, pos::DoseGrid, data::AbstractArray)
+    props = get_nrrd_props(pos::AbstractDoseGrid)
+    FileIO.save(filename, reshape(data, size(pos)), props=props)
+end
+
 """
     save(file::HDF5.H5DataStore, pos::DoseGrid)
 
@@ -348,7 +368,7 @@ end
 Base.length(pos::DoseGridMasked) = length(pos.indices)
 Base.size(pos::DoseGridMasked) = (length(pos),)
 
-gridsize(pos::DoseGridMasked) = (length(pos.x), length(pos.y), length(pos.z))
+gridsize(pos::DoseGridMasked) = tuple(length.(pos.axes)...)
 
 Base.getindex(pos::DoseGridMasked, i::Int) = pos[pos.indices[i]]
 
@@ -397,6 +417,26 @@ function write_vtk(filename::String, pos::DoseGridMasked, data::Vararg)
     end
 end
 write_vtk(filename::String, pos::DoseGridMasked, data::Dict) =  write_vtk(filename, pos, data...)
+
+"""
+    write_nrrd(filename::String, pos::DoseGridMasked, data::AbstractArray; fillvalue=NaN)
+
+Write `DoseGridMasked` to the NRRD data format.
+
+Masked points in `DoseGridMasked` are filled with `fillvalue`, defaults to `NaN`.
+"""
+function write_nrrd(filename::String, pos::DoseGridMasked, data::AbstractArray; fillvalue=NaN)
+
+    props = get_nrrd_props(pos)
+
+    datagrid = fill(fillvalue, gridsize(pos)...)
+    for i in eachindex(data)
+        I = pos.indices[i]
+        datagrid[I] = data[i]
+    end
+    
+    FileIO.save(filename, datagrid, props=props)
+end
 
 # HDF5
 
