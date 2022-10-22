@@ -185,9 +185,9 @@ function save(file::HDF5.H5DataStore, field::VMATField)
 end
 
 """
-    load(file::HDF5.H5DataStore, field::VMATField)
+    load(::Type{VMATField}, file::HDF5.H5DataStore)
 
-Load `VMATField` data to an HDF5 file/group
+Load `VMATField` data from an HDF5 file/group
 """
 function load(::Type{VMATField}, file::HDF5.H5DataStore)
     mlc = load(MultiLeafCollimatorSequence, file)
