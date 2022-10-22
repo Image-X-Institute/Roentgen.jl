@@ -22,5 +22,4 @@ surf = PlaneSurface(800.)
 # Reconstruct Dose
 dose = reconstruct_dose(pos, surf, plan, calc)
 
-save("dose", pos, "dose"=>dose)
-
+write_vtk("dose", pos, "dose"=>dose)

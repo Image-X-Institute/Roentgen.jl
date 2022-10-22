@@ -225,18 +225,18 @@ end
 #-- IO 
 
 """
-    save(filename::String, pos::DoseGrid, data::Union{Vararg, Dict})
+    write_vtk(filename::String, pos::DoseGrid, data::Union{Vararg, Dict})
 
 Save `DoseGrid` to the VTK Image data (vti) format.
 """
-function save(filename::String, pos::DoseGrid, data::Vararg)
+function write_vtk(filename::String, pos::DoseGrid, data::Vararg)
     vtk_grid(filename, pos.axes...) do vtkfile
         for (key, value) in data
             vtkfile[key, VTKPointData()] = value
         end
     end
 end
-save(filename::String, pos::DoseGrid, data::Dict) =  save(filename, pos, data...)
+write_vtk(filename::String, pos::DoseGrid, data::Dict) =  write_vtk(filename, pos, data...)
 
 """
     save(file::HDF5.H5DataStore, pos::DoseGrid)
@@ -382,11 +382,11 @@ function vtk_create_cell(cell)
 end
 
 """
-    save(filename::String, pos::DoseGridMasked, data::Union{Vararg, Dict})
+    write_vtk(filename::String, pos::DoseGridMasked, data::Union{Vararg, Dict})
 
 Save `DoseGridMasked` to the VTK Unstructured Grid (vtu) format.
 """
-function save(filename::String, pos::DoseGridMasked, data::Vararg)
+function write_vtk(filename::String, pos::DoseGridMasked, data::Vararg)
     points = [pos[i] for i in eachindex(pos)]
     cells = vtk_create_cell.(pos.cells)
 
@@ -396,7 +396,7 @@ function save(filename::String, pos::DoseGridMasked, data::Vararg)
         end
     end
 end
-save(filename::String, pos::DoseGridMasked, data::Dict) =  save(filename, pos, data...)
+write_vtk(filename::String, pos::DoseGridMasked, data::Dict) =  write_vtk(filename, pos, data...)
 
 # HDF5
 

@@ -57,6 +57,6 @@ include("BeamLimitingDevicePlots.jl")
 
 include("DoseReconstructions.jl")
 
-export load, save
+export load, save, write_vtk
 
 end # module
