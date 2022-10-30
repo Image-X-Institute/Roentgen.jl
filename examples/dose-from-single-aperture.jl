@@ -51,4 +51,4 @@ end
 dose = ΔMU*D'*vec(Ψ)
 
 # Save dose to VTK file format
-save("dose", pos, "dose"=>dose)
+write_vtk("dose", pos, "dose"=>dose)

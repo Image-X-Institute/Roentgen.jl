@@ -107,11 +107,11 @@ end
 #--- File IO ------------------------------------------------------------------
 
 """
-    save(filename, mesh::SimpleMesh)
+    write_vtk(filename, mesh::SimpleMesh)
 
-Save a `SimpleMesh` to a VTK file.
+Save a `SimpleMesh` to a VTK (.vtu) file.
 """
-function save(filename, mesh::SimpleMesh)
+function write_vtk(filename, mesh::SimpleMesh)
     id = [indices(e) for e in elements(topology(mesh))]
     vtkfile = vtk_grid(filename,
                        coordinates.(vertices(mesh)), 

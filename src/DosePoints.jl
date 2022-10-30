@@ -225,18 +225,66 @@ end
 #-- IO 
 
 """
-    save(filename::String, pos::DoseGrid, data::Union{Vararg, Dict})
+    write_vtk(filename::String, pos::DoseGrid, data::Union{Vararg, Dict})
 
 Save `DoseGrid` to the VTK Image data (vti) format.
 """
-function save(filename::String, pos::DoseGrid, data::Vararg)
+function write_vtk(filename::String, pos::DoseGrid, data::Vararg)
     vtk_grid(filename, pos.axes...) do vtkfile
         for (key, value) in data
             vtkfile[key, VTKPointData()] = value
         end
     end
 end
-save(filename::String, pos::DoseGrid, data::Dict) =  save(filename, pos, data...)
+write_vtk(filename::String, pos::DoseGrid, data::Dict) =  write_vtk(filename, pos, data...)
+
+function get_nrrd_props(pos::AbstractDoseGrid)
+    origin = tuple(pos[1, 1, 1]...)
+    directions = (step(getx(pos)), 0, 0), (0, step(gety(pos)), 0), (0, 0, step(getz(pos)))
+    
+    Dict("space origin"=>origin,
+         "space directions"=>directions,
+         "space"=>"left-posterior-superior",
+         "kinds"=>("domain", "domain", "domain"))
+end
+
+"""
+    write_nrrd(filename::String, pos::DoseGrid, data::AbstractArray)
+
+Write `DoseGrid` to the NRRD data format.
+"""
+function write_nrrd(filename::String, pos::DoseGrid, data::AbstractArray)
+    props = get_nrrd_props(pos::AbstractDoseGrid)
+    FileIO.save(filename, reshape(data, size(pos)), props=props)
+end
+
+"""
+    save(file::HDF5.H5DataStore, pos::DoseGrid)
+
+Store `DoseGrid` data to an HDF5 file/group
+"""
+function save(file::HDF5.H5DataStore, pos::DoseGrid)
+    
+    file["pos/x"] = collect(getx(pos))
+    file["pos/y"] = collect(gety(pos))
+    file["pos/z"] = collect(getz(pos))
+
+    nothing
+end
+
+"""
+    load(::Type{DoseGrid}, file::HDF5.H5DataStore)
+
+Load `DoseGrid` data from an HDF5 file/group
+"""
+function load(::Type{DoseGrid}, file::HDF5.H5DataStore)
+    
+    x = read(file["pos/x"])
+    y = read(file["pos/y"])
+    z = read(file["pos/z"])
+
+    DoseGrid(x, y, z)
+end
 
 #--- DoseGridMasked ----------------------------------------------------------------------------------------------------
 """
@@ -248,6 +296,13 @@ struct DoseGridMasked{TVec<:AbstractVector} <: AbstractDoseGrid
     axes::SVector{3, TVec}
     indices::Vector{CartesianIndex{3}}
     cells::Vector{Vector{Int}}
+    function DoseGridMasked(x, y, z, indices, cells)
+        ax = x, y, z
+        if(!all(@. typeof(ax) <: StepRangeLen))
+            ax = collect.(ax)
+        end
+        new{typeof(ax[1])}(SVector(ax...), indices, cells)
+    end
 end
 
 """
@@ -296,7 +351,7 @@ function DoseGridMasked(Δ, bounds::AbstractBounds)
         end
     end
 
-    DoseGridMasked(SVector(x, y, z), indices, cells)
+    DoseGridMasked(x, y, z, indices, cells)
 end
 
 for op in (:+, :-, :*, :/)
@@ -305,7 +360,7 @@ for op in (:+, :-, :*, :/)
             x = ($op).(getx(pos), v[1])
             y = ($op).(gety(pos), v[2])
             z = ($op).(getz(pos), v[3])
-            DoseGridMasked( SVector(x, y, z), pos.indices, pos.cells)
+            DoseGridMasked(x, y, z, pos.indices, pos.cells)
         end
     end)
 end
@@ -313,7 +368,7 @@ end
 Base.length(pos::DoseGridMasked) = length(pos.indices)
 Base.size(pos::DoseGridMasked) = (length(pos),)
 
-gridsize(pos::DoseGridMasked) = (length(pos.x), length(pos.y), length(pos.z))
+gridsize(pos::DoseGridMasked) = tuple(length.(pos.axes)...)
 
 Base.getindex(pos::DoseGridMasked, i::Int) = pos[pos.indices[i]]
 
@@ -332,6 +387,8 @@ function Base.show(io::IO, pos::DoseGridMasked)
     println(io, " npts=", length(pos.indices))
 end
 
+# VTK
+
 """
     vtk_create_cell(cell)
 
@@ -345,11 +402,11 @@ function vtk_create_cell(cell)
 end
 
 """
-    save(filename::String, pos::DoseGridMasked, data::Union{Vararg, Dict})
+    write_vtk(filename::String, pos::DoseGridMasked, data::Union{Vararg, Dict})
 
 Save `DoseGridMasked` to the VTK Unstructured Grid (vtu) format.
 """
-function save(filename::String, pos::DoseGridMasked, data::Vararg)
+function write_vtk(filename::String, pos::DoseGridMasked, data::Vararg)
     points = [pos[i] for i in eachindex(pos)]
     cells = vtk_create_cell.(pos.cells)
 
@@ -359,4 +416,66 @@ function save(filename::String, pos::DoseGridMasked, data::Vararg)
         end
     end
 end
-save(filename::String, pos::DoseGridMasked, data::Dict) =  save(filename, pos, data...)
+write_vtk(filename::String, pos::DoseGridMasked, data::Dict) =  write_vtk(filename, pos, data...)
+
+"""
+    write_nrrd(filename::String, pos::DoseGridMasked, data::AbstractArray; fillvalue=NaN)
+
+Write `DoseGridMasked` to the NRRD data format.
+
+Masked points in `DoseGridMasked` are filled with `fillvalue`, defaults to `NaN`.
+"""
+function write_nrrd(filename::String, pos::DoseGridMasked, data::AbstractArray; fillvalue=NaN)
+
+    props = get_nrrd_props(pos)
+
+    datagrid = fill(fillvalue, gridsize(pos)...)
+    for i in eachindex(data)
+        I = pos.indices[i]
+        datagrid[I] = data[i]
+    end
+    
+    FileIO.save(filename, datagrid, props=props)
+end
+
+# HDF5
+
+"""
+    save(file::HDF5.H5DataStore, pos::DoseGridMasked)
+
+Store `DoseGridMasked` data to an HDF5 file/group
+"""
+function save(file::HDF5.H5DataStore, pos::DoseGridMasked)
+    
+    file["pos/x"] = collect(getx(pos))
+    file["pos/y"] = collect(gety(pos))
+    file["pos/z"] = collect(getz(pos))
+
+    file["pos/indices"] = hcat(collect.(Tuple.(pos.indices))...)
+
+    file["cells/index"] = cumsum(vcat(1, length.(pos.cells)))
+    file["cells/cells"] = vcat(pos.cells...)
+
+    nothing
+end
+
+"""
+    load(::Type{DoseGridMasked}, file::HDF5.H5DataStore)
+
+Load `DoseGridMasked` data from an HDF5 file/group
+"""
+function load(::Type{DoseGridMasked}, file::HDF5.H5DataStore)
+    
+    x = read(file["pos/x"])
+    y = read(file["pos/y"])
+    z = read(file["pos/z"])
+
+    indices = read(file["pos/indices"])
+    indices = [CartesianIndex(col...) for col in eachcol(indices)]
+
+    index = read(file["cells/index"])
+    cells = read(file["cells/cells"])
+    cells = [cells[index[i]:index[i+1]-1] for i in 1:length(index)-1]
+
+    DoseGridMasked(x, y, z, indices, cells)
+end

@@ -12,6 +12,7 @@ using CoordinateTransformations
 using Rotations
 
 # IO
+using HDF5
 import FileIO
 import MeshIO
 using DelimitedFiles
@@ -30,7 +31,6 @@ import JSON
 include("utils/FileConverters.jl")
 include("utils/interpolation.jl")
 include("utils/misc.jl")
-
 
 include("CoordinateSystems.jl")
 
@@ -56,5 +56,7 @@ include("Structures.jl")
 include("BeamLimitingDevicePlots.jl")
 
 include("DoseReconstructions.jl")
+
+export load, save, write_vtk, write_nrrd
 
 end # module

@@ -132,4 +132,3 @@ for op in (:+, :-, :*, :/)
         end
     end)
 end
-
