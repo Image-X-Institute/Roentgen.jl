@@ -9,63 +9,90 @@ export fluence, fluence!, bixel_grid, bixels_from_bld
 
 export Bixel, position, width, area, subdivide
 
+#--- Abstract Fluence Element -------------------------------------------------
+
+"""
+    AbstractFluenceElement
+"""
+abstract type AbstractFluenceElement end
+
 #--- Abstract Bixel -----------------------------------------------------------
 
 """
-    AbstractBixel{T<:AbstractFloat}
+    AbstractBixel
 """
-abstract type AbstractBixel{T<:AbstractFloat} end
+abstract type AbstractBixel <: AbstractFluenceElement end
+
+#--- Bixel --------------------------------------------------------------------
 
 """
-    Base.getindex(bixel::AbstractBixel, i::Int)
+    Bixel{T}
+
+"""
+struct Bixel{T} <: AbstractBixel
+    position::SVector{2, T}     # Centre position of the bixel
+    width::SVector{2, T}   # Size of the bixel
+end
+
+Bixel(x::T, y::T, wx::T, wy::T) where T<:AbstractFloat = Bixel{T}(SVector(x, y), SVector(wx, wy))
+Bixel(x::T, y::T, w::T) where T<:AbstractFloat = Bixel(x, y, w, w)
+Bixel(x::T, w::T) where T<:AbstractFloat = Bixel(x, x, w, w)
+
+function Bixel(x::AbstractVector{T}, w::AbstractVector{T}) where T<:AbstractFloat 
+    Bixel{T}(x[1], x[2], w[1], w[2])
+end
+
+
+"""
+    Base.getindex(bixel::Bixel, i::Int)
 
 Get the centre position of the bixel.
 """
-Base.getindex(bixel::AbstractBixel, i::Int) = bixel.position[i]
+Base.getindex(bixel::Bixel, i::Int) = bixel.position[i]
 
 """
-    position(bixel::AbstractBixel)
+    position(bixel::Bixel)
 
 Get the position of the bixel.
 """
-position(bixel::AbstractBixel) = bixel.position
+position(bixel::Bixel) = bixel.position
 
 """
-    position(bixel::AbstractBixel, i::Int)
+    position(bixel::Bixel, i::Int)
 
 Get the ith coordinate of the position.
 """
-position(bixel::AbstractBixel, i::Int) = bixel.position[i]
+position(bixel::Bixel, i::Int) = bixel.position[i]
 
 """
-    width(bixel::AbstractBixel)
+    width(bixel::Bixel)
 
 Return the width of the bixel.
 """
-width(bixel::AbstractBixel) = bixel.width
+width(bixel::Bixel) = bixel.width
 
 """
-    width(bixel::AbstractBixel, i::Int)
+    width(bixel::Bixel, i::Int)
 
 Return the width of the bixel along axis `i`.
 """
-width(bixel::AbstractBixel, i::Int) = bixel.width[i]
+width(bixel::Bixel, i::Int) = bixel.width[i]
 
 """
-    area(bixel::AbstractBixel)
+    area(bixel::Bixel)
 
 Return the area of the bixel.
 """
-area(bixel::AbstractBixel) = prod(bixel.width)
+area(bixel::Bixel) = prod(bixel.width)
 
 """
-    subdivide(bixel::AbstractBixel, nx::Integer, ny::Integer)
+    subdivide(bixel::Bixel, nx::Integer, ny::Integer)
 
 Subdivide a bixel by specifing the number of partitions `nx` and `ny`.
 
 Returns a grid of bixels.
 """
-function subdivide(bixel::AbstractBixel, nx::Integer, ny::Integer)
+function subdivide(bixel::Bixel, nx::Integer, ny::Integer)
     Δx, Δy = width(bixel)
     x, y = position(bixel)
 
@@ -79,36 +106,17 @@ function subdivide(bixel::AbstractBixel, nx::Integer, ny::Integer)
 end
 
 """
-    subdivide(bixel::AbstractBixel{T}, δx::T, δy::T)
+    subdivide(bixel::Bixel{T}, δx::T, δy::T)
 
 Subdivide by specifing widths `δx` and `δy`
 """
-function subdivide(bixel::AbstractBixel{T}, δx::T, δy::T) where T<:AbstractFloat
+function subdivide(bixel::Bixel{T}, δx::T, δy::T) where T<:AbstractFloat
     Δx, Δy = width(bixel)
 
     nx = ceil(Int, Δx/δx)
     ny = ceil(Int, Δy/δy)
 
     subdivide(bixel, nx, ny)
-end
-
-#--- Bixel --------------------------------------------------------------------
-
-"""
-    Bixel{T}
-
-"""
-struct Bixel{T} <: AbstractBixel{T}
-    position::SVector{2, T}     # Centre position of the bixel
-    width::SVector{2, T}   # Size of the bixel
-end
-
-Bixel(x::T, y::T, wx::T, wy::T) where T<:AbstractFloat = Bixel{T}(SVector(x, y), SVector(wx, wy))
-Bixel(x::T, y::T, w::T) where T<:AbstractFloat = Bixel(x, y, w, w)
-Bixel(x::T, w::T) where T<:AbstractFloat = Bixel(x, x, w, w)
-
-function Bixel(x::AbstractVector{T}, w::AbstractVector{T}) where T<:AbstractFloat 
-    Bixel{T}(x[1], x[2], w[1], w[2])
 end
 
 #--- Bixel Grid ---------------------------------------------------------------
@@ -321,7 +329,7 @@ fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, jaws.x, jaws.y
 
 From an MLC aperture.
 """
-function fluence(bixel::AbstractBixel{T}, mlc::MultiLeafCollimator) where T<:AbstractFloat
+function fluence(bixel::Bixel{T}, mlc::MultiLeafCollimator) where T<:AbstractFloat
 
     hw = 0.5*width(bixel, 2)
     i1 = max(1, locate(mlc, bixel[2]-hw))
@@ -349,11 +357,11 @@ end
 #--- Moving Aperture fluences ------------------------------------------------------------------------------------------
 
 """
-    fluence(bixel::AbstractBixel{T}, mlc1::MultiLeafCollimator, mlc2::MultiLeafCollimator)
+    fluence(bixel::Bixel{T}, mlc1::MultiLeafCollimator, mlc2::MultiLeafCollimator)
 
 From an MLC aperture sequence.
 """
-function fluence(bixel::AbstractBixel{T}, mlc1::MultiLeafCollimator, mlc2::MultiLeafCollimator) where T<:AbstractFloat
+function fluence(bixel::Bixel{T}, mlc1::MultiLeafCollimator, mlc2::MultiLeafCollimator) where T<:AbstractFloat
 
     hw = 0.5*width(bixel, 2)
     i1 = max(1, locate(mlc1, bixel[2]-hw))
@@ -367,7 +375,7 @@ function fluence(bixel::AbstractBixel{T}, mlc1::MultiLeafCollimator, mlc2::Multi
 end
 
 """
-    fluence(bixel::AbstractBixel{T}, index::Int, mlcx1, mlcx2)
+    fluence(bixel::Bixel{T}, index::Int, mlcx1, mlcx2)
 
 From an MLC aperture sequence using a given leaf index.
 """
@@ -376,14 +384,14 @@ function fluence(bixel::AbstractBixel, index::Int, mlcx1::AbstractMatrix, mlcx2:
 end
 
 """
-    fluence_from_moving_aperture(bixel::AbstractBixel{T}, mlcx1, mlcx2)
+    fluence_from_moving_aperture(bixel::Bixel{T}, mlcx1, mlcx2)
 
 From MLC leaf positions which move from `mlcx1` to `mlcx2`.
 
 Computes the time-weighted fluence as the MLC moves from position `mlcx1` to `mlcx2`.
 Assumes the MLC leaves move in a straight line.
 """
-function fluence_from_moving_aperture(bixel::AbstractBixel{T}, mlcx1, mlcx2) where T<:AbstractFloat
+function fluence_from_moving_aperture(bixel::Bixel{T}, mlcx1, mlcx2) where T<:AbstractFloat
     xL = bixel[1] - 0.5*width(bixel, 1)
     xU = bixel[1] + 0.5*width(bixel, 1)
 

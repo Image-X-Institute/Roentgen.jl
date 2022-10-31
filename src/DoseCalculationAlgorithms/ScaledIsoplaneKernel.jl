@@ -105,11 +105,11 @@ end
 end
 
 """
-    kernel_size(calc::ScaledIsoplaneKernel, pos, bixels)
+    kernel_size(calc::ScaledIsoplaneKernel, pos, bixels::AbstractVector{Bixel{T}})
 
 Compute the number of bixels with the max. radius of a given position.
 """
-function kernel_size(calc::ScaledIsoplaneKernel, pos::SVector{3, T}, bixels::AbstractVector{<:AbstractBixel{T}}, SAD::T) where T<:AbstractFloat
+function kernel_size(calc::ScaledIsoplaneKernel, pos::SVector{3, T}, bixels::AbstractVector{Bixel{T}}, SAD::T) where T<:AbstractFloat
     
     x_iso, y_iso = scale_to_isoplane(pos, -SAD)
 
@@ -142,13 +142,13 @@ Allows for use in a loop, where the center of subdivision `i` is at:
 end
 
 """
-    integrate_kernel(calc::ScaledIsoplaneKernel, bixel::AbstractBixel{T}, x_iso, y_iso) where T<:AbstractFloat
+    integrate_kernel(calc::ScaledIsoplaneKernel, bixel::Bixel{T}, x_iso, y_iso) where T<:AbstractFloat
 
 Integrate the kernel over `bixel` from position `x_iso`, `y_iso`.
 
 Subdivides the bixel for higher accuracy.
 """
-function integrate_kernel(calc::ScaledIsoplaneKernel, bixel::AbstractBixel{T}, x_iso::T, y_iso::T) where T<:AbstractFloat
+function integrate_kernel(calc::ScaledIsoplaneKernel, bixel::Bixel{T}, x_iso::T, y_iso::T) where T<:AbstractFloat
     x0, δx, nx = subdivide(bixel[1], width(bixel, 1), calc.δsub[1])
     y0, δy, ny = subdivide(bixel[2], width(bixel, 2), calc.δsub[2])
 
@@ -168,7 +168,7 @@ Compute the fluence kernel for a given position.
 Designed to be used with a dose-fluence matrix of type SparseMatrixCSC. Stores
 the row value in `rowval`, and dose value in `nzval`.
 """
-function point_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels, surf, calc) where T<:AbstractFloat
+function point_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels::AbstractVector{Bixel{T}}, surf, calc::ScaledIsoplaneKernel) where T<:AbstractFloat
 
     SAD = T(1000.)  # This should be moved, SAD not always == 1000.
 

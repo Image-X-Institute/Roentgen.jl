@@ -10,7 +10,7 @@ dose calculation algorithm.
 
 See `dose_fluence_matrix!` for implementation.
 """
-function dose_fluence_matrix(pos, bixels::AbstractVector{<:AbstractBixel},
+function dose_fluence_matrix(pos, bixels::AbstractVector{<:AbstractFluenceElement},
                              gantry::GantryPosition,
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
     D = spzeros(length(bixels), length(pos))
@@ -27,7 +27,7 @@ Requires the `point_kernel!` method to be defined for the given dose calculation
 algorithm (`calc`). `point_kernel!` computes the dose calculated from the set of
 bixels a given dose point. Stores result in `D`.
 """
-function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:AbstractBixel},
+function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:AbstractFluenceElement},
                               gantry::GantryPosition,
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
 
