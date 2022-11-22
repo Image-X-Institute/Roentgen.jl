@@ -33,19 +33,66 @@ function Beamlet(bixel::Bixel, SAD)
     Beamlet(halfwidth, a)
 end
 
-struct FinitePencilBeamKernel{TI1, TI2, T} <: AbstractDoseAlgorithm
-    w::TI1
-    ux::TI2
-    uy::TI2
-    max_radius::T
+struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation, T} <: AbstractDoseAlgorithm
+    parameters::Tparameters
+    scalingfactor::TScalingFactor
+    maxradius::T
 end
 
-function FinitePencilBeamKernel(depths, w, ux, uy; max_radius=25.)
-    w = LinearInterpolation(depths, w, extrapolation_bc=Interpolations.Line())
-    ux = LinearInterpolation(depths, ux, extrapolation_bc=Interpolations.Line())
-    uy = LinearInterpolation(depths, uy, extrapolation_bc=Interpolations.Line())
-    FinitePencilBeamKernel(w, ux, uy, max_radius)
+function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scalingfactor::AbstractMatrix; maxradius=25.)
+    @assert length(depths) == size(parameters, 2)
+    @assert length(depths) == size(scalingfactor, 1)
+    @assert length(tanθ) == size(scalingfactor, 2)
+
+    data = SVector{5}.(eachcol(parameters))
+    params_interpolator = LinearInterpolation(depths, data, extrapolation_bc=Interpolations.Flat())
+
+    scalingfactor_interpolator = LinearInterpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Flat())
+
+    FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator, maxradius)
 end
+
+function FinitePencilBeamKernel(fid::HDF5.H5DataStore; maxradius=25.)
+    parameters = read(fid["parameters"])
+    depths = read(fid["depth"])
+
+    scalingfactor = read(fid["scaling_factor"])
+    tanθ = read(fid["tan_theta"])
+
+    FinitePencilBeamKernel(depths, parameters, tanθ, scalingfactor; maxradius=maxradius)
+end
+
+function FinitePencilBeamKernel(filename::String; fieldsize=100., maxradius=25.)
+    h5open(filename, "r") do fid
+        dset = fid["fieldsize-$(Int(fieldsize))mm"]
+        FinitePencilBeamKernel(dset; maxradius=maxradius)
+    end
+end
+
+function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD)
+
+    zp = -30:0.01:0
+    pos = SVector.(0., 0., zp)
+
+    gantry = GantryPosition(0., 0., SAD)
+
+    surf = PlaneSurface(SSD)
+    beamlet = Beamlet(Bixel(0., fieldsize), SAD)
+    depth_dose = vec(Array(dose_fluence_matrix(pos, [beamlet], gantry, surf, calc)))
+    imax = argmax(depth_dose)
+
+    calc.scalingfactor.itp.coefs ./= depth_dose[imax]*MU
+end
+
+function getparams(calc, depth)
+    p = calc.parameters(depth)
+    a = p[1]
+    ux = SVector(p[2], p[3])
+    uy = SVector(p[4], p[5])
+    a, ux, uy
+end
+
+getscalingfactor(calc, depth_rad, tanθ) = calc.scalingfactor(depth_rad, abs(tanθ))
 
 #--- Kernel Profile Functions -------------------------------------------------
 
