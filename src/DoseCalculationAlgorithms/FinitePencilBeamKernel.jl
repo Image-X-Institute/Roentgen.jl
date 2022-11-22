@@ -122,7 +122,7 @@ Compute the number of bixels with the max. radius of a given position.
 """
 function kernel_size(calc::FinitePencilBeamKernel, pos::SVector{3, T}, beamlets, SAD::T) where T<:AbstractFloat
     
-    max_kernel_radius² = calc.max_radius^2
+    max_kernel_radius² = calc.maxradius^2
 
     n = 0
     for beamlet in beamlets
@@ -143,35 +143,37 @@ Compute the fluence kernel for a given position.
 Designed to be used with a dose-fluence matrix of type SparseMatrixCSC. Stores
 the row value in `rowval`, and dose value in `nzval`.
 """
-function point_kernel!(rowval, nzval, pos::AbstractVector{T}, beamlets, surf, calc::FinitePencilBeamKernel) where T<:AbstractFloat
+function point_kernel!(rowval, nzval, r::AbstractVector{T}, beamlets, surf, calc::FinitePencilBeamKernel) where T<:AbstractFloat
 
     SAD = T(1000)
 
-    max_kernel_radius² = calc.max_radius^2
-
-    depth = getdepth(surf, pos)
-
-    depth < zero(T) && return 0
-
-    w = calc.w(depth)
-    ux = calc.ux(depth)
-    uy = calc.uy(depth)
+    max_kernel_radius² = calc.maxradius^2
 
     n = 0
     for i in eachindex(beamlets)
         beamlet = beamlets[i]
 
-        Rₐ = dot(pos, beamlet.vector)
+        Rₐ = dot(r, beamlet.vector)
         rₐ = Rₐ*beamlet.vector
 
-        x, y = SAD*(pos[1:2] - rₐ[1:2])/Rₐ
+        depth = getdepth(surf, rₐ)
+        
+
+        r′ = SAD*(r - rₐ)/Rₐ
+
+        x, y, _ = r′
         x₀, y₀ = beamlet.halfwidth
 
-        R² = dot(pos - rₐ, pos - rₐ)
+        R² = sum((r - rₐ).^2)
         if(R² < max_kernel_radius²)
             n += 1
             rowval[n] = i
-            nzval[n] = fpkb_dose(x, y, w, ux, uy, x₀, y₀)/Rₐ^2
+
+            tanθ = (√(beamlet.vector[1]^2 + beamlet.vector[2]^2))/beamlet.vector[3]
+
+            w, ux, uy = getparams(calc, depth)
+            A = getscalingfactor(calc, depth, tanθ)
+            nzval[n] = A*fpkb_dose(x, y, w, ux, uy, x₀, y₀)/Rₐ^2
         end
     end
     n
