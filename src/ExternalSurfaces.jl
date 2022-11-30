@@ -27,19 +27,22 @@ Supertype for external surfaces.
 abstract type AbstractExternalSurface end
 
 """
-    getSSD(surf::AbstractExternalSurface, pᵢ)
+    getSSD(surf::AbstractExternalSurface, p, gantry::GantryPosition)
 
-Get the Source-Surface Distance (SSD) between for the given position `pᵢ`.
-
-The position `pᵢ` is in the IEC Beam Limiting Device (BLD) coordinate system
-(whose center is at the radiation source).
+Get the Source-Surface Distance (SSD) for position `p` from `gantry` position.
 """
-getSSD(surf::AbstractExternalSurface, pᵢ)
+getSSD(surf::AbstractExternalSurface, p, gantry::GantryPosition)
 
 """
-    getdepth(surf::AbstractExternalSurface, pᵢ)
+    getdepth(surf::AbstractExternalSurface, p)
 
-Get the depth of the position `pᵢ` below the surface `surf`.
+Get the depth of the position `p` below the surface `surf` from `gantry` position.
+"""
+function getdepth(surf::AbstractExternalSurface, p, gantry::GantryPosition)
+    s = getposition(gantry)
+    norm(p - s) - getSSD(surf, p, gantry)
+end
+
 """
 function getdepth(surf::AbstractExternalSurface, pᵢ::T) where T<:Union{AbstractVector, Point3}
     norm(pᵢ - T(0, 0, 0)) .- getSSD(surf, pᵢ)
@@ -60,12 +63,12 @@ struct ConstantSurface{T} <: AbstractExternalSurface
 end
 
 """
-    getSSD(calc::ConstantSurface, pᵢ)
+    getSSD(calc::ConstantSurface, p, gantry)
 
 When applied to a `ConstantSurface`, it returns a constant SSD value, regardless
-of position `pᵢ`.
+of position `p`.
 """
-getSSD(surf::ConstantSurface, pᵢ) = surf.source_surface_distance
+getSSD(surf::ConstantSurface, p, gantry) = surf.source_surface_distance
 
 
 #--- PlaneSurface -------------------------------------------------------------
@@ -74,15 +77,31 @@ getSSD(surf::ConstantSurface, pᵢ) = surf.source_surface_distance
     PlaneSurface
 
 A planar external surface at a constant distance from the source.
+
+It assumes the external surface is a plane located at a distance of `surf.source_surface_distance`
+away from the source with normal from isocenter to source.
 """
 struct PlaneSurface{T} <: AbstractExternalSurface
     source_surface_distance::T
 end
 
 """
-    getSSD(surf::PlaneSurface, pᵢ)
+    hypotenuse(a, b)
+
+Compute the hypotenuse of triangle
+"""
+hypotenuse(a, b) = √(dot(a,a)*dot(b,b))/dot(a,b)
+
+"""
+    getSSD(surf::PlaneSurface, p, gantry)
 
 When applied to a `PlaneSurface`, it returns the distance to the plane.
+"""
+function getSSD(surf::PlaneSurface, p, gantry)
+    s = getposition(gantry)
+    surf.source_surface_distance*hypotenuse(s, s - p)
+end
+getSSD(surf::PlaneSurface, p::Point, gantry) = getSSD(surf, coordinates(p), gantry)
 
 It assumes the plane is at position (0, 0, surf.source_surface_distance) with
 normal pointing towards the source
