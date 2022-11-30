@@ -44,9 +44,11 @@ function getdepth(surf::AbstractExternalSurface, p, gantry::GantryPosition)
 end
 
 """
-function getdepth(surf::AbstractExternalSurface, pᵢ::T) where T<:Union{AbstractVector, Point3}
-    norm(pᵢ - T(0, 0, 0)) .- getSSD(surf, pᵢ)
-end
+    getdepth(SSD, p, gantry::GantryPosition)
+
+Get the depth of the position `p` below the surface `surf` from `gantry` position.
+"""
+getdepth(SSD, p, gantry::GantryPosition) = norm(p - getposition(gantry)) - SSD
 
 
 #--- ConstantSurface ----------------------------------------------------------
