@@ -20,7 +20,7 @@ struct GantryPosition{T}
     function GantryPosition(ϕg, θb, SAD)
         ϕg, θb, SAD = promote(ϕg, θb, SAD)
         T = typeof(ϕg)
-        pos = SAD*SVector(sin(ϕg), zero(T), cos(θb))
+        pos = SAD*SVector(sin(ϕg), zero(T), cos(ϕg))
         new{T}(ϕg, θb, SAD, pos)
     end
 end
