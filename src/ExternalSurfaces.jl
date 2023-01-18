@@ -15,7 +15,7 @@ It current contains two types of external surfaces:
                  account for the orientation of the treatment beam.
 =#
 
-export ConstantSurface, PlaneSurface, MeshSurface, IsoplaneSurface
+export ConstantSurface
 export getdepth, getSSD, compute_SSD!
 
 #--- AbstractExternalSurface --------------------------------------------------
@@ -27,29 +27,20 @@ Supertype for external surfaces.
 abstract type AbstractExternalSurface end
 
 """
-    getSSD(surf::AbstractExternalSurface, p, gantry::GantryPosition)
+    getSSD(surf::AbstractExternalSurface, pos, src)
 
-Get the Source-Surface Distance (SSD) for position `p` from `gantry` position.
+Get the Source-Surface Distance (SSD) for position `pos` to the radiation source `src`.
 """
-getSSD(surf::AbstractExternalSurface, p, gantry::GantryPosition)
-
-"""
-    getdepth(surf::AbstractExternalSurface, p)
-
-Get the depth of the position `p` below the surface `surf` from `gantry` position.
-"""
-function getdepth(surf::AbstractExternalSurface, p, gantry::GantryPosition)
-    s = getposition(gantry)
-    norm(p - s) - getSSD(surf, p, gantry)
-end
+getSSD(surf::AbstractExternalSurface, pos, src)
 
 """
-    getdepth(SSD, p, gantry::GantryPosition)
+    getdepth(surf::AbstractExternalSurface, pos, src)
 
-Get the depth of the position `p` below the surface `surf` from `gantry` position.
+Get the depth of the position `pos` below the surface from the radiation source `src`.
+
+Computes the depth by subtracting 
 """
-getdepth(SSD, p, gantry::GantryPosition) = norm(p - getposition(gantry)) - SSD
-
+getdepth(surf::AbstractExternalSurface, pos, src) = norm(pos - src) - getSSD(surf, pos, src)
 
 #--- ConstantSurface ----------------------------------------------------------
 
@@ -65,12 +56,12 @@ struct ConstantSurface{T} <: AbstractExternalSurface
 end
 
 """
-    getSSD(calc::ConstantSurface, p, gantry)
+    getSSD(calc::ConstantSurface, pos, src)
 
-When applied to a `ConstantSurface`, it returns a constant SSD value, regardless
-of position `p`.
+When applied to a `ConstantSurface`, it returns a constant source surface distance,
+regardless of `pos`.
 """
-getSSD(surf::ConstantSurface, p, gantry) = surf.source_surface_distance
+getSSD(surf::ConstantSurface, pos, src) = surf.source_surface_distance
 
 
 #--- PlaneSurface -------------------------------------------------------------
