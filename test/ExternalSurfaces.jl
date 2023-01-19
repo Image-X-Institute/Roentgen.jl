@@ -25,12 +25,14 @@ Implemented Surfaces:
 
     random_position() = SVector((200*rand(3) .- 100)...)
 
-    function test_SSD_calculation(surf, pos, src, SSD_truth)
+    function test_surface(surf, pos, src, SSD_truth, depth_truth)
         @test getSSD(surf, pos, src) ≈ SSD_truth
+        @test getdepth(surf, pos, src) ≈ depth_truth
     
         λ = 2*rand()
         pos2 = src + λ*(pos - src)
         @test getSSD(surf, pos2, src) ≈ SSD_truth
+
     end
     SAD = 1000.
     @test norm(random_source(SAD)) ≈ SAD
@@ -45,8 +47,7 @@ Implemented Surfaces:
 
         d = norm(pos - src) - SSD
 
-        test_SSD_calculation(surf, pos, src, SSD)
-        @test getdepth(surf, pos, src) ≈ d
+        test_surface(surf, pos, src, SSD, d)
     end
 
     @testset "PlaneSurface" begin
@@ -69,13 +70,13 @@ Implemented Surfaces:
         
         d = norm(pos - src) - SSD
 
-        test_SSD_calculation(surf, pos, src, SSD)
-        @test getdepth(surf, pos, src) ≈ d
+        @testset "3-4-5 Triangle" test_surface(surf, pos, src, SSD, d)
 
         # Rotationally Invariant
-        T = RotXYZ(RotXYZ(2π*rand(3)...))
-        test_SSD_calculation(surf, T*pos, T*src, SSD)
-        @test getdepth(surf, T*pos, T*src) ≈ d
+        @testset "Rotational Invariance" begin
+            T = RotXYZ(RotXYZ(2π*rand(3)...))            
+            test_surface(surf, T*pos, T*src, SSD, d)
+        end
     end
 
     @testset "MeshSurface" begin
@@ -84,34 +85,21 @@ Implemented Surfaces:
 
         # Test 1 - Visually inspected for accuracy
 
-        src = SVector(0., 0., 1000.)
-        pos = SVector(0., 0., 0.)
-
-        test_SSD_calculation(surf, pos, src, 884.0906064830797)
-        @test getdepth(surf, pos, src) ≈ 115.90939351692032
+        @testset "Visual Inspection 1" begin
+            src = SVector(0., 0., 1000.)
+            pos = SVector(0., 0., 0.)
+            test_surface(surf, pos, src, 884.0906064830797, 115.90939351692032)
+        end
 
         # Test 2 - Visually inspected for accuracy
 
-        src = SVector(-335, 0., 942)
-        pos = SVector(30., 20., 10.)
-        test_SSD_calculation(surf, pos, src, 875.0481662974585)
-        @test getdepth(surf, pos, src) ≈ 126.075702162384
+        @testset "Visual Inspection 2" begin
+            src = SVector(-335, 0., 942)
+            pos = SVector(30., 20., 10.)
+
+            test_surface(surf, pos, src, 875.0481662974585, 126.075702162384)
+        end 
     end
 
-    # @testset "IsoplaneSurface" begin
-    #     structure = load_structure_from_ply("test_mesh.stl")
-    #     SAD = 1000.
-    #     mesh_surf = MeshSurface(transform(structure, fixed_to_bld(0., 0., SAD)))
-
-    #     x = -40:1.:40
-    #     y = -70:1.:70
-    #     surf = IsoplaneSurface(x, y, 1000.)
-
-    #     compute_SSD!(surf, mesh_surf)
-
-    #     test_points = [Dict("pos"=>SVector(0., 0., 1000.), "SSD"=>884.0906064830797, "depth"=>115.90939351692032),
-    #                    Dict("pos"=>SVector(-54., 89., 1355.), "SSD"=>929.7027754972272, "depth"=>429.2902340506513)]
-
-    #     test_external_surfaces(surf, test_points)
-    # end
 end
+
