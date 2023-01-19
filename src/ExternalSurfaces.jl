@@ -15,7 +15,7 @@ It current contains two types of external surfaces:
                  account for the orientation of the treatment beam.
 =#
 
-export ConstantSurface, PlaneSurface
+export ConstantSurface, PlaneSurface, MeshSurface
 export getdepth, getSSD, compute_SSD!
 
 #--- AbstractExternalSurface --------------------------------------------------
@@ -106,18 +106,17 @@ struct MeshSurface{T} <: AbstractExternalSurface
 end
 
 """
-    getSSD(surf::MeshSurface, pᵢ)
+    getSSD(surf::MeshSurface, pos, src)
 
 When applied to a `MeshSurface`, it returns the smallest distance to the mesh.
 """
-function getSSD(surf::MeshSurface, pᵢ::T) where T<:AbstractVector
-    pₛ = Point(0, 0, 0)
-    line = Ray(pₛ, pᵢ)
-    pI = intersect_mesh(line, surf.mesh)
-    if(length(pI)==0)
-        return nothing
-    end
-    minimum(norm.(pI .- Ref(pₛ)))
+getSSD(surf::MeshSurface, pos, src) = getSSD(surf, Point(pos), Point(src))
+
+function getSSD(surf::MeshSurface, pos::Point, src::Point)
+    line = Ray(src, pos-src)
+    pI, _ = intersect_mesh(line, surf.mesh)
+    length(pI)==0 && return 0.
+    minimum(norm.(pI .- Ref(src)))
 end
 
 #--- IsoplaneSurface --------------------------------------------------------------

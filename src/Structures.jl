@@ -61,7 +61,7 @@ Find the intersection points of the `line` and the `mesh`.
 
 Returns a list of intersection points, and an empty list if none present.
 """
-function intersect_mesh(line::Geometry, mesh::Mesh{Dim, T}) where {Dim, T}
+function intersect_mesh(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
     if(Threads.nthreads()==1)
         return intersect_mesh_single_threaded(line, mesh)
     else
@@ -74,15 +74,17 @@ end
 
 Single-threaded version of `intersect_mesh`.
 """
-function intersect_mesh_single_threaded(line::Geometry, mesh::Mesh{Dim, T}) where {Dim, T}
+function intersect_mesh_single_threaded(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
     intersection_points = Point{Dim, T}[]
+    intersection_cells = Geometry{Dim, T}[]
     for cell in mesh
         pt = intersect(line, cell)
-        if(pt != nothing)
+        if(pt !== nothing)
             push!(intersection_points, pt)
+            push!(intersection_cells, cell)
         end
     end
-    intersection_points
+    intersection_points, intersection_cells
 end
 
 """
@@ -90,18 +92,21 @@ end
 
 Multi-threaded version of `intersect_mesh`.
 """
-function intersect_mesh_multi_threaded(line::Geometry, mesh::Mesh{Dim, T}) where {Dim, T}
+function intersect_mesh_multi_threaded(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
     intersection_points = Vector{Vector{Point{Dim, T}}}(undef, Threads.nthreads())
+    intersection_cells = Vector{Vector{Geometry{Dim, T}}}(undef, Threads.nthreads())
     for i=1:Threads.nthreads()
         intersection_points[i] = Point{Dim, T}[]
+        intersection_cells[i] = Geometry{Dim, T}[]
     end
     Threads.@threads for cell in mesh
         pt = intersect(line, cell)
-        if(pt != nothing)
+        if(pt !== nothing)
             push!(intersection_points[Threads.threadid()], pt)
+            push!(intersection_cells[Threads.threadid()], cell)
         end
     end
-    vcat(intersection_points...)
+    vcat(intersection_points...), vcat(intersection_cells...)
 end
 
 #--- File IO ------------------------------------------------------------------
@@ -117,4 +122,22 @@ function write_vtk(filename, mesh::SimpleMesh)
                        coordinates.(vertices(mesh)), 
                        MeshCell.(Ref(VTKCellTypes.VTK_TRIANGLE), id))
     vtk_save(vtkfile)
+end
+
+
+function isinside(testpoint::Point{3,T}, mesh::Mesh{3,T}) where T
+    if !(eltype(mesh) <: Triangle)
+      error("This function only works for surface meshes with triangles as elements.")
+    end
+    ex = testpoint .- extrema(mesh)
+    direction = ex[argmax(norm.(ex))]
+    r = Ray(testpoint, direction*2)
+    
+    intersects = false
+    for elem in mesh
+      if intersection(x -> x.type == NoIntersection ? false : true, r, elem)
+        intersects = !intersects
+      end
+    end
+    intersects
 end
