@@ -101,5 +101,46 @@ Implemented Surfaces:
         end 
     end
 
+    @testset "VariablePlaneSurface" begin
+        SAD = 1000.
+
+        @testset "Constant Variable Surface" begin
+            SSD₀ = 800.
+
+            ϕ = deg2rad.(-180:180)
+            distance = fill(SSD₀, length(ϕ))
+
+            surf = VariablePlaneSurface(ϕ, distance)
+            planesurf = PlaneSurface(SSD₀)
+
+            src = random_source(SAD)
+            pos = random_position()
+
+            SSD = getSSD(planesurf, pos, src)
+            d = getdepth(planesurf, pos, src)
+
+            test_surface(surf, pos, src, SSD, d)
+        end
+
+        @testset "Variable Surface" begin
+
+            ϕ = deg2rad.(-180:180)
+            distance = 750. .+ 200*rand(length(ϕ))
+
+            surf = VariablePlaneSurface(ϕ, distance)
+
+            src = random_source(SAD)
+            pos = random_position()
+
+            SSD₀ = DoseCalculations.interpolate(surf, src)
+            planesurf = PlaneSurface(SSD₀)
+
+            SSD = getSSD(planesurf, pos, src)
+            d = getdepth(planesurf, pos, src)
+
+            test_surface(surf, pos, src, SSD, d)
+        end
+    end
+
 end
 

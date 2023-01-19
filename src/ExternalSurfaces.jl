@@ -15,7 +15,7 @@ It current contains two types of external surfaces:
                  account for the orientation of the treatment beam.
 =#
 
-export ConstantSurface, PlaneSurface, MeshSurface
+export ConstantSurface, PlaneSurface, MeshSurface, VariablePlaneSurface
 export getdepth, getSSD, compute_SSD!
 
 #--- AbstractExternalSurface --------------------------------------------------
