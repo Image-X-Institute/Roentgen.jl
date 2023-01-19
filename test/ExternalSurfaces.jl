@@ -23,18 +23,15 @@ Implemented Surfaces:
         SAD*SVector(sin(ϕ)*cos(θ), cos(ϕ)*cos(θ), sin(θ))
     end
 
-    function random_position()
-        x, y, z = 200*rand(3) .- 100
-        SVector(x, y, z)
-    end
+    random_position() = SVector((200*rand(3) .- 100)...)
 
-
-
-    function SSD_scale_invariance(surf, src, pos, λ=2.31)
+    function test_SSD_calculation(surf, src, pos, SSD_truth)
+        @test getSSD(surf, pos, src) ≈ SSD_truth
+    
+        λ = 2*rand()
         pos2 = src + λ*(pos - src)
-        getSSD(surf, src, pos2) ≈ getSSD(surf, src, pos)
+        @test getSSD(surf, pos2, src) ≈ SSD_truth
     end
-
     SAD = 1000.
     @test norm(random_source(SAD)) ≈ SAD
 
@@ -47,25 +44,41 @@ Implemented Surfaces:
 
         d = norm(pos - src) - SSD
 
-        @test getSSD(surf, src, pos) == SSD
-        @test getdepth(surf, src, pos) == d
-        @test SSD_scale_invariance(surf, src, pos)
+        test_SSD_calculation(surf, src, pos, SSD)
+        @test getdepth(surf, pos, src) ≈ d
 
         # Rotationally Invariant
-        T = RotY(2π*rand())
-        @test getSSD(surf, T*src, T*pos) == SSD
-        @test getdepth(surf, T*src, T*pos) == d
-        @test SSD_scale_invariance(surf, T*src, T*pos)
+        T = RotXYZ(RotXYZ(2π*rand(3)...))
+        test_SSD_and_depth(surf, T*src, T*pos, SSD, d)
+        @test getdepth(surf, T*pos, T*src) ≈ d
     end
 
-    # @testset "PlaneSurface" begin
-    #     surf = PlaneSurface(800.)
+    @testset "PlaneSurface" begin
+        # 3-4-5 Triangle
+        SSD₀ = 400. # Central axis source-surface distance
+        ρ = 300.
 
-    #     test_points = [Dict("pos"=>SVector(0., 0., 1000.), "SSD"=>800., "depth"=>200.),
-    #                    Dict("pos"=>SVector(-54., 89., 1355.), "SSD"=>802.3574964120315, "depth"=>556.635513135847)]
+        surf = PlaneSurface(SSD₀)
 
-    #     test_external_surfaces(surf, test_points)
-    # end
+        SSD = √(SSD₀^2 + ρ^2)
+
+        ϕ = rand()*2*π
+        z = 20*rand()-10
+        ρ′ = ρ*(SAD-z)/SSD₀
+
+        src = SAD*SVector(0., 0., 1.)
+        pos = SVector(ρ′*cos(ϕ), ρ′*sin(ϕ), z)
+        
+        d = norm(pos - src) - SSD
+
+        test_SSD_calculation(surf, src, pos, SSD)
+        @test getdepth(surf, pos, src) ≈ d
+
+        # Rotationally Invariant
+        T = RotXYZ(RotXYZ(2π*rand(3)...))
+        test_SSD_calculation(surf, T*src, T*pos, SSD)
+        @test getdepth(surf, T*pos, T*src) ≈ d
+    end
 
     # @testset "MeshSurface" begin
     #     structure = load_structure_from_ply("test_mesh.stl")
@@ -97,4 +110,3 @@ Implemented Surfaces:
     #     test_external_surfaces(surf, test_points)
     # end
 end
-

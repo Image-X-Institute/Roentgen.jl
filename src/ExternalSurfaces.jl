@@ -15,7 +15,7 @@ It current contains two types of external surfaces:
                  account for the orientation of the treatment beam.
 =#
 
-export ConstantSurface
+export ConstantSurface, PlaneSurface
 export getdepth, getSSD, compute_SSD!
 
 #--- AbstractExternalSurface --------------------------------------------------
@@ -86,26 +86,13 @@ Compute the hypotenuse of triangle
 hypotenuse(a, b) = √(dot(a,a)*dot(b,b))/dot(a,b)
 
 """
-    getSSD(surf::PlaneSurface, p, gantry)
+    getSSD(surf::PlaneSurface, pos, src)
 
 When applied to a `PlaneSurface`, it returns the distance to the plane.
 """
-function getSSD(surf::PlaneSurface, p, gantry)
-    s = getposition(gantry)
-    surf.source_surface_distance*hypotenuse(s, s - p)
-end
-getSSD(surf::PlaneSurface, p::Point, gantry) = getSSD(surf, coordinates(p), gantry)
+getSSD(surf::PlaneSurface, pos, src) = surf.source_surface_distance*hypotenuse(src, src - pos)
 
-It assumes the plane is at position (0, 0, surf.source_surface_distance) with
-normal pointing towards the source
-"""
-function getSSD(surf::PlaneSurface, pᵢ)
-    x, y, z = pᵢ
-    α² = (surf.source_surface_distance/z)^2
-    √(α²*(x^2 + y^2) + surf.source_surface_distance^2)
-end
-
-getSSD(surf::PlaneSurface, pᵢ::Point) = getSSD(surf, coordinates(pᵢ))
+getSSD(surf::PlaneSurface, pos::Point, src) = getSSD(surf, coordinates(pos), src)
 
 #--- MeshSurface --------------------------------------------------------------
 
