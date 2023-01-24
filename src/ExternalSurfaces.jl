@@ -15,7 +15,7 @@ It current contains two types of external surfaces:
                  account for the orientation of the treatment beam.
 =#
 
-export ConstantSurface, PlaneSurface, MeshSurface, VariablePlaneSurface
+export ConstantSurface, PlaneSurface, MeshSurface, CylindricalSurface
 export getdepth, getSSD, compute_SSD!
 
 #--- AbstractExternalSurface --------------------------------------------------
@@ -121,20 +121,95 @@ function getSSD(surf::MeshSurface, pos::Point, src::Point)
     minimum(norm.(pI .- Ref(src)))
 end
 
-#--- VariablePlaneSurface ------------------------------------------------------
+#--- CylindricalSurface --------------------------------------------------------
 
 """
-    VariablePlaneSurface
+    CylindricalSurface
 
 A planar external surface at a variable distance from the isocenter.
 """
-struct VariablePlaneSurface{Tinterp} <: AbstractExternalSurface
-    distance::Tinterp
+struct CylindricalSurface{Ty<:AbstractVector, Tϕ<:AbstractVector, Tdist<:AbstractMatrix, TInterpolation} <: AbstractExternalSurface
+    ϕ::Tϕ
+    y::Ty
+    distance::Tdist
+    I::TInterpolation
+    function CylindricalSurface(ϕ, y, rho)
+        I = LinearInterpolation((ϕ, y), rho)
+        new{typeof(ϕ), typeof(y), typeof(rho), typeof(I)}(ϕ, y, rho, I)
+    end
 end
 
 # Constructors
-VariablePlaneSurface(ϕ, distance) = VariablePlaneSurface(LinearInterpolation(ϕ, distance))
+
+"""
+    CylindricalSurface
+
+Construct from a mesh.
+"""
+function CylindricalSurface(mesh::SimpleMesh; Δϕ°=2., Δy=2.)
+    ϕ = (-180:Δϕ°:180)*pi/180
+
+    box = boundingbox(mesh)
+
+    SAD = diagonal(box)
+
+    y₀ = coordinates(minimum(box))[2]
+    y₁ = coordinates(maximum(box))[2]
+    y = y₀:Δy:y₁
+    y = 0.5*(y[2:end]+y[1:end-1])
+
+    rho = zeros(length(ϕ), length(y))
+
+    for j in eachindex(y), i in eachindex(ϕ[1:end-1])
+        pos = Point(0., y[j], 0.)
+        src = Point(SAD*sin(ϕ[i]), y[j], SAD*cos(ϕ[i]))
+        
+        line = Ray(src, pos-src)
+        pI, _ = intersect_mesh(line, mesh)
+        if length(pI)==0
+            ρᵢ = Inf
+        else
+            s = argmin(norm.(pI .- Ref(src)))
+            ρᵢ = norm(pI[s]-pos)
+        end
+
+        rho[i, j] = ρᵢ
+    end
+    rho[end, :] .= rho[1, :]
+
+    CylindricalSurface(ϕ, y, rho)
+end
 
 # Methods
-interpolate(surf::VariablePlaneSurface, src) = surf.distance(atan(src[3], src[1]))
-getSSD(surf::VariablePlaneSurface, pos, src) = interpolate(surf, src)*hypotenuse(src, src - pos)
+function distance_to_surface(λ, surf, pos, src)
+    r = src + λ*(pos - src)
+
+    ϕ, y = atan(r[1], r[3]), r[2]
+    rho = surf.I(ϕ, y)
+
+    idx = SVector(1, 3)
+    rho^2 - dot(r[idx], r[idx])
+end
+
+function getSSD(surf::CylindricalSurface, pos, src)
+
+    sign(distance_to_surface(0., surf, pos, src)) == sign(distance_to_surface(1., surf, pos, src)) && return Inf
+
+    λ = find_zero(x->distance_to_surface(x, surf, pos, src), (0., 1.), AlefeldPotraShi())
+    λ*norm(src-pos)
+end
+
+function write_vtk(filename::String, surf::CylindricalSurface)
+
+    x = @. surf.distance*sin(surf.ϕ)
+    y = surf.y
+    z = @. surf.distance*cos(surf.ϕ)
+
+    xg = reshape(x, size(x)..., 1)
+    yg = ones(size(xg)).*y'
+    zg = reshape(z, size(z)..., 1)
+
+    vtk = vtk_grid(filename, xg, yg, zg)
+    vtk_save(vtk)
+    
+end

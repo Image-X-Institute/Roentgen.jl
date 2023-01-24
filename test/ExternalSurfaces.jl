@@ -101,46 +101,23 @@ Implemented Surfaces:
         end 
     end
 
-    @testset "VariablePlaneSurface" begin
-        SAD = 1000.
+    @testset "Cylindrical Surface" begin
+        mesh = load_structure_from_ply("test/test_cylinder.stl")
+        surf = CylindricalSurface(mesh; Δϕ°=1., Δy=1.)
+        meshsurf = MeshSurface(mesh)
 
-        @testset "Constant Variable Surface" begin
-            SSD₀ = 800.
+        @testset "Visual Inspection 1" begin
+            src = SVector(0., 0., 1000.)
+            pos = SVector(0., 0., 0.)
 
-            ϕ = deg2rad.(-180:180)
-            distance = fill(SSD₀, length(ϕ))
-
-            surf = VariablePlaneSurface(ϕ, distance)
-            planesurf = PlaneSurface(SSD₀)
-
-            src = random_source(SAD)
-            pos = random_position()
-
-            SSD = getSSD(planesurf, pos, src)
-            d = getdepth(planesurf, pos, src)
-
-            test_surface(surf, pos, src, SSD, d)
+            @test getSSD(surf, pos, src) ≈ getSSD(meshsurf, pos, src) atol=0.01
         end
+        
+        @testset "Visual Inspection 2" begin
+            src = SVector(-272.2, 100., 962.2)
+            pos = SVector(67.9, -80.7, -2.6)
 
-        @testset "Variable Surface" begin
-
-            ϕ = deg2rad.(-180:180)
-            distance = 750. .+ 200*rand(length(ϕ))
-
-            surf = VariablePlaneSurface(ϕ, distance)
-
-            src = random_source(SAD)
-            pos = random_position()
-
-            SSD₀ = DoseCalculations.interpolate(surf, src)
-            planesurf = PlaneSurface(SSD₀)
-
-            SSD = getSSD(planesurf, pos, src)
-            d = getdepth(planesurf, pos, src)
-
-            test_surface(surf, pos, src, SSD, d)
+            @test getSSD(surf, pos, src) ≈ getSSD(meshsurf, pos, src) atol=0.01
         end
     end
-
 end
-
