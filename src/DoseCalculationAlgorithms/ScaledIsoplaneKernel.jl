@@ -179,8 +179,10 @@ function point_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels, surf, gant
 
     pos_bld = trans(pos)
 
-    SSD = getSSD(surf, pos, gantry)
-    depth = getdepth(SSD, pos, gantry)
+    src = getposition(gantry)
+    SSD = getSSD(surf, pos, src)
+    isinf(SSD) && return 0
+    depth = norm(pos-src) - SSD
     depth < zero(T) && return 0
 
     PDD = norm_depth_dose(calc, depth)

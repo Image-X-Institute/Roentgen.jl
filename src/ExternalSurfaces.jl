@@ -109,13 +109,15 @@ end
     getSSD(surf::MeshSurface, pos, src)
 
 When applied to a `MeshSurface`, it returns the smallest distance to the mesh.
+
+Returns `Inf` if no intersection is found. 
 """
 getSSD(surf::MeshSurface, pos, src) = getSSD(surf, Point(pos), Point(src))
 
 function getSSD(surf::MeshSurface, pos::Point, src::Point)
     line = Ray(src, pos-src)
     pI, _ = intersect_mesh(line, surf.mesh)
-    length(pI)==0 && return 0.
+    length(pI)==0 && return Inf
     minimum(norm.(pI .- Ref(src)))
 end
 
