@@ -35,14 +35,11 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:
     rowval = D.rowval
     nzval = D.nzval
 
-    trans = fixed_to_bld(gantry)
-    SAD = getSAD(gantry)
-
     # Fill colptr
     colptr[1] = 1
     @batch per=thread for j in eachindex(pos) #
          # Temporarily store number of values in colptr
-        colptr[j+1] = kernel_size(calc, trans(pos[j]), bixels, SAD)
+        colptr[j+1] = kernel_size(calc, pos[j], bixels, gantry)
     end
     cumsum!(colptr, colptr) # Compute colptr from number of values
 
@@ -51,7 +48,7 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:
     resize!(nzval, n_prealloc)
     resize!(rowval, n_prealloc)
 
-    # Compute row and matrix values
+    # # Compute row and matrix values
     @batch per=thread for j in eachindex(pos) #
 
         ptr = colptr[j]:(colptr[j+1]-1)
@@ -61,8 +58,10 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:
         V = @view nzval[ptr]
         
         # Calculate the row and matrix value for given position
-        point_kernel!(I, V, trans(pos[j]), bixels, surf, calc)
+        point_kernel!(I, V, pos[j], bixels, surf, gantry, calc)
     end
+
+    dropzeros!(D)
 
     D
 end

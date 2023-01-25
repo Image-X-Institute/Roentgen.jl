@@ -105,13 +105,14 @@ end
 end
 
 """
-    kernel_size(calc::ScaledIsoplaneKernel, pos, bixels::AbstractVector{Bixel{T}})
+    kernel_size(calc::ScaledIsoplaneKernel, pos, bixels, gantry)
 
 Compute the number of bixels with the max. radius of a given position.
 """
-function kernel_size(calc::ScaledIsoplaneKernel, pos::SVector{3, T}, bixels::AbstractVector{Bixel{T}}, SAD::T) where T<:AbstractFloat
+function kernel_size(calc::ScaledIsoplaneKernel, pos::SVector{3, T}, bixels::AbstractVector{<:AbstractBixel{T}}, gantry) where T<:AbstractFloat
     
-    x_iso, y_iso = scale_to_isoplane(pos, -SAD)
+    pos_bld = fixed_to_bld(gantry)(pos)
+    x_iso, y_iso = scale_to_isoplane(pos_bld, -getSAD(gantry))
 
     n = 0
     for i in eachindex(bixels)
@@ -168,16 +169,23 @@ Compute the fluence kernel for a given position.
 Designed to be used with a dose-fluence matrix of type SparseMatrixCSC. Stores
 the row value in `rowval`, and dose value in `nzval`.
 """
-function point_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels::AbstractVector{Bixel{T}}, surf, calc::ScaledIsoplaneKernel) where T<:AbstractFloat
+function point_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels, surf, gantry, calc) where T<:AbstractFloat
 
-    SAD = T(1000.)  # This should be moved, SAD not always == 1000.
+    SAD = getSAD(gantry)
+
+    trans = fixed_to_bld(gantry)
 
     max_kernel_radius² = calc.max_radius^2
 
-    SSD = getSSD(surf, pos)
-    depth = getdepth(surf, pos)
+    pos_bld = trans(pos)
 
-    depth < zero(T) && return 0
+    src = getposition(gantry)
+    SSD = getSSD(surf, pos, src)
+    depth = norm(pos-src) - SSD
+    if isinf(SSD) || depth < zero(T)
+        nzval .= zero(T)
+        return 0
+    end
 
     PDD = norm_depth_dose(calc, depth)
 
@@ -186,7 +194,7 @@ function point_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels::AbstractVe
 
     α = PDD*cM*ci
         
-    x_iso, y_iso = scale_to_isoplane(pos, -SAD)
+    x_iso, y_iso = scale_to_isoplane(pos_bld, -SAD)
 
     n = 0
     for i in eachindex(bixels)
