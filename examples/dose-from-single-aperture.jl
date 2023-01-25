@@ -14,40 +14,32 @@ using DoseCalculations
 # Load the DICOM plan
 plan = load_dicom("path/to/dicom/RP.....dcm")
 field = plan[1] # Select the first field
-beams = resample(field, 2.) # Resample the first field for better accuracy
-controlpoint = beams[1] # Select the first control point
+controlpoint = field[1] # Select the first control point
 
-isocenter = getisocenter(controlpoint)
-pos = DoseGridMasked(5., CylinderBounds(200., 200., isocenter))
-pos_fixed = patient_to_fixed(isocenter).(pos)
+# External Surface
+mesh = load_structure_from_ply("path/to/stl-or-ply")
+trans = patient_to_fixed(getisocenter(controlpoint))
+
+surf = CylindricalSurface(mesh, transform!(mesh, trans))
+
+# Dose Positions
+pos = DoseGridMasked(5., SurfaceBounds(surf), patient_to_fixed(isocenter))
+pos_fixed = trans.(pos)
 
 # Create Bixels
 bixels = bixel_grid(getmlc(controlpoint), getjaws(controlpoint), 1.)
+
+# Compute fluence map from aperture
+Ψ = fluence(bixels, getmlc(controlpoint)); # Compute the fluence
+ΔMU = getΔMU(controlpoint)
 
 # Create dose calculation kernel
 calc = ScaledIsoplaneKernel("examples/sample-data/dose-kernel/scaled-isoplane-kernel.json", 25.)
 calibrate!(calc, 100., 100., 1000.)
 
-# Create External Surface
-surf = PlaneSurface(800.)
-
 # Create dose-fluence matrix
 gantry = getgantry(controlpoint)
 @time D = dose_fluence_matrix(pos_fixed, vec(bixels), gantry, surf, calc)
-
-# Compute fluence map from aperture
-Ψ = fluence(bixels, getmlc(controlpoint)); # Compute the fluence
-
-# Plot fluence map
-begin
-    p = plot_bld(bixels, Ψ, xlabel="x BLD (mm)", ylabel="y BLD (mm)", aspect_ratio=1)
-    plot_bld!(p, getmlc(controlpoint); fill=false, color=1, label="MLC")
-    plot_bld!(p, getjaws(controlpoint); color=2, label="Jaws")
-    axes_lims!(p, getjaws(controlpoint), pad=10.)
-end
-
-# Compute Dose
-ΔMU = getΔMU(controlpoint)
 dose = ΔMU*D'*vec(Ψ)
 
 # Save dose to VTK file format
