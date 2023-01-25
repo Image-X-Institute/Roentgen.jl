@@ -20,10 +20,10 @@ controlpoint = field[1] # Select the first control point
 mesh = load_structure_from_ply("path/to/stl-or-ply")
 trans = patient_to_fixed(getisocenter(controlpoint))
 
-surf = CylindricalSurface(mesh, transform!(mesh, trans))
+surf = CylindricalSurface(transform(mesh, trans))
 
 # Dose Positions
-pos = DoseGridMasked(5., SurfaceBounds(surf), patient_to_fixed(isocenter))
+pos = DoseGridMasked(5., SurfaceBounds(surf), trans)
 pos_fixed = trans.(pos)
 
 # Create Bixels

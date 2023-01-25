@@ -109,7 +109,7 @@ end
 
 Compute the number of bixels with the max. radius of a given position.
 """
-function kernel_size(calc::ScaledIsoplaneKernel, pos::SVector{3, T}, bixels::AbstractVector{<:AbstractBixel{T}}, gantry) where T<:AbstractFloat
+function kernel_size(calc::ScaledIsoplaneKernel, pos::SVector{3}, bixels::AbstractVector{<:AbstractBixel}, gantry)
     
     pos_bld = fixed_to_bld(gantry)(pos)
     x_iso, y_iso = scale_to_isoplane(pos_bld, -getSAD(gantry))
