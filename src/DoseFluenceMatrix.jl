@@ -61,5 +61,7 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:
         point_kernel!(I, V, pos[j], bixels, surf, gantry, calc)
     end
 
+    dropzeros!(D)
+
     D
 end
