@@ -108,19 +108,19 @@ getscalingfactor(calc, depth_rad, tanθ) = calc.scalingfactor(depth_rad, abs(tan
 
 #--- Kernel Profile Functions -------------------------------------------------
 
-@inline fpkb_profile_left(x, u, x₀) = sinh(u*x₀)*exp(u*x)
-@inline fpkb_profile_center(x, u, x₀) = 1-exp(-u*x₀)*cosh(u*x)
-@inline fpkb_profile_right(x, u, x₀) = sinh(u*x₀)*exp(-u*x)
+@inline fpbk_profile_left(x, u, x₀) = sinh(u*x₀)*exp(u*x)
+@inline fpbk_profile_center(x, u, x₀) = 1-exp(-u*x₀)*cosh(u*x)
+@inline fpbk_profile_right(x, u, x₀) = sinh(u*x₀)*exp(-u*x)
 
-function fpkb_profile(x, u, x₀)
-    x < -x₀ && return fpkb_profile_left(x, u, x₀)
-    x > x₀ && return fpkb_profile_right(x, u, x₀)
-    return fpkb_profile_center(x, u, x₀)
+function fpbk_profile(x, u, x₀)
+    x < -x₀ && return fpbk_profile_left(x, u, x₀)
+    x > x₀ && return fpbk_profile_right(x, u, x₀)
+    return fpbk_profile_center(x, u, x₀)
 end
 
-function fpkb_dose(x, y, w, ux, uy, x₀, y₀)
-    fx = fpkb_profile.(x, ux, x₀)
-    fy = fpkb_profile.(y, uy, y₀)
+function fpbk_dose(x, y, w, ux, uy, x₀, y₀)
+    fx = fpbk_profile.(x, ux, x₀)
+    fy = fpbk_profile.(y, uy, y₀)
 
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
@@ -211,5 +211,5 @@ function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSu
     w, ux, uy = getparams(calc, depth)
     A = getscalingfactor(calc, depth, tanθ)
     
-    A*fpkb_dose(x, y, w, ux, uy, x₀, y₀)/Rₐ^2
+    A*fpbk_dose(x, y, w, ux, uy, x₀, y₀)/Rₐ^2
 end
