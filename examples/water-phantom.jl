@@ -35,6 +35,7 @@ calibrate!(calc, MU, fieldsize, SSD)
 surf = PlaneSurface(SAD)
 
 gantry = GantryPosition(0., 0., SAD)
+src = DoseCalculations.getposition(gantry)
 
 #--- Depth Dose --------------------------------------------------------------------------------------------------------
 
@@ -46,7 +47,7 @@ pos = SVector.(0., 0., zp)
 @time depth_dose = dose_fluence_matrix(pos, vec(bixels), gantry, surf, calc)[1, :]
 
 begin
-    depth = getdepth.(Ref(surf), fixed_to_bld(gantry).(pos))
+    depth = getdepth.(Ref(surf), pos, Ref(src))
     p = plot(xlabel="Depth (mm)", ylabel="Dose (Gy)", ylim=[0, Inf])
     plot!(depth, MU*vec(depth_dose), label="Calculated")
     plot!(depth, MU*DoseCalculations.norm_depth_dose.(Ref(calc), depth))
@@ -72,7 +73,7 @@ end
 #--- 2D Dose -----------------------------------------------------------------------------------------------------------
 
 # Create dose points
-depth = 0:5.:400
+depth = 0.:5.:400
 offaxis_pos = -200.:5.:200.
 pos = DoseGrid(offaxis_pos, [0.], -depth)
 

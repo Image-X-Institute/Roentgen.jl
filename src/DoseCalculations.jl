@@ -11,6 +11,8 @@ using Plots
 using CoordinateTransformations
 using Rotations
 
+using Roots
+
 # IO
 using HDF5
 import FileIO
