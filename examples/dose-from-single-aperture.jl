@@ -34,13 +34,14 @@ bixels = bixel_grid(getmlc(controlpoint), getjaws(controlpoint), 1.)
 ΔMU = getΔMU(controlpoint)
 
 # Create dose calculation kernel
-calc = ScaledIsoplaneKernel("examples/sample-data/dose-kernel/scaled-isoplane-kernel.json", 25.)
+calc = FinitePencilBeamKernel("examples/sample-data/dose-kernel/finite-pencil-beam-kernel.hdf5")
 calibrate!(calc, 100., 100., 1000.)
 
 # Create dose-fluence matrix
 gantry = getgantry(controlpoint)
-@time D = dose_fluence_matrix(pos_fixed, vec(bixels), gantry, surf, calc)
-dose = ΔMU*D'*vec(Ψ)
+beamlets = vec(Beamlet.(bixels, Ref(gantry)))
+@time D = dose_fluence_matrix(pos_fixed, vec(beamlets), surf, calc)
+dose = ΔMU*D*vec(Ψ)
 
 # Save dose to VTK file format
 write_vtk("dose", pos, "dose"=>dose)

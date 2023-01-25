@@ -12,6 +12,7 @@ using CoordinateTransformations
 using Rotations
 
 using Roots
+using Optim
 
 # IO
 using HDF5

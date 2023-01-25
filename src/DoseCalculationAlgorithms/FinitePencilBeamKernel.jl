@@ -5,33 +5,42 @@ Implements the Jelen et al. 2005, "A finite size pencil beam for IMRT dose optim
 All references to equations refer to equations in the original paper.
 =#
 
-#--- Abstract Beamlet ---------------------------------------------------------
+#--- Abstract beamlet ---------------------------------------------------------
 
-abstract type AbstractBeamlet <: AbstractFluenceElement end
+abstract type Abstractbeamlet <: AbstractFluenceElement end
 
 export Beamlet, FinitePencilBeamKernel
 
 #--- Beamlet ------------------------------------------------------------------
 
-struct Beamlet{T} <: AbstractBeamlet
+struct Beamlet{T} <: Abstractbeamlet
     halfwidth::SVector{2, T}
     vector::SVector{3, T}
+    position::SVector{3, T}
 end
 
 """
-    Beamlet(bixel::Bixel, SAD)
+    Beamlet(bixel::Bixel, gantry)
 
 Construct a beamlet from a bixel
 """
-function Beamlet(bixel::Bixel, SAD)
+function Beamlet(bixel::Bixel, gantry::GantryPosition)
+    SAD = getSAD(gantry)
+
     halfwidth = 0.5*width(bixel)
-    pos = position(bixel)
 
-    a = SVector(pos..., -SAD)
-    a = a/norm(a)
+    s = getposition(gantry)
+    b = bld_to_fixed(gantry)(SVector(position(bixel)..., -SAD))
 
-    Beamlet(halfwidth, a)
+    a = normalize(b - s)
+
+    Beamlet(halfwidth, a, s)
 end
+
+getposition(beamlet::Beamlet) = beamlet.position
+getdirection(beamlet::Beamlet) = beamlet.vector
+gethalfwidth(beamlet::Beamlet) = beamlet.halfwidth
+getwidth(beamlet::Beamlet) = 2*gethalfwidth(beamlet)
 
 struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation, T} <: AbstractDoseAlgorithm
     parameters::Tparameters
@@ -71,17 +80,20 @@ end
 
 function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD)
 
-    zp = -30:0.01:0
-    pos = SVector.(0., 0., zp)
-
-    gantry = GantryPosition(0., 0., SAD)
-
     surf = PlaneSurface(SSD)
-    beamlet = Beamlet(Bixel(0., fieldsize), SAD)
-    depth_dose = vec(Array(dose_fluence_matrix(pos, [beamlet], gantry, surf, calc)))
-    imax = argmax(depth_dose)
 
-    calc.scalingfactor.itp.coefs ./= depth_dose[imax]*MU
+    hw = 0.5*fieldsize*SVector(1., 1.)
+    a = SVector(0., 0., -1.)
+    s = SVector(0., 0., SAD)
+    beamlet = Beamlet(hw, a, s)
+
+    f(x) = -point_dose(SVector(0., 0., -x), beamlet, surf, calc)
+    result = optimize(f, 0., 100.)
+    max_depth_dose = -minimum(result)
+
+    calc.scalingfactor.itp.coefs ./= max_depth_dose*MU
+    
+    result
 end
 
 function getparams(calc, depth)
@@ -113,68 +125,91 @@ function fpkb_dose(x, y, w, ux, uy, x₀, y₀)
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
 
-#--- Dose-Fluence Matrix Computations -----------------------------------------
+#--- Dose-Fluence Matrix Computations ------------------------------------------
 
-"""
-    kernel_size(calc::FinitePencilBeamKernel, pos, beamlets)
+function fill_colptr!(D::SparseMatrixCSC, pos, beamlets, calc::FinitePencilBeamKernel)
+    colptr = D.colptr
 
-Compute the number of bixels with the max. radius of a given position.
-"""
-function kernel_size(calc::FinitePencilBeamKernel, pos::SVector{3, T}, beamlets, SAD::T) where T<:AbstractFloat
-    
-    max_kernel_radius² = calc.maxradius^2
+    colptr[1] = 1
+    @batch per=thread for j in eachindex(beamlets)
+        beamlet = beamlets[j]
 
-    n = 0
-    for beamlet in beamlets
-        rₐ = dot(pos, beamlet.vector)*beamlet.vector
-        R² = dot(pos - rₐ, pos - rₐ)
-        if(R² < max_kernel_radius²)
-            n += 1
+        src = getposition(beamlet)
+        a = getdirection(beamlet)
+        SAD = norm(src)    
+
+        n = 0
+        for i in eachindex(pos)
+            n += kernel_size(pos[i]-src, a, calc.maxradius/SAD)
         end
+        colptr[j+1] = n
     end
-    n
+    cumsum!(colptr, colptr)
 end
 
+kernel_size(r::SVector{3}, a::SVector{3}, maxradius) = dot(r, r)/dot(r, a)^2 - 1 < maxradius^2
+
 """
-    point_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels, surf, calc)
+    dose_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels, surf, calc)
 
 Compute the fluence kernel for a given position.
 
 Designed to be used with a dose-fluence matrix of type SparseMatrixCSC. Stores
 the row value in `rowval`, and dose value in `nzval`.
 """
-function point_kernel!(rowval, nzval, r::AbstractVector{T}, beamlets, surf, calc::FinitePencilBeamKernel) where T<:AbstractFloat
+function dose_kernel!(D::SparseMatrixCSC, pos, beamlets, surf, calc)
 
-    SAD = T(1000)
+    colptr = D.colptr
+    rowval = D.rowval
+    nzval = D.nzval
 
-    max_kernel_radius² = calc.maxradius^2
+    @batch per=thread for j in eachindex(beamlets)
+        beamlet = beamlets[j]
 
-    n = 0
-    for i in eachindex(beamlets)
-        beamlet = beamlets[i]
+        # Create views of rowval and nzval
+        ptr = colptr[j]:(colptr[j+1]-1)
+        I = @view rowval[ptr]
+        V = @view nzval[ptr]
 
-        Rₐ = dot(r, beamlet.vector)
-        rₐ = Rₐ*beamlet.vector
+        a = getdirection(beamlet)
+        s = getposition(beamlet)
+        SAD = norm(s)
 
-        depth = getdepth(surf, rₐ)
-        
-
-        r′ = SAD*(r - rₐ)/Rₐ
-
-        x, y, _ = r′
-        x₀, y₀ = beamlet.halfwidth
-
-        R² = sum((r - rₐ).^2)
-        if(R² < max_kernel_radius²)
-            n += 1
-            rowval[n] = i
-
-            tanθ = (√(beamlet.vector[1]^2 + beamlet.vector[2]^2))/beamlet.vector[3]
-
-            w, ux, uy = getparams(calc, depth)
-            A = getscalingfactor(calc, depth, tanθ)
-            nzval[n] = A*fpkb_dose(x, y, w, ux, uy, x₀, y₀)/Rₐ^2
+        n = 0
+        for i in eachindex(pos)
+            if kernel_size(pos[i]-s, a, calc.maxradius/SAD)
+                n += 1
+                I[n] = i
+                V[n] = point_dose(pos[i], beamlet, surf, calc)
+            end
         end
     end
-    n
+
+end
+
+function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSurface, calc::FinitePencilBeamKernel) where T<:AbstractFloat
+    a = getdirection(beamlet)
+    s = getposition(beamlet)
+    x₀, y₀ = gethalfwidth(beamlet)
+
+    SAD = norm(s)
+
+    r = p - s
+
+    Rₐ = dot(r, a)
+    rₐ = Rₐ*a + s
+
+    depth = getdepth(surf, rₐ, s)
+    depth < zero(T) && return zero(T)
+
+    idx = SVector(1, 2)
+    x, y = SAD*(r[idx] - Rₐ*a[idx])/Rₐ
+
+    cosθ = dot(a, s/SAD)
+    tanθ = √(1-cosθ^2)/cosθ
+
+    w, ux, uy = getparams(calc, depth)
+    A = getscalingfactor(calc, depth, tanθ)
+    
+    A*fpkb_dose(x, y, w, ux, uy, x₀, y₀)/Rₐ^2
 end

@@ -10,11 +10,16 @@ dose calculation algorithm.
 
 See `dose_fluence_matrix!` for implementation.
 """
-function dose_fluence_matrix(pos, bixels::AbstractVector{<:AbstractFluenceElement},
-                             gantry::GantryPosition,
+function dose_fluence_matrix(pos, bixels::AbstractVector{<:Bixel}, gantry::GantryPosition,
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
-    D = spzeros(length(bixels), length(pos))
+    D = spzeros(length(pos), length(bixels))
     dose_fluence_matrix!(D, pos, bixels, gantry, surf, calc)
+end
+
+function dose_fluence_matrix(pos, beamlets::AbstractVector{<:Beamlet},
+                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
+    D = spzeros(length(pos), length(beamlets))
+    dose_fluence_matrix!(D, pos, beamlets, surf, calc)
 end
 
 """
@@ -27,7 +32,7 @@ Requires the `point_kernel!` method to be defined for the given dose calculation
 algorithm (`calc`). `point_kernel!` computes the dose calculated from the set of
 bixels a given dose point. Stores result in `D`.
 """
-function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:AbstractFluenceElement},
+function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:Bixel},
                               gantry::GantryPosition,
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
 
@@ -36,32 +41,36 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, bixels::AbstractVector{<:
     nzval = D.nzval
 
     # Fill colptr
-    colptr[1] = 1
-    @batch per=thread for j in eachindex(pos) #
-         # Temporarily store number of values in colptr
-        colptr[j+1] = kernel_size(calc, pos[j], bixels, gantry)
-    end
-    cumsum!(colptr, colptr) # Compute colptr from number of values
+    fill_colptr!(D, pos, bixels, gantry, calc)
 
     # Preallocate arrays
-    n_prealloc = colptr[end]-1
-    resize!(nzval, n_prealloc)
-    resize!(rowval, n_prealloc)
+    nprealloc = colptr[end]-1
+    resize!(nzval, nprealloc)
+    resize!(rowval, nprealloc)
 
-    # # Compute row and matrix values
-    @batch per=thread for j in eachindex(pos) #
+    # Compute row and matrix values
+    dose_kernel!(D, pos, bixels, gantry, surf, calc)
 
-        ptr = colptr[j]:(colptr[j+1]-1)
+    D
+end
 
-        # Create views of rowval and nzval
-        I = @view rowval[ptr]
-        V = @view nzval[ptr]
-        
-        # Calculate the row and matrix value for given position
-        point_kernel!(I, V, pos[j], bixels, surf, gantry, calc)
-    end
+function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{<:Beamlet},
+    surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
 
-    dropzeros!(D)
+    colptr = D.colptr
+    rowval = D.rowval
+    nzval = D.nzval
+
+    # Fill colptr
+    fill_colptr!(D, pos, beamlets, calc)
+
+    # Preallocate arrays
+    nprealloc = colptr[end]-1
+    resize!(nzval, nprealloc)
+    resize!(rowval, nprealloc)
+
+    # Compute row and matrix values
+    dose_kernel!(D, pos, beamlets, surf, calc)
 
     D
 end
