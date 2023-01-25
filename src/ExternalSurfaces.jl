@@ -213,3 +213,17 @@ function write_vtk(filename::String, surf::CylindricalSurface)
     vtk_save(vtk)
     
 end
+
+function extent(surf::CylindricalSurface)
+    x = @. surf.distance*sin(surf.ϕ)
+    y = surf.y
+    z = @. surf.distance*cos(surf.ϕ)
+    SVector(minimum(x), minimum(y), minimum(z)), SVector(maximum(x), maximum(y), maximum(z))
+end
+
+function isinside(surf::CylindricalSurface, pos)
+    pos[1]^2+pos[3]^2 == 0. && return true
+
+    ϕ, y = atan(pos[1], pos[3]), pos[2]
+    pos[1]^2+pos[3]^2 < surf.I(ϕ, y)^2
+end

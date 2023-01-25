@@ -1,6 +1,6 @@
 import Base.+, Base.length, Base.getindex, Base.eachindex
 
-export save, DoseGrid, DoseGridMasked, CylinderBounds, gridsize, MeshBounds
+export save, DoseGrid, DoseGridMasked, CylinderBounds, gridsize, MeshBounds, SurfaceBounds
 
 export getx, gety, getz
 
@@ -15,11 +15,11 @@ Returns `true` if the point `p` is within bounds
 """ within(bounds::AbstractBounds, p)
 
 """
-    boundsextent(bounds::AbstractBounds)
+    extent(bounds::AbstractBounds)
 
-Returns the bounding box of the bounds as a 6 element tuple:
-`xmin`, `xmax`, `ymin`, `ymax`, `zmin`, `zmax`
-""" boundsextent(bounds::AbstractBounds)
+Returns the bounding box of the bounds as two vectors:
+`pmin`, `pmax`
+""" extent(bounds::AbstractBounds)
 
 """
     CylinderBounds{T}
@@ -43,16 +43,16 @@ struct CylinderBounds{T} <: AbstractBounds
 end
 
 """
-    boundsextent(bounds::CylinderBounds)
+    extent(bounds::CylinderBounds)
 
 For a cylinder
 """
-function boundsextent(bounds::CylinderBounds)
+function extent(bounds::CylinderBounds)
     xmin, xmax = bounds.center[1] .+ 0.5*bounds.diameter*SVector(-1., 1.)
     ymin, ymax = bounds.center[2] .+ 0.5*bounds.diameter*SVector(-1., 1.)
     zmin, zmax = bounds.center[3] .+ 0.5*bounds.height*SVector(-1., 1.)
 
-    xmin, xmax, ymin, ymax, zmin, zmax
+    SVector(xmin, ymin, zmin), SVector(xmax, ymax, zmax)
 end
 
 """
@@ -96,11 +96,14 @@ function MeshBounds(mesh, pad=10.) <: AbstractBounds
 end
 
 """
-    boundsextent(bounds::MeshBounds)
+    extent(bounds::MeshBounds)
 
 For a mesh
 """
-boundsextent(bounds::MeshBounds) = bounds.box
+function extent(bounds::MeshBounds)
+    box = boundingbox(bounds.mesh)
+    coordinates(minimum(box)), coordinates(maximum(box))
+end
 
 """
     within(bounds::MeshBounds, p)
@@ -111,12 +114,36 @@ function within(bounds::MeshBounds, p)
     dmin = minimum(norm.(Ref(Point(p)) .- vertices(bounds.mesh)))
     dmin<=bounds.pad && return true
 
-    xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
-    line = Segment(Point(xmin, ymin, zmin), Point(p))
+    pmin, _ = extent(bounds)
+    line = Segment(Point(pmin), Point(p))
     pI = intersect_mesh(line, bounds.mesh)
     
     length(pI) % 2 != 0
 end
+
+
+"""
+    SurfaceBounds{TSurface}
+
+Represents a surface from a mesh.
+"""
+struct SurfaceBounds{TSurface<:AbstractExternalSurface} <: AbstractBounds
+    surf::TSurface
+end
+
+"""
+    extent(bounds::SurfaceBounds)
+
+For a mesh
+"""
+extent(bounds::SurfaceBounds) = extent(bounds.surf)
+
+"""
+    within(bounds::SurfaceBounds, p)
+
+Whether `p` is within the mesh
+"""
+within(bounds::SurfaceBounds, p) = isinside(bounds.surf, p)
 
 #--- Dose Positions ----------------------------------------------------------------------------------------------------
 
@@ -194,16 +221,18 @@ end
 """
     DoseGrid(Δ, bounds::AbstractBounds)
 
-Construct a `DoseGrid` with spacing `Δ` within `bounds`
+Construct a `DoseGrid` with spacing `Δ` within `bounds`.
+
+Can specify a coordinate system transformation in `transform` to generate dose
+points in a different coordinate system to the bounds.
 """
-function DoseGrid(Δ, bounds::AbstractBounds)
-    xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
+function DoseGrid(Δ, bounds::AbstractBounds, transform=IdentityTransformation())
+    inv_transform = inv(transform)
+    pmin, pmax = inv_transform.(extent(bounds))
 
-    x = xmin:Δ:xmax
-    y = ymin:Δ:ymax
-    z = zmin:Δ:zmax
+    ax = range.(min.(pmin, pmax), max.(pmin, pmax), step=Δ)
 
-    DoseGrid(x, y, z)
+    DoseGrid(ax...)
 end
 
 Base.size(pos::DoseGrid) = tuple(length.(pos.axes)...)
@@ -306,18 +335,20 @@ struct DoseGridMasked{TVec<:AbstractVector} <: AbstractDoseGrid
 end
 
 """
-    DoseGridMasked(Δ, bounds::AbstractBounds)
+    DoseGridMasked(Δ, bounds::AbstractBounds, transform=I)
 
 Construct a `DoseGridMasked` with spacing `Δ` within `bounds`.
 
-The mask applies to all points within `bounds`
+The mask applies to all points within `bounds`. Can specify a coordinate system
+transformation in `transform` to generate dose points in a different coordinate
+system to the bounds.
 """
-function DoseGridMasked(Δ, bounds::AbstractBounds)
-    xmin, xmax, ymin, ymax, zmin, zmax = boundsextent(bounds)
+function DoseGridMasked(Δ, bounds::AbstractBounds, transform=IdentityTransformation())
 
-    x = xmin:Δ:xmax
-    y = ymin:Δ:ymax
-    z = zmin:Δ:zmax
+    inv_transform = inv(transform)
+    pmin, pmax = inv_transform.(extent(bounds))
+
+    x, y, z = range.(min.(pmin, pmax), max.(pmin, pmax), step=Δ)
 
     grid_index = CartesianIndices( (length(x), length(y), length(z)) )
     indices = CartesianIndex{3}[]
@@ -325,7 +356,7 @@ function DoseGridMasked(Δ, bounds::AbstractBounds)
 
     # Points
     for i in grid_index
-        p = SVector(x[i[1]], y[i[2]], z[i[3]])
+        p = transform(SVector(x[i[1]], y[i[2]], z[i[3]]))
         if(within(bounds, p))
             push!(indices, grid_index[i])
             linear_index[i] = length(indices)
