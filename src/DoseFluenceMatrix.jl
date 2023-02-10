@@ -62,12 +62,15 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{
     nzval = D.nzval
 
     # Fill colptr
-    fill_colptr!(D, pos, beamlets, calc)
+    fill_colptr!(D, pos, beamlets, calc.maxradius)
 
     # Preallocate arrays
     nprealloc = colptr[end]-1
     resize!(nzval, nprealloc)
     resize!(rowval, nprealloc)
+
+    # Fill rowval
+    fill_rowval!(D, pos, beamlets, calc.maxradius)
 
     # Compute row and matrix values
     dose_kernel!(D, pos, beamlets, surf, calc)

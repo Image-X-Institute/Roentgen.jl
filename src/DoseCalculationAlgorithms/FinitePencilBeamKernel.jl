@@ -125,9 +125,11 @@ function fpbk_dose(x, y, w, ux, uy, x₀, y₀)
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
 
-#--- Dose-Fluence Matrix Computations ------------------------------------------
+#--- Dose-Fluence Matrix Computations -----------------------------------------
 
-function fill_colptr!(D::SparseMatrixCSC, pos, beamlets, calc::FinitePencilBeamKernel)
+kernel_size(r::SVector{3}, a::SVector{3}, maxradius) = dot(r, r)/dot(r, a)^2 - 1 < maxradius^2
+
+function fill_colptr!(D::SparseMatrixCSC, pos, beamlets, maxradius)
     colptr = D.colptr
 
     colptr[1] = 1
@@ -140,14 +142,40 @@ function fill_colptr!(D::SparseMatrixCSC, pos, beamlets, calc::FinitePencilBeamK
 
         n = 0
         for i in eachindex(pos)
-            n += kernel_size(pos[i]-src, a, calc.maxradius/SAD)
+            n += kernel_size(pos[i]-src, a, maxradius/SAD)
         end
         colptr[j+1] = n
     end
     cumsum!(colptr, colptr)
 end
 
-kernel_size(r::SVector{3}, a::SVector{3}, maxradius) = dot(r, r)/dot(r, a)^2 - 1 < maxradius^2
+function fill_rowval!(D::SparseMatrixCSC, pos, beamlets, maxradius)
+
+    colptr = D.colptr
+    rowval = D.rowval
+
+    @batch per=thread for j in eachindex(beamlets) #
+        beamlet = beamlets[j]
+
+        # Create views of rowval and nzval
+        ptr = colptr[j]:(colptr[j+1]-1)
+        I = @view rowval[ptr]
+
+        a = getdirection(beamlet)
+        s = getposition(beamlet)
+        SAD = norm(s)
+
+        n = 0
+        for i in eachindex(pos)
+            p = pos[i]
+            if kernel_size(p-s, a, maxradius/SAD)
+                n += 1
+                I[n] = i
+            end
+        end
+    end
+
+end
 
 """
     dose_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels, surf, calc)
@@ -163,28 +191,22 @@ function dose_kernel!(D::SparseMatrixCSC, pos, beamlets, surf, calc)
     rowval = D.rowval
     nzval = D.nzval
 
-    @batch per=thread for j in eachindex(beamlets)
-        beamlet = beamlets[j]
-
-        # Create views of rowval and nzval
-        ptr = colptr[j]:(colptr[j+1]-1)
-        I = @view rowval[ptr]
-        V = @view nzval[ptr]
-
-        a = getdirection(beamlet)
-        s = getposition(beamlet)
-        SAD = norm(s)
-
-        n = 0
-        for i in eachindex(pos)
-            if kernel_size(pos[i]-s, a, calc.maxradius/SAD)
-                n += 1
-                I[n] = i
-                V[n] = point_dose(pos[i], beamlet, surf, calc)
-            end
-        end
+    jprev = 1
+    @batch per=thread for n in eachindex(rowval, nzval)
+        i = rowval[n]
+        j = sequential_searchsortedlast(colptr, n, jprev)
+        nzval[n] = point_dose(pos[i], beamlets[j], surf, calc)
+        jprev = j
     end
 
+end
+
+function sequential_searchsortedlast(a, x, j=1)
+    a[j]<=x<a[j+1] && return j
+    @inbounds for k = j+1:length(a)-1
+        a[k]<=x<a[k+1] && return k
+    end
+    length(a)
 end
 
 function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSurface, calc::FinitePencilBeamKernel) where T<:AbstractFloat
