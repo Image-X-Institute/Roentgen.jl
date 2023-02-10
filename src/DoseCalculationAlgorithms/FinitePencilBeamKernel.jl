@@ -54,9 +54,9 @@ function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scali
     @assert length(tanθ) == size(scalingfactor, 2)
 
     data = SVector{5}.(eachcol(parameters))
-    params_interpolator = LinearInterpolation(depths, data, extrapolation_bc=Interpolations.Flat())
+    params_interpolator = LinearInterpolation(depths, data, extrapolation_bc=Interpolations.Line())
 
-    scalingfactor_interpolator = LinearInterpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Flat())
+    scalingfactor_interpolator = LinearInterpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Line())
 
     FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator, maxradius)
 end
@@ -193,7 +193,6 @@ function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSu
     x₀, y₀ = gethalfwidth(beamlet)
 
     SAD = norm(s)
-
     r = p - s
 
     Rₐ = dot(r, a)
@@ -202,8 +201,11 @@ function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSu
     depth = getdepth(surf, rₐ, s)
     depth < zero(T) && return zero(T)
 
-    idx = SVector(1, 2)
-    x, y = SAD*(r[idx] - Rₐ*a[idx])/Rₐ
+    sy = SVector(0, 1, 0)
+    sx = cross(sy, s/SAD)
+
+    δ = SAD*(r - Rₐ*a)/Rₐ
+    x, y = dot(δ, sx), dot(δ, sy)
 
     cosθ = dot(a, s/SAD)
     tanθ = √(1-cosθ^2)/cosθ

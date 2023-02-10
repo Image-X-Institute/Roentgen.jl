@@ -68,7 +68,6 @@ end
 # Least Squares Fit
 
 function fit_profile(x′, measured_dose, fieldsize)
-    # p0 = rand(4) # fill(0.5, 4)
     p0 = [1., 0.2, 0.03, 0.4]
 
     lb = [-Inf, 0., 0., 0.]
@@ -101,80 +100,21 @@ for i in axes(params, 2)
 end
 
 begin
-    i = 25
     ylabels = ["a", "w", "ux₁", "ux₂"]
     p = [plot(depth, params[i, :], yerr=errors[i, :], legend=false, ylabel=ylabels[i]) for i in axes(params, 1)]
-    for pᵢ in p
-        vline!(pᵢ, depth[[i]], xlabel="Scaled Off-Axis Pos. (mm)")
-    end
     plot(p..., layout=grid(2, 2), figheight=(12, 5))
 end
 
 begin
-    i = 25
-    p = plot(xlabel="Scaled Off-Axis Position (mm)", ylabel="Dose (Scaled)")
+    i = searchsortedlast(depth, 100.)
+
+    p = plot(xlabel="Scaled Off-Axis Position (mm)", ylabel="Dose (Scaled)",
+             title="Depth $(depth[i])mm")
     plot!(p, x′[:, i], measured_dose_scaled[:, i], label="Measured")
     xᵢ′ = x′[1, i]:1.:x′[end, i]
-    plot!(p, xᵢ′, params[1, i]*profile_at_depth.(xᵢ′, params[2, i], Ref(params[3:4, i]), 0.5*fieldsize),
-          label="Fitted")
-end
 
-#--- Smooth Steepness and Weight Parameters ------------------------------------
-
-function moving_average(x::Vector, window_size)
-    @assert window_size%2==1 "Window size must be odd"
-
-    xnew = similar(x)
-    error = similar(x)
-    window = zeros(window_size)
-
-    hn = window_size÷2+1
-
-    window[1:hn] .= x[1]
-    window[hn+1:end] .= x[2:hn]
-
-    for i in eachindex(x)
-        σ² = var(window)
-        x̄ = mean(window)
-        I = @. (window-x̄)^2<=σ²
-
-        xnew[i] = mean(window[I])
-        error[i] = std(window[I])
-        
-        window[1:end-1] .= window[2:end]
-        window[end] = x[min(length(x), i+hn)]
-
-    end
-
-    xnew, error
-end
-
-function moving_average(x::Matrix, window_size)
-    xsmooth = similar(x)
-    error = similar(x)
-
-    for i in axes(x, 1)
-        xᵢ, εᵢ = moving_average(x[i, :], window_size)
-        xsmooth[i, :] .= xᵢ
-        error[i, :] .= εᵢ
-    end
-
-    xsmooth, error
-end
-
-params_smoothed, _ = moving_average(params, 11)
-
-begin
-    ylabels = ["a", "w", "ux₁", "ux₂"]
-    ymax = [Inf, 1., 0.1, 1.]
-    p = []
-    for i in axes(params, 1)
-        pᵢ = plot(depth, params[i, :], yerr=errors[i, :], legend=false, ylabel=ylabels[i])
-        plot!(depth, params_smoothed[i, :])
-        plot!(ylim=[0., ymax[i]])
-        push!(p, pᵢ)
-    end
-    plot(p..., layout=grid(4, 1), size=(800, 1200))
+    profile = params[1, i]*profile_at_depth.(xᵢ′, params[2, i], Ref(params[3:4, i]), 0.5*fieldsize)
+    plot!(p, xᵢ′, profile, label="Fitted")
 end
 
 #--- Compute Scaling Factor ---------------------------------------------------
@@ -185,70 +125,65 @@ Rmax = depth[end]+SAD
 xmax = maximum(abs.(x))
 
 tanθmax = xmax/Rmax
-
 tanθ = range(0., tanθmax, length=201)
+θ = atan.(tanθ)
 
 function scaling_factor(d, tanθ, R, D, param)
 
     secθ = √(tanθ^2 + 1)
 
-    pos_depth = d*secθ#/cos(θ)
-    pos_dist = R*secθ#/cos(θ)
-    pos_offaxis_dist = R*tanθ
+    d′ = d*secθ
+    R′ = R*secθ
+    x = R*tanθ
 
-    w, ux1, ux2 = param(pos_depth)
+    w, ux1, ux2 = param(d′)
 
-    F = profile_at_depth(pos_offaxis_dist, w, [ux1, ux2], 0.5*fieldsize)
-    
-    exp(D(pos_offaxis_dist))*pos_dist^2/F
+    F = profile_at_depth(SAD*x/R′, w, [ux1, ux2], 0.5*fieldsize)
+    exp(D(x))*R′^2/F
 end
 
-p = SVector{3}.(eachcol(params_smoothed[2:4, :]))
+# Set up Interpolators for parameters and measured dose
+p = SVector{3}.(eachcol(params[2:4, :]))
 p = linear_interpolation(depth, p, extrapolation_bc=Flat())
 
 D = linear_interpolation.(Ref(x), eachcol(log.(measured_dose)), extrapolation_bc=Line())
 
-A = scaling_factor.(depth, tanθ', R, D, Ref(p))
+# Compute Scaling Factor
+A = scaling_factor.(depth, θ', R, D, Ref(p))
 
-heatmap(rad2deg.(atan.(tanθ)), depth, A, xlabel="θ (°)", ylabel="Depth (mm)")
+heatmap(rad2deg.(θ), depth, A, xlabel="θ (°)", ylabel="Depth (mm)")
 
-I = linear_interpolation((depth, tanθ), A, extrapolation_bc=Flat())
+#--- Verify Result ------------------------------------------------------------
 
 # Create Kernel
-parameters = vcat(params_smoothed[2:end, :], params_smoothed[3:4, :])
+parameters = vcat(params[2:end, :], params[3:4, :])
 
 calc = FinitePencilBeamKernel(depth, parameters, tanθ, A; maxradius=280.)
 
+# Create dose positions, external surface, gantry and beamlet
 pos = @. SVector(x, x[ix], -depth')
 surf = PlaneSurface(SSD)
-beamlets = [Beamlet(Bixel(0., fieldsize), GantryPosition(0., 0., SAD))]
+gantry = GantryPosition(0., 0., SAD)
+beamlet = Beamlet(Bixel(0., fieldsize), gantry)
 
-dose = Array(dose_fluence_matrix(vec(pos), beamlets, surf, calc))
-dose = reshape(dose, size(pos)...)
+# Compute dose
+dose = DoseCalculations.point_dose.(pos, Ref(beamlet), Ref(surf), Ref(calc))
 
-# Plot Result
+# Calculate error
+√sum(@. (dose-measured_dose)^2)
 
-heatmap(x, depth, dose'/maximum(dose), xlabel="x (mm)", ylabel="Depth (mm)", title="Computed Dose", aspect_ratio=1,
-        xlim=x[[1, end]], ylim=depth[[1, end]])
-heatmap(x, depth, measured_dose'/maximum(measured_dose), xlabel="x (mm)", ylabel="Depth (mm)", title="Measured Dose", aspect_ratio=1,
-        xlim=x[[1, end]], ylim=depth[[1, end]])
+# Plot
+heatmap(x, depth, measured_dose', xlabel="x (mm)", ylabel="Depth (mm)",
+        title="Measured Dose", aspect_ratio=1)
 
-begin
-    plot(depth, dose[ix, :]/maximum(dose[ix, :]), label="Computed", xlabel="Depth (mm)", ylabel="Dose")
-    plot!(depth, measured_dose[ix, :]/maximum(measured_dose[ix, :]), label="Measured")
-end
-
-begin
-    idepth = searchsortedlast(depth, 100.)
-    plot(x, dose[:, idepth]/maximum(dose[:, idepth]), label="Computed", xlabel="x (mm)", ylabel="Dose")
-    plot!(x, measured_dose[:, idepth]/maximum(measured_dose[:, idepth]), label="Measured")
-end
-
+heatmap(x, depth, dose', xlabel="x (mm)", ylabel="Depth (mm)",
+        title="Computed Dose", aspect_ratio=1)
+heatmap(x, depth, dose'-measured_dose', xlabel="x (mm)", ylabel="Depth (mm)",
+        title="Measured Dose", aspect_ratio=1)
 
 #--- Save to File --------------------------------------------------------------
 
 h5open("examples/sample-data/dose-kernel/finite-pencil-beam-kernel.hdf5", "w") do fid
-
     group = create_group(fid, "fieldsize-$(Int(fieldsize))mm")
 
     attributes(group)["fieldsize"] = fieldsize
