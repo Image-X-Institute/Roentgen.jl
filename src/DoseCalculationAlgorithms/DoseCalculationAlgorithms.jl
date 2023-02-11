@@ -2,6 +2,7 @@
 abstract type AbstractDoseAlgorithm end
 
 include("ScaledIsoplaneKernel.jl")
+include("FinitePencilBeamKernel.jl")
 
 """
     fluence_grid_length(calc::AbstractDoseAlgorithm)
