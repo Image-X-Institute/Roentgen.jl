@@ -7,24 +7,7 @@ High-level functions to compute dose reconstructions from a given set of beams.
 export reconstruct_dose
 
 """
-    dose_from_beam(pos, surf, beam, calc)
-
-Compute the dose from a beam.
-"""
-function dose_from_beam(pos, surf, beam, calc, bixels, D, Ψ)
-    ΔMU = getΔMU(beam)
-
-    mlc = getmlc(beam)
-
-    dose_fluence_matrix!(D, pos, bixels, getgantry(beam), surf, calc)
-    fluence!(Ψ, bixels, mlc)
-
-    ΔMU*D'*Ψ
-end
-
-
-"""
-    reconstruct_dose(pos, surf, plan, calc; Δx=1., ΔMU=2., show_progess=true)
+    reconstruct_dose(pos, surf, plan, calc; Δx=1., show_progess=true)
 
 Reconstruct the dose.
 
@@ -35,34 +18,44 @@ include:
 - `ΔMU`: Meterset increments (defaults to 2.)
 - `show_progess`: Whether to display the progress (defaults to `true`)
 """
-function reconstruct_dose(pos, surf, plan, calc; Δx=1., ΔMU=2., show_progess=true)
+function reconstruct_dose(pos, surf, plan, calc; Δx=1., show_progress=true)
     # Allocate dose arrays
-    dose = zeros(length(pos))#, Threads.nthreads())
+    dose = zeros(length(pos))
 
 
     # Iterate through each field in the plan
     for field in plan
 
-        beams = resample(field, ΔMU, by=:MU)
+        beams = field #resample(field, ΔMU, by=:MU)
         
         bixels = vec(bixel_grid(getmlc(field, 1), getjaws(field), Δx))
-        D = spzeros(length(bixels), length(pos))
+        D = spzeros(length(pos), length(bixels))
         Ψ = zeros(size(bixels))
 
         pos_fixed = patient_to_fixed(getisocenter(field)).(pos)
 
-        if(show_progess)
+        if(show_progress)
             totalMU = 0.
             p = Progress(length(beams))
         end
 
+        beamlets = Vector{Beamlet{Float64}}(undef, length(bixels))
+
         # Iterate through each control point in the field
-        for i in eachindex(beams)
-            dose .+= dose_from_beam(pos_fixed, surf, beams[i], calc, bixels, D, Ψ)
-            # break
+        for beam in beams
+            ΔMU = getΔMU(beam)
+            gantry = getgantry(beam)
+            mlc = getmlc(beam)
+        
+            beamlets .= Beamlet.(bixels, Ref(gantry))
+        
+            dose_fluence_matrix!(D, pos_fixed, beamlets, surf, calc)
+            fluence!(Ψ, bixels, mlc)
+        
+            dose .+= ΔMU*D*vec(Ψ)
             
-            if(show_progess)
-                next!(p; showvalues=[(:MU, totalMU+=getΔMU(beams, i))])
+            if(show_progress)
+                next!(p; showvalues=[(:MU, totalMU+=ΔMU)])
             end
 
         end

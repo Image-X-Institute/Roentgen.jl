@@ -7,10 +7,10 @@
 using DoseCalculations
 
 # Load the plan
-plan = load_dicom("examples/sample-data/RP.zzSPARK_PAT05.PROSTATE.dcm")
+plan = load_dicom("path/to/dicom/RP.....dcm")
 
 # Create dose calculation kernel
-calc = ScaledIsoplaneKernel("examples/sample-data/dose-kernel/scaled-isoplane-kernel.json", 25.)
+calc = FinitePencilBeamKernel("examples/sample-data/dose-kernel/finite-pencil-beam-kernel.hdf5")
 calibrate!(calc, 100., 100., 1000.)
 
 # Load external surface
