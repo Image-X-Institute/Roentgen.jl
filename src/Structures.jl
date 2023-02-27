@@ -11,25 +11,13 @@ mesh into a Meshes.SimpleMesh.
 From https://github.com/JuliaIO/MeshIO.jl/issues/67#issuecomment-913353708
 """
 function load_structure_from_ply(filename)
-    mesh = FileIO.load(filename)
-
-    vertexToIdx = Dict()
-    for i = 1:length(mesh.position)
-        vertex = mesh.position[i]
-        if !haskey(vertexToIdx, vertex) # duplicated vertices
-            vertexToIdx[vertex] = i
-        end
-    end
-    faces = []
-    for triangle in mesh
-        i1 = vertexToIdx[triangle[1]]
-        i2 = vertexToIdx[triangle[2]]
-        i3 = vertexToIdx[triangle[3]]
-        push!(faces, (i1, i2, i3))
-    end
-    topology = FullTopology(connect.(faces))
-
-    SimpleMesh([convert(Point{3, Float64}, Point([x[1], x[2], x[3]])) for x in mesh.position], topology)
+	mesh = FileIO.load(filename)
+	points = [Float64.(Tuple(p)) for p in Set(mesh.position)]
+	indices = Dict(p => i for (i, p) in enumerate(points))
+	connectivities = map(mesh) do el
+		Meshes.connect(Tuple(indices[Tuple(p)] for p in el))
+	end
+	Meshes.SimpleMesh(points, connectivities)
 end
 
 #--- Mesh Transformations -----------------------------------------------------
