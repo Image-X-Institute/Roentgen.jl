@@ -74,25 +74,21 @@ struct MeshBounds{T<:AbstractFloat, TMesh<:SimpleMesh} <: AbstractBounds
     mesh::TMesh
     box::SVector{6, T}
     pad::T
-end
 
-"""
-    MeshBounds
+    function MeshBounds(mesh, pad=0.)
+        pos = coordinates.(vertices(mesh))
+        x = getindex.(pos, 1)
+        y = getindex.(pos, 2)
+        z = getindex.(pos, 3)
+        box = SVector(minimum(x)-pad, maximum(x)+pad,
+                      minimum(y)-pad, maximum(y)+pad,
+                      minimum(z)-pad, maximum(z)+pad)
 
-Construct a `MeshBounds` with a mesh
+        T = eltype(pos[1])
+        Tmesh = typeof(mesh)
+        new{T, Tmesh}(mesh, box, pad)
+    end
 
-Optionally, can specify a `pad` which defines the distance from the mesh that is
-still considered within bounds.
-"""
-function MeshBounds(mesh, pad=10.) <: AbstractBounds
-    pos = coordinates.(vertices(mesh))
-    x = getindex.(pos, 1)
-    y = getindex.(pos, 2)
-    z = getindex.(pos, 3)
-    box = SVector(minimum(x)-pad, maximum(x)+pad,
-                  minimum(y)-pad, maximum(y)+pad,
-                  minimum(z)-pad, maximum(z)+pad)
-    MeshBounds(mesh, box, pad)
 end
 
 """
@@ -101,8 +97,10 @@ end
 For a mesh
 """
 function extent(bounds::MeshBounds)
-    box = boundingbox(bounds.mesh)
-    coordinates(minimum(box)), coordinates(maximum(box))
+    # box = boundingbox(bounds.mesh)
+    # coordinates(minimum(box)), coordinates(maximum(box))
+    idx = SVector(1, 3, 5)
+    bounds.box[idx], bounds.box[idx.+1]
 end
 
 """
@@ -116,7 +114,7 @@ function within(bounds::MeshBounds, p)
 
     pmin, _ = extent(bounds)
     line = Segment(Point(pmin), Point(p))
-    pI = intersect_mesh(line, bounds.mesh)
+    pI, _ = intersect_mesh(line, bounds.mesh)
     
     length(pI) % 2 != 0
 end

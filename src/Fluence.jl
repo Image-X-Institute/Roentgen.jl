@@ -220,28 +220,30 @@ end
 
 From MultiLeafCollimator and Jaws.
 """
-function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T}) where T<:AbstractFloat
+function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T}; Δx=5., Δy=5.) where T<:AbstractFloat
 
     bixels = Bixel{T}[]
 
-    @inbounds for mlc₍ in eachindex(mlc)
-        xL, xU = mlcx[:, i]
-        yL, yU = mlc[i]
-
+    @inbounds for i in eachindex(mlc)
+        ((xL, xU), (yL, yU)) = mlc[i]
+        
         xL = max(xL, jaws.x[1])
         xU = min(xU, jaws.x[2])
 
         yL = max(yL, jaws.y[1])
         yU = min(yU, jaws.y[2])
 
-        Δy = yU - yL
-        Δx = xU - xL
+        if xU - xL > zero(T)
+            x = snapped_range(xL, xU, Δx)
+            # x = max.(xL, min.(x, xU))
+            xc = 0.5*(x[2:end] + x[1:end-1])
+            δx = x[2:end] - x[1:end-1]
 
-        if(Δy > zero(T) && Δx > zero(T))
-            x = T(0.5)*(xL + xU)
-            y = T(0.5)*(yL + yU)
+            y = 0.5*(yL + yU)
 
-            push!(bixels, Bixel(x, y, Δx, Δy))
+            b = Bixel.(xc, y, δx, Δy)
+
+            append!(bixels, vec(b))
         end
     end
     bixels
