@@ -63,7 +63,10 @@ MultiLeafCollimator(n::Int, Δy::Real) = MultiLeafCollimator(zeros(2, n), Δy*(-
 
 Construct an MLC with leaf edges.
 """
-MultiLeafCollimator(edges) = MultiLeafCollimator(zeros(2, n), length(edges)-1)
+function MultiLeafCollimator(edges)
+    n = length(edges)-1
+    MultiLeafCollimator(zeros(2, n), edges)
+end
 
 Base.copy(mlc::MultiLeafCollimator) = MultiLeafCollimator(getpositions(mlc), getedges(mlc))
 Base.similar(mlc::MultiLeafCollimator) = MultiLeafCollimator(getedges(mlc))
