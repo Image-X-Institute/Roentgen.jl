@@ -28,6 +28,7 @@ bixels a given dose point. Stores result in `D`.
 """
 function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{<:Beamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
+    @assert size(D) == (length(pos), length(beamlets))
 
     colptr = D.colptr
     rowval = D.rowval
