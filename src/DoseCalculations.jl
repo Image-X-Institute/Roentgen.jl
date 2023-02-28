@@ -4,9 +4,6 @@ module DoseCalculations
 using SparseArrays
 using StaticArrays
 
-# Plotting
-using Plots
-
 # Coordinates
 using CoordinateTransformations
 using Rotations
@@ -56,7 +53,6 @@ include("DoseCalculationAlgorithms/DoseCalculationAlgorithms.jl")
 include("DoseFluenceMatrix.jl")
 
 include("Structures.jl")
-include("BeamLimitingDevicePlots.jl")
 
 include("DoseReconstructions.jl")
 
