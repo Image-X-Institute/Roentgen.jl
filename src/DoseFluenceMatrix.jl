@@ -11,9 +11,10 @@ dose calculation algorithm.
 See `dose_fluence_matrix!` for implementation.
 """
 function dose_fluence_matrix(pos, beamlets::AbstractVector{<:Beamlet},
-                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
+                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                             kwargs...)
     D = spzeros(length(pos), length(beamlets))
-    dose_fluence_matrix!(D, pos, beamlets, surf, calc)
+    dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
 end
 
 """
@@ -27,7 +28,8 @@ algorithm (`calc`). `point_kernel!` computes the dose calculated from the set of
 bixels a given dose point. Stores result in `D`.
 """
 function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{<:Beamlet},
-                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm)
+                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                              maxradius=25.)
     @assert size(D) == (length(pos), length(beamlets))
 
     colptr = D.colptr
@@ -35,7 +37,7 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{
     nzval = D.nzval
 
     # Fill colptr
-    fill_colptr!(D, pos, beamlets, calc.maxradius)
+    fill_colptr!(D, pos, beamlets, maxradius)
 
     # Preallocate arrays
     nprealloc = colptr[end]-1
@@ -43,7 +45,7 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{
     resize!(rowval, nprealloc)
 
     # Fill rowval
-    fill_rowval!(D, pos, beamlets, calc.maxradius)
+    fill_rowval!(D, pos, beamlets, maxradius)
 
     # Compute row and matrix values
     dose_kernel!(D, pos, beamlets, surf, calc)
