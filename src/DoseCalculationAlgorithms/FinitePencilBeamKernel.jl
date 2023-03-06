@@ -42,13 +42,12 @@ getdirection(beamlet::Beamlet) = beamlet.vector
 gethalfwidth(beamlet::Beamlet) = beamlet.halfwidth
 getwidth(beamlet::Beamlet) = 2*gethalfwidth(beamlet)
 
-struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation, T} <: AbstractDoseAlgorithm
+struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation} <: AbstractDoseAlgorithm
     parameters::Tparameters
     scalingfactor::TScalingFactor
-    maxradius::T
 end
 
-function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scalingfactor::AbstractMatrix; maxradius=25.)
+function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scalingfactor::AbstractMatrix)
     @assert length(depths) == size(parameters, 2)
     @assert length(depths) == size(scalingfactor, 1)
     @assert length(tanθ) == size(scalingfactor, 2)
@@ -58,23 +57,23 @@ function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scali
 
     scalingfactor_interpolator = LinearInterpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Line())
 
-    FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator, maxradius)
+    FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator)
 end
 
-function FinitePencilBeamKernel(fid::HDF5.H5DataStore; maxradius=25.)
+function FinitePencilBeamKernel(fid::HDF5.H5DataStore)
     parameters = read(fid["parameters"])
     depths = read(fid["depth"])
 
     scalingfactor = read(fid["scaling_factor"])
     tanθ = read(fid["tan_theta"])
 
-    FinitePencilBeamKernel(depths, parameters, tanθ, scalingfactor; maxradius=maxradius)
+    FinitePencilBeamKernel(depths, parameters, tanθ, scalingfactor)
 end
 
-function FinitePencilBeamKernel(filename::String; fieldsize=100., maxradius=25.)
+function FinitePencilBeamKernel(filename::String; fieldsize=100.)
     h5open(filename, "r") do fid
         dset = fid["fieldsize-$(Int(fieldsize))mm"]
-        FinitePencilBeamKernel(dset; maxradius=maxradius)
+        FinitePencilBeamKernel(dset)
     end
 end
 
