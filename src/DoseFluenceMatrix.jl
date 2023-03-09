@@ -55,7 +55,7 @@ end
 
 #--- Dose-Fluence Matrix Computations -----------------------------------------
 
-kernel_size(r::SVector{3}, a::SVector{3}, maxradius) = dot(r, r)/dot(r, a)^2 - 1 < maxradius^2
+kernel_size(r::SVector{3}, a::SVector{3}, maxradius) = sum(r.^2) < sum(r.*a)^2*(1+maxradius^2)
 
 function fill_colptr!(D::SparseMatrixCSC, pos, beamlets, maxradius)
     colptr = D.colptr
