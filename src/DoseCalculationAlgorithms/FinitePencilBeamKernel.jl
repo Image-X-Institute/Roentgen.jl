@@ -15,8 +15,12 @@ export Beamlet, FinitePencilBeamKernel
 
 struct Beamlet{T} <: Abstractbeamlet
     halfwidth::SVector{2, T}
-    vector::SVector{3, T}
-    position::SVector{3, T}
+    ax::SVector{3, T}
+    ay::SVector{3, T}
+    az::SVector{3, T}
+    beamaxis::SVector{3, T}
+    SAD::T
+    tanθ::T
 end
 
 """
@@ -25,22 +29,37 @@ end
 Construct a beamlet from a bixel
 """
 function Beamlet(bixel::Bixel, gantry::GantryPosition)
-    SAD = getSAD(gantry)
-
-    halfwidth = 0.5*width(bixel)
 
     s = getposition(gantry)
-    b = bld_to_fixed(gantry)(SVector(position(bixel)..., -SAD))
+    SAD = getSAD(gantry)
+
+    p = position(bixel)
+    hw = 0.5*width(bixel)
+
+    trans = bld_to_fixed(gantry)
+    b = trans(SVector(p[1], p[2], -SAD))
+    bx = trans(SVector(p[1]+hw[1], p[2], -SAD))
+    by = trans(SVector(p[1], p[2]+hw[2], -SAD))
 
     a = normalize(b - s)
+    ax = normalize(bx - b)
+    ay = normalize(by - b)
 
-    Beamlet(halfwidth, a, s)
+    tanθ = norm(p)/SAD
+
+    Beamlet(hw, ax, ay, a, s/SAD, SAD, tanθ)
 end
 
-getposition(beamlet::Beamlet) = beamlet.position
-getdirection(beamlet::Beamlet) = beamlet.vector
-gethalfwidth(beamlet::Beamlet) = beamlet.halfwidth
-getwidth(beamlet::Beamlet) = 2*gethalfwidth(beamlet)
+source_axis(beamlet::Beamlet) = beamlet.beamaxis
+source_axis_distance(beamlet::Beamlet) = beamlet.SAD
+beamlet_axes(beamlet::Beamlet) = beamlet.ax, beamlet.ay, beamlet.az
+
+halfwidth(beamlet::Beamlet) = beamlet.halfwidth
+width(beamlet::Beamlet) = 2*halfwidth(beamlet)
+
+source_position(beamlet::Beamlet) = source_axis_distance(beamlet)*source_axis(beamlet)
+
+tanθ_to_source(beamlet::Beamlet) = beamlet.tanθ
 
 struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation} <: AbstractDoseAlgorithm
     parameters::Tparameters
