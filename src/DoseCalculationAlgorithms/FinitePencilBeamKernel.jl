@@ -42,13 +42,12 @@ getdirection(beamlet::Beamlet) = beamlet.vector
 gethalfwidth(beamlet::Beamlet) = beamlet.halfwidth
 getwidth(beamlet::Beamlet) = 2*gethalfwidth(beamlet)
 
-struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation, T} <: AbstractDoseAlgorithm
+struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation} <: AbstractDoseAlgorithm
     parameters::Tparameters
     scalingfactor::TScalingFactor
-    maxradius::T
 end
 
-function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scalingfactor::AbstractMatrix; maxradius=25.)
+function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scalingfactor::AbstractMatrix)
     @assert length(depths) == size(parameters, 2)
     @assert length(depths) == size(scalingfactor, 1)
     @assert length(tanθ) == size(scalingfactor, 2)
@@ -58,23 +57,23 @@ function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scali
 
     scalingfactor_interpolator = LinearInterpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Line())
 
-    FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator, maxradius)
+    FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator)
 end
 
-function FinitePencilBeamKernel(fid::HDF5.H5DataStore; maxradius=25.)
+function FinitePencilBeamKernel(fid::HDF5.H5DataStore)
     parameters = read(fid["parameters"])
     depths = read(fid["depth"])
 
     scalingfactor = read(fid["scaling_factor"])
     tanθ = read(fid["tan_theta"])
 
-    FinitePencilBeamKernel(depths, parameters, tanθ, scalingfactor; maxradius=maxradius)
+    FinitePencilBeamKernel(depths, parameters, tanθ, scalingfactor)
 end
 
-function FinitePencilBeamKernel(filename::String; fieldsize=100., maxradius=25.)
+function FinitePencilBeamKernel(filename::String; fieldsize=100.)
     h5open(filename, "r") do fid
         dset = fid["fieldsize-$(Int(fieldsize))mm"]
-        FinitePencilBeamKernel(dset; maxradius=maxradius)
+        FinitePencilBeamKernel(dset)
     end
 end
 
@@ -125,89 +124,6 @@ function fpbk_dose(x, y, w, ux, uy, x₀, y₀)
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
 
-#--- Dose-Fluence Matrix Computations -----------------------------------------
-
-kernel_size(r::SVector{3}, a::SVector{3}, maxradius) = dot(r, r)/dot(r, a)^2 - 1 < maxradius^2
-
-function fill_colptr!(D::SparseMatrixCSC, pos, beamlets, maxradius)
-    colptr = D.colptr
-
-    colptr[1] = 1
-    @batch per=thread for j in eachindex(beamlets)
-        beamlet = beamlets[j]
-
-        src = getposition(beamlet)
-        a = getdirection(beamlet)
-        SAD = norm(src)    
-
-        n = 0
-        for i in eachindex(pos)
-            n += kernel_size(pos[i]-src, a, maxradius/SAD)
-        end
-        colptr[j+1] = n
-    end
-    cumsum!(colptr, colptr)
-end
-
-function fill_rowval!(D::SparseMatrixCSC, pos, beamlets, maxradius)
-
-    colptr = D.colptr
-    rowval = D.rowval
-
-    @batch per=thread for j in eachindex(beamlets) #
-        beamlet = beamlets[j]
-
-        # Create views of rowval and nzval
-        ptr = colptr[j]:(colptr[j+1]-1)
-        I = @view rowval[ptr]
-
-        a = getdirection(beamlet)
-        s = getposition(beamlet)
-        SAD = norm(s)
-
-        n = 0
-        for i in eachindex(pos)
-            p = pos[i]
-            if kernel_size(p-s, a, maxradius/SAD)
-                n += 1
-                I[n] = i
-            end
-        end
-    end
-
-end
-
-"""
-    dose_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels, surf, calc)
-
-Compute the fluence kernel for a given position.
-
-Designed to be used with a dose-fluence matrix of type SparseMatrixCSC. Stores
-the row value in `rowval`, and dose value in `nzval`.
-"""
-function dose_kernel!(D::SparseMatrixCSC, pos, beamlets, surf, calc)
-
-    colptr = D.colptr
-    rowval = D.rowval
-    nzval = D.nzval
-
-    jprev = 1
-    @batch per=thread for n in eachindex(rowval, nzval)
-        i = rowval[n]
-        j = sequential_searchsortedlast(colptr, n, jprev)
-        nzval[n] = point_dose(pos[i], beamlets[j], surf, calc)
-        jprev = j
-    end
-
-end
-
-function sequential_searchsortedlast(a, x, j=1)
-    a[j]<=x<a[j+1] && return j
-    @inbounds for k = j+1:length(a)-1
-        a[k]<=x<a[k+1] && return k
-    end
-    length(a)
-end
 
 function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSurface, calc::FinitePencilBeamKernel) where T<:AbstractFloat
     a = getdirection(beamlet)
@@ -235,5 +151,5 @@ function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSu
     w, ux, uy = getparams(calc, depth)
     A = getscalingfactor(calc, depth, tanθ)
     
-    A*fpbk_dose(x, y, w, ux, uy, x₀, y₀)/Rₐ^2
+    A*fpbk_dose(x, y, w, ux, uy, x₀, y₀)*(SAD/Rₐ)^2
 end
