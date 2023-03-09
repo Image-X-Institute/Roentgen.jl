@@ -64,9 +64,9 @@ function fill_colptr!(D::SparseMatrixCSC, pos, beamlets, maxradius)
     @batch per=thread for j in eachindex(beamlets)
         beamlet = beamlets[j]
 
-        src = getposition(beamlet)
-        a = getdirection(beamlet)
-        SAD = norm(src)    
+        src = source_position(beamlet)
+        a = direction(beamlet)
+        SAD = source_axis_distance(beamlet)    
 
         n = 0
         for i in eachindex(pos)
@@ -89,9 +89,9 @@ function fill_rowval!(D::SparseMatrixCSC, pos, beamlets, maxradius)
         ptr = colptr[j]:(colptr[j+1]-1)
         I = @view rowval[ptr]
 
-        a = getdirection(beamlet)
-        s = getposition(beamlet)
-        SAD = norm(s)
+        s = source_position(beamlet)
+        a = direction(beamlet)
+        SAD = source_axis_distance(beamlet)  
 
         n = 0
         for i in eachindex(pos)
