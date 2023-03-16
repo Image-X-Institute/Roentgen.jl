@@ -8,4 +8,4 @@ Examples of this include:
 - Dose-based adaptive radiotherapy
 - Dosimetric assessment of adaptive radiotherapy
 
-![dose_recon_example](assets/dose_recon_example.gif)
+![dose_recon_example](assets/dose-reconstruction.png)

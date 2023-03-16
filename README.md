@@ -6,7 +6,7 @@ A Julia package for calculating dose for radiotherapy treatments.
 
 This package is under development, so the implementation may change between versions.
 
-![dose_recon_example](docs/src/assets/dose_recon_example.gif)
+![dose_recon_example](docs/src/assets/dose-reconstruction.png)
 
 ## Setup and Usage
 
