@@ -6,7 +6,6 @@
 
     function test_snapped_range(x1, x2, Δ)
         r = DoseCalculations.snapped_range(x1, x2, Δ)
-        print(r)
         @test r[1]<=x1
         @test x2<=r[end]
     end
