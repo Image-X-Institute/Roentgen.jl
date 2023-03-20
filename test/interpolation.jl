@@ -1,5 +1,3 @@
-using Test
-
 rand_in_range(x1, x2) = (x2-x1)*rand() + x1
 
 function test_grid(xg)

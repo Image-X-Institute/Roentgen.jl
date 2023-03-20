@@ -1,6 +1,10 @@
 using Test
 using DoseCalculations
 using HDF5
+using StaticArrays
+using Meshes
+using LinearAlgebra, Rotations
+using QuadGK, HCubature
 
 @testset "DoseCalculations" begin
     include("utils.jl")

@@ -1,7 +1,3 @@
-
-using Meshes
-using LinearAlgebra
-
 #=
     Mesh Intersections
 

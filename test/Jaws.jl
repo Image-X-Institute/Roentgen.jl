@@ -1,5 +1,3 @@
-using HDF5
-
 @testset "HDF5" begin
 
     jaws = Jaws(rand(2), rand(2))

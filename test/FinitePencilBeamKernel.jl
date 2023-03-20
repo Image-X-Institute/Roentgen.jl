@@ -1,7 +1,3 @@
-using LinearAlgebra
-using QuadGK
-using HCubature
-
 @testset "Pencil Beam Profile" begin
     # Tests if profile is continuous
     @testset "Continuity" begin

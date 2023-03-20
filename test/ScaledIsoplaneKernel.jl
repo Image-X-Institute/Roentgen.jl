@@ -1,5 +1,3 @@
-using StaticArrays
-
 @testset "ScaledIsoplaneKernel" begin
 
     @testset "Sub-division" begin
