@@ -3,26 +3,26 @@
 This library provides an interface to provide an external surface, which is used for source-surface distance (SSD) and depth calculations.
 Physically, the external surface denotes the boundary between air and the dose absorbing medium (*e.g.* the patient's skin or the surface of a phantom).
 
-All external surfaces are subtypes of `AbstractExternalSurface`, which exposes two methods:
+All external surfaces exposes two methods,
 
-- [`getSSD(surf, p)`](@ref): Returns distance between the surface and the source for a given position in the dose volume (`p`)
-- [`getdepth(surf, p)`](@ref): Returns the depth of a given position in the dose volume (`p`)
+- [`getSSD(surf, p, s)`](@ref): Returns the source-surface distance (SSD)
+- [`getdepth(surf, p, s)`](@ref): Returns the depth below the source-surface intersection
 
-Both of these methods take an external surface (`surf`) and a dose point position (`pᵢ`). The position is usually a location where dose is computed, and is a three-element vector in the IEC Beam-Limiting-Device (BLD) coordinate system.
+![external_surface](assets/external-surface.svg)
 
-All surfaces are assumed to be in the IEC BLD coordinate system. This means that they must undergo coordinate transformation in order to account for gantry and/or collimator rotation.
+Both of these methods take an external surface (`surf`) and two position vectors, `p` and `s`.
+The position `p` is usually a location where dose is computed, and is a three-element vector.
+The position `s` is the position of the radiation source.
+Both positions are in the IEC Fixed coordinate system.
 
-## Types of External Surface
-
-### Plane Surface
-
-A simple plane surface, positioned at a constant source-surface distance along the central beam axis with normal pointed towards the source. It accounts the fact that SSD increases with off-axis position.
-
+For example:
 ```@repl
 using DoseCalculations
 surf = PlaneSurface(800.)
-getSSD(surf, [0., 0., 810.])
-getSSD(surf, [10., 20., 810.])
+s = [0., 0., 1000.]
+p = [10., 20., 0.]
+getSSD(surf, p, s)
+getdepth(surf, p, s)
 ```
 
 ### Mesh Surface
