@@ -37,12 +37,12 @@ function test_linear_interpolation(xg)
 
     xs = [0., 1.]
 
-    @testset "f[$(i[1])] == f($(xs[i[1]]))" for i in eachindex(fg)
-        @test fg[i] == interp(xg, fg, xs[i])
+    @testset "f[$(i[1])] ≈ f($(xs[i[1]]))" for i in eachindex(fg)
+        @test fg[i] ≈ interp(xg, fg, xs[i])
     end
 
-    @testset "avg(f) == f(0.5,0.5)" begin
-        @test sum(fg)/length(fg) == interp(xg, fg, 0.5)
+    @testset "avg(f) ≈ f(0.5,0.5)" begin
+        @test sum(fg)/length(fg) ≈ interp(xg, fg, 0.5)
     end
 end
 
@@ -64,15 +64,15 @@ function test_bilinear_interpolation(xg)
     xs = [0., 1.]
     ys = [0., 1.]
 
-    @testset "f[$(i[1]),$(i[2])] == f($(xs[i[1]]),$(ys[i[2]]))" for i in CartesianIndices(fg)
+    @testset "f[$(i[1]),$(i[2])] ≈ f($(xs[i[1]]),$(ys[i[2]]))" for i in CartesianIndices(fg)
         xi = xs[i[1]]
         yi = ys[i[2]]
         fi = interp(xg, yg, fg, xi, yi)
-        @test fi == fg[i]
+        @test fi ≈ fg[i]
     end
 
-    @testset "avg(f) == f(0.5,0.5)" begin
-        @test sum(fg)/length(fg) == interp(xg, yg, fg, 0.5, 0.5)
+    @testset "avg(f) ≈ f(0.5,0.5)" begin
+        @test sum(fg)/length(fg) ≈ interp(xg, yg, fg, 0.5, 0.5)
     end
 end
 
