@@ -1,6 +1,8 @@
-#
-#   Scaled Isoplane Kernel Algorithm
-#
+#=
+   (DISABLED) Scaled Isoplane Kernel Algorithm
+
+This has been temporarily disabled as it is incompatible with the current API
+=#
 
 export ScaledIsoplaneKernel, kernel, norm_depth_dose, calibrate!
 
