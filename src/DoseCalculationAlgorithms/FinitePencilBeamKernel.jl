@@ -15,8 +15,12 @@ export Beamlet, FinitePencilBeamKernel
 
 struct Beamlet{T} <: Abstractbeamlet
     halfwidth::SVector{2, T}
-    vector::SVector{3, T}
-    position::SVector{3, T}
+    ax::SVector{3, T}
+    ay::SVector{3, T}
+    az::SVector{3, T}
+    beamaxis::SVector{3, T}
+    SAD::T
+    tanθ::T
 end
 
 """
@@ -25,22 +29,39 @@ end
 Construct a beamlet from a bixel
 """
 function Beamlet(bixel::Bixel, gantry::GantryPosition)
-    SAD = getSAD(gantry)
-
-    halfwidth = 0.5*width(bixel)
 
     s = getposition(gantry)
-    b = bld_to_fixed(gantry)(SVector(position(bixel)..., -SAD))
+    SAD = getSAD(gantry)
+
+    p = position(bixel)
+    hw = 0.5*width(bixel)
+
+    trans = bld_to_fixed(gantry)
+    b = trans(SVector(p[1], p[2], -SAD))
+    bx = trans(SVector(p[1]+hw[1], p[2], -SAD))
+    by = trans(SVector(p[1], p[2]+hw[2], -SAD))
 
     a = normalize(b - s)
+    ax = normalize(bx - b)
+    ay = normalize(by - b)
 
-    Beamlet(halfwidth, a, s)
+    tanθ = norm(p)/SAD
+
+    Beamlet(hw, ax, ay, a, s/SAD, SAD, tanθ)
 end
 
-getposition(beamlet::Beamlet) = beamlet.position
-getdirection(beamlet::Beamlet) = beamlet.vector
-gethalfwidth(beamlet::Beamlet) = beamlet.halfwidth
-getwidth(beamlet::Beamlet) = 2*gethalfwidth(beamlet)
+source_axis(beamlet::Beamlet) = beamlet.beamaxis
+source_axis_distance(beamlet::Beamlet) = beamlet.SAD
+beamlet_axes(beamlet::Beamlet) = beamlet.ax, beamlet.ay, beamlet.az
+
+direction(beamlet::Beamlet) = beamlet.az
+
+halfwidth(beamlet::Beamlet) = beamlet.halfwidth
+width(beamlet::Beamlet) = 2*halfwidth(beamlet)
+
+source_position(beamlet::Beamlet) = source_axis_distance(beamlet)*source_axis(beamlet)
+
+tanθ_to_source(beamlet::Beamlet) = beamlet.tanθ
 
 struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation} <: AbstractDoseAlgorithm
     parameters::Tparameters
@@ -81,10 +102,10 @@ function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD)
 
     surf = PlaneSurface(SSD)
 
-    hw = 0.5*fieldsize*SVector(1., 1.)
-    a = SVector(0., 0., -1.)
-    s = SVector(0., 0., SAD)
-    beamlet = Beamlet(hw, a, s)
+    bixel = Bixel(0., 0.5*fieldsize)
+    gantry = GantryPosition(0., 0., SAD)
+
+    beamlet = Beamlet(bixel, gantry)
 
     f(x) = -point_dose(SVector(0., 0., -x), beamlet, surf, calc)
     result = optimize(f, 0., 100.)
@@ -126,30 +147,31 @@ end
 
 
 function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSurface, calc::FinitePencilBeamKernel) where T<:AbstractFloat
-    a = getdirection(beamlet)
-    s = getposition(beamlet)
-    x₀, y₀ = gethalfwidth(beamlet)
+    ax, ay, a = beamlet_axes(beamlet)
 
-    SAD = norm(s)
+    SAD = source_axis_distance(beamlet)
+    s = source_position(beamlet)
+
+    x₀, y₀ = halfwidth(beamlet)
+
     r = p - s
 
     Rₐ = dot(r, a)
-    rₐ = Rₐ*a + s
+    rₐ = Rₐ*a
+    pₐ = rₐ + s
 
-    depth = getdepth(surf, rₐ, s)
+    depth = getdepth(surf, pₐ, s)
     depth < zero(T) && return zero(T)
 
-    sy = SVector(0, 1, 0)
-    sx = cross(sy, s/SAD)
+    δ = SAD*(r-rₐ)/Rₐ
+    x = dot(δ, ax)
+    y = dot(δ, ay)
 
-    δ = SAD*(r - Rₐ*a)/Rₐ
-    x, y = dot(δ, sx), dot(δ, sy)
+    tanθ = tanθ_to_source(beamlet)
 
-    cosθ = dot(a, s/SAD)
-    tanθ = √(1-cosθ^2)/cosθ
-
-    w, ux, uy = getparams(calc, depth)
     A = getscalingfactor(calc, depth, tanθ)
-    
-    A*fpbk_dose(x, y, w, ux, uy, x₀, y₀)*(SAD/Rₐ)^2
+    w, ux, uy = getparams(calc, depth)
+
+    F = fpbk_dose(x, y, w, ux, uy, x₀, y₀)
+    A*F*(SAD/Rₐ)^2
 end
