@@ -69,10 +69,9 @@ getSSD(surf::ConstantSurface, pos, src) = surf.source_surface_distance
 """
     PlaneSurface
 
-A planar external surface at a constant distance from the source.
+A plane at a constant distance from and normal towards the source
 
-It assumes the external surface is a plane located at a distance of `surf.source_surface_distance`
-away from the source with normal from isocenter to source.
+The source-surface distance is stored in `surf.source_surface_distance`
 """
 struct PlaneSurface{T} <: AbstractExternalSurface
     source_surface_distance::T
@@ -121,12 +120,14 @@ function getSSD(surf::MeshSurface, pos::Point, src::Point)
     minimum(norm.(pI .- Ref(src)))
 end
 
+write_vtk(filename::String, surf::MeshSurface) = write_vtk(filename, surf.mesh)
+
 #--- CylindricalSurface --------------------------------------------------------
 
 """
     CylindricalSurface
 
-A planar external surface at a variable distance from the isocenter.
+Surface stored on a cylindrical-polar grid.
 """
 struct CylindricalSurface{Ty<:AbstractVector, Tϕ<:AbstractVector, Tdist<:AbstractMatrix, TInterpolation} <: AbstractExternalSurface
     ϕ::Tϕ
@@ -147,7 +148,7 @@ end
 Construct from a mesh.
 """
 function CylindricalSurface(mesh::SimpleMesh; Δϕ°=2., Δy=2.)
-    ϕ = (-180:Δϕ°:180)*pi/180
+    ϕ = (-180:Δϕ°:180)*π/180
 
     box = boundingbox(mesh)
 
