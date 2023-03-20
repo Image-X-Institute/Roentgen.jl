@@ -64,15 +64,13 @@ Single-threaded version of `intersect_mesh`.
 """
 function intersect_mesh_single_threaded(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
     intersection_points = Point{Dim, T}[]
-    intersection_cells = Geometry{Dim, T}[]
     for cell in mesh
         pt = intersect(line, cell)
         if(pt !== nothing)
             push!(intersection_points, pt)
-            push!(intersection_cells, cell)
         end
     end
-    intersection_points, intersection_cells
+    intersection_points
 end
 
 """
@@ -82,19 +80,16 @@ Multi-threaded version of `intersect_mesh`.
 """
 function intersect_mesh_multi_threaded(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
     intersection_points = Vector{Vector{Point{Dim, T}}}(undef, Threads.nthreads())
-    intersection_cells = Vector{Vector{Geometry{Dim, T}}}(undef, Threads.nthreads())
     for i=1:Threads.nthreads()
         intersection_points[i] = Point{Dim, T}[]
-        intersection_cells[i] = Geometry{Dim, T}[]
     end
     Threads.@threads for cell in mesh
         pt = intersect(line, cell)
         if(pt !== nothing)
             push!(intersection_points[Threads.threadid()], pt)
-            push!(intersection_cells[Threads.threadid()], cell)
         end
     end
-    vcat(intersection_points...), vcat(intersection_cells...)
+    vcat(intersection_points...)
 end
 
 #--- File IO ------------------------------------------------------------------

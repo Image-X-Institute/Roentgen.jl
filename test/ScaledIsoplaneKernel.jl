@@ -1,5 +1,8 @@
-using StaticArrays
+#=
+    (DISABLED) Tests for the ScaledIsoplaneKernel Dose Calculation Algorithm
 
+See src/DoseCalculationAlgorithms/ScaledIsoplaneKernel.jl
+=#
 @testset "ScaledIsoplaneKernel" begin
 
     @testset "Sub-division" begin

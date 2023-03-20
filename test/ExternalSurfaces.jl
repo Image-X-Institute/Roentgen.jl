@@ -1,5 +1,3 @@
-using Meshes, LinearAlgebra, StaticArrays, Rotations
-
 #=
     Depth and SSD Calculation
 
@@ -11,8 +9,7 @@ same ray line return the same SSD.
 Implemented Surfaces:
     - ConstantSurface
     - PlaneSurface
-    - MeshSurface (uses the same mesh and visual inspection as detailed in
-      test/meshes.jl)
+    - MeshSurface (uses the same mesh and visual inspection as detailed in meshes.jl)
 =#
 
 @testset "External Surfaces" begin
@@ -80,7 +77,7 @@ Implemented Surfaces:
     end
 
     @testset "MeshSurface" begin
-        structure = load_structure_from_ply("test/test_mesh.stl")
+        structure = load_structure_from_ply("test_mesh.stl")
         surf = MeshSurface(structure)
 
         # Test 1 - Visually inspected for accuracy
@@ -102,7 +99,7 @@ Implemented Surfaces:
     end
 
     @testset "Cylindrical Surface" begin
-        mesh = load_structure_from_ply("test/test_cylinder.stl")
+        mesh = load_structure_from_ply("test_cylinder.stl")
         surf = CylindricalSurface(mesh; Δϕ°=1., Δy=1.)
         meshsurf = MeshSurface(mesh)
 

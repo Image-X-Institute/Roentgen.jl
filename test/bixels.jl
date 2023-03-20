@@ -1,5 +1,3 @@
-using StaticArrays
-
 @testset "Bixels" begin
 
     pos = SVector(1., 2.)

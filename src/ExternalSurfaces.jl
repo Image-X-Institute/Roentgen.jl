@@ -116,7 +116,7 @@ getSSD(surf::MeshSurface, pos, src) = getSSD(surf, Point(pos), Point(src))
 
 function getSSD(surf::MeshSurface, pos::Point, src::Point)
     line = Ray(src, pos-src)
-    pI, _ = intersect_mesh(line, surf.mesh)
+    pI = intersect_mesh(line, surf.mesh)
     length(pI)==0 && return Inf
     minimum(norm.(pI .- Ref(src)))
 end
@@ -134,7 +134,7 @@ struct CylindricalSurface{Ty<:AbstractVector, Tϕ<:AbstractVector, Tdist<:Abstra
     distance::Tdist
     I::TInterpolation
     function CylindricalSurface(ϕ, y, rho)
-        I = LinearInterpolation((ϕ, y), rho)
+        I = linear_interpolation((ϕ, y), rho)
         new{typeof(ϕ), typeof(y), typeof(rho), typeof(I)}(ϕ, y, rho, I)
     end
 end
@@ -165,7 +165,7 @@ function CylindricalSurface(mesh::SimpleMesh; Δϕ°=2., Δy=2.)
         src = Point(SAD*sin(ϕ[i]), y[j], SAD*cos(ϕ[i]))
         
         line = Ray(src, pos-src)
-        pI, _ = intersect_mesh(line, mesh)
+        pI = intersect_mesh(line, mesh)
         if length(pI)==0
             ρᵢ = Inf
         else

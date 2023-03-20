@@ -1,5 +1,3 @@
-using Meshes
-
 @testset "CoordinateSystems" begin
 
     compare(v1, v2) = all(v1 .≈ v2)
