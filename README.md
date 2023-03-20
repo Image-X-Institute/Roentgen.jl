@@ -1,6 +1,7 @@
 # Dose Calculations
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://acrf-image-x-institute.github.io/DoseCalculations.jl/stable/)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://acrf-image-x-institute.github.io/DoseCalculations.jl/dev/)
+[![CI](https://github.com/ACRF-Image-X-Institute/DoseCalculations.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/ACRF-Image-X-Institute/DoseCalculations.jl/actions/workflows/CI.yml)
 
 *Lars Mejnertsen*
 
