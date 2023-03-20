@@ -37,10 +37,10 @@ function ScaledIsoplaneKernel(filename::String, max_kernel_radius; δsub=SVector
     # Interpolate onto uniform grid
     Δr = kernel_radius[2]-kernel_radius[1]
     r = kernel_radius[1]:Δr:kernel_radius[end]
-    K = LinearInterpolation(kernel_radius, kernel_value)(r)
+    K = linear_interpolation(kernel_radius, kernel_value)(r)
 
     # Create interpolation kernel
-    kernel = LinearInterpolation(r, K, extrapolation_bc=-Inf)
+    kernel = linear_interpolation(r, K, extrapolation_bc=-Inf)
     
     # Load Depth Dose Data
     pdd_depth = data["Depth Dose"]["Depth"]
@@ -52,7 +52,7 @@ function ScaledIsoplaneKernel(filename::String, max_kernel_radius; δsub=SVector
     # Interpolate onto uniform grid
     Δd = pdd_depth[2]-pdd_depth[1]
     d = pdd_depth[1]:Δd:pdd_depth[end]
-    D = LinearInterpolation(pdd_depth, pdd_dose)(d)
+    D = linear_interpolation(pdd_depth, pdd_dose)(d)
 
     # Create interpolation PDD
     PDD = CubicSplineInterpolation(d, D, extrapolation_bc=Interpolations.Line())

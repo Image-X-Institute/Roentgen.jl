@@ -53,7 +53,7 @@ locate(xg, yg, xi, yi) = CartesianIndex(locate(xg, xi), locate(yg, yi))
 Interpolate `xi` within uniform grid positions `xg` and grid values `fg`
 """
 Base.@propagate_inbounds function interp(xg::AbstractVector{T}, fg::AbstractVector{T}, xi) where T<:Real
-    LinearInterpolation(xg, fg, extrapolation_bc = Flat())(xi)
+    linear_interpolation(xg, fg, extrapolation_bc = Interpolations.Flat())(xi)
 end
 
 """
@@ -71,6 +71,6 @@ interp(f1, f2, α) = (1 - α)*f1 + α*f2
 Bilinear interpolation at position `xi,yi`, on grid `xg-yg` with values `fg`
 """
 Base.@propagate_inbounds function interp(xg::AbstractVector, yg::AbstractVector, fg::AbstractMatrix, xi, yi)
-    LinearInterpolation((xg, yg), fg, extrapolation_bc = Flat())(xi, yi)
+    linear_interpolation((xg, yg), fg, extrapolation_bc = Interpolations.Flat())(xi, yi)
 end
 

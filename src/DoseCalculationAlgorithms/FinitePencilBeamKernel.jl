@@ -74,9 +74,9 @@ function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scali
     @assert length(tanθ) == size(scalingfactor, 2)
 
     data = SVector{5}.(eachcol(parameters))
-    params_interpolator = LinearInterpolation(depths, data, extrapolation_bc=Interpolations.Line())
+    params_interpolator = linear_interpolation(depths, data, extrapolation_bc=Interpolations.Line())
 
-    scalingfactor_interpolator = LinearInterpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Line())
+    scalingfactor_interpolator = linear_interpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Line())
 
     FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator)
 end

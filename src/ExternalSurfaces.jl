@@ -134,7 +134,7 @@ struct CylindricalSurface{Ty<:AbstractVector, Tϕ<:AbstractVector, Tdist<:Abstra
     distance::Tdist
     I::TInterpolation
     function CylindricalSurface(ϕ, y, rho)
-        I = LinearInterpolation((ϕ, y), rho)
+        I = linear_interpolation((ϕ, y), rho)
         new{typeof(ϕ), typeof(y), typeof(rho), typeof(I)}(ϕ, y, rho, I)
     end
 end
