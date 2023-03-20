@@ -114,7 +114,7 @@ function within(bounds::MeshBounds, p)
 
     pmin, _ = extent(bounds)
     line = Segment(Point(pmin), Point(p))
-    pI, _ = intersect_mesh(line, bounds.mesh)
+    pI = intersect_mesh(line, bounds.mesh)
     
     length(pI) % 2 != 0
 end
