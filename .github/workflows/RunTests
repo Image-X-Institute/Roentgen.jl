@@ -1,2 +1,0 @@
-- name: Run Tests
-  uses: julia-actions/julia-runtest@v1.9.1
