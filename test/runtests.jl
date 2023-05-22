@@ -11,6 +11,7 @@ using QuadGK, HCubature
     include("interpolation.jl")
     include("CoordinateSystems.jl")
     include("DosePoints.jl")
+    include("DoseFluenceMatrix.jl")
     include("ExternalSurfaces.jl")
     include("meshes.jl")
     include("Fluence.jl")
