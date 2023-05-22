@@ -56,6 +56,8 @@ include("Structures.jl")
 
 include("DoseReconstructions.jl")
 
+export calibrate!
+
 export load, save, write_vtk, write_nrrd
 
 end # module
