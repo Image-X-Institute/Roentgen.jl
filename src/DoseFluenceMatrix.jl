@@ -10,10 +10,29 @@ dose calculation algorithm.
 
 See `dose_fluence_matrix!` for implementation.
 """
-function dose_fluence_matrix(pos, beamlets::AbstractVector{<:AbstractBeamlet},
+dose_fluence_matrix
+
+"""
+    dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets, surf, calc)
+
+Store in a sparse matrix.
+"""
+function dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets::AbstractVector{<:AbstractBeamlet},
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                              kwargs...)
     D = spzeros(length(pos), length(beamlets))
+    dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
+end
+
+"""
+    dose_fluence_matrix(::Type{AbstractMatrix}, pos, beamlets, surf, calc)
+
+Store in a dense matrix matrix.
+"""
+function dose_fluence_matrix(::Type{<:AbstractMatrix}, pos, beamlets::AbstractVector{<:AbstractBeamlet},
+                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                             kwargs...)
+    D = zeros(length(pos), length(beamlets))
     dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
 end
 
@@ -23,9 +42,16 @@ end
 Compute a dose-fluence matrix from dose positions, beamlets, external surface and
 dose calculation algorithm.
 
-Requires the `point_kernel!` method to be defined for the given dose calculation
-algorithm (`calc`). `point_kernel!` computes the dose calculated from the set of
-bixels a given dose point. Stores result in `D`.
+Requires the `point_dose` method to be defined for the given dose calculation
+algorithm (`calc`). `point_dose` computes the dose at a given position from a given
+beamlet. Stores result in `D`.
+"""
+dose_fluence_matrix!
+
+"""
+    dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets, surf, calc)
+
+Stores in a sparse matrix
 """
 function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{<:AbstractBeamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
@@ -51,6 +77,28 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{
     dose_kernel!(D, pos, beamlets, surf, calc)
 
     D
+end
+
+"""
+    dose_fluence_matrix!(D::AbstractArray, pos, beamlets, surf, calc)
+
+Stores in a dense matrix.
+"""
+function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractVector{<:AbstractBeamlet},
+                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                              maxradius=25.)
+    @assert size(D) == (length(pos), length(beamlets))
+    @tullio D[i, j] = point_dose(pos[i], beamlets[j], surf, calc, maxradius)
+    D
+end
+
+function point_dose(pos::SVector{3, T}, beamlet, surf, calc, maxradius) where T<:Number
+    src = source_position(beamlet)
+    a = direction(beamlet)
+    SAD = source_axis_distance(beamlet)  
+
+    !kernel_size(pos-src, a, maxradius/SAD) && return zero(T)
+    point_dose(pos, beamlet, surf, calc)
 end
 
 #--- Dose-Fluence Matrix Computations -----------------------------------------
