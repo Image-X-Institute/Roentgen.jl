@@ -88,7 +88,9 @@ function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractVector{<:
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                               maxradius=25.)
     @assert size(D) == (length(pos), length(beamlets))
-    @tullio D[i, j] = point_dose(pos[i], beamlets[j], surf, calc, maxradius)
+    @batch per=thread for j in eachindex(beamlets), i in eachindex(pos)
+        @inbounds D[i, j] = point_dose(pos[i], beamlets[j], surf, calc, maxradius)
+    end
     D
 end
 
