@@ -172,17 +172,26 @@ function dose_kernel!(D::SparseMatrixCSC, pos, beamlets, surf, calc)
     jprev = 1
     @batch per=thread for n in eachindex(rowval, nzval)
         i = rowval[n]
-        j = sequential_searchsortedlast(colptr, n, jprev)
+        j = _sequential_searchsortedlast(colptr, n, jprev)
         nzval[n] = point_dose(pos[i], beamlets[j], surf, calc)
         jprev = j
     end
 
 end
 
-function sequential_searchsortedlast(a, x, j=1)
-    a[j]<=x<a[j+1] && return j
-    @inbounds for k = j+1:length(a)-1
-        a[k]<=x<a[k+1] && return k
+"""
+    _sequential_searchsortedlast(a, x, jstart)
+
+A `searchsortedlast` where the index is near and greater than previous index
+
+This assumes that the next index is larger than the starting index `jstart`. It first
+checks that `jstart` already satisfies `a[j]<=x<a[j+1]`. If not, it searches for
+`j>jstart`, returning `length(a)` if `a[end]<x`.
+"""
+function _sequential_searchsortedlast(a, x, jstart)
+    @inbounds a[jstart]<=x<a[jstart+1] && return jstart
+    for j = jstart+1:length(a)-1
+        @inbounds a[j]<=x<a[j+1] && return j
     end
     length(a)
 end
