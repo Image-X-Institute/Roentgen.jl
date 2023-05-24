@@ -41,13 +41,13 @@ function Beamlet(bixel::Bixel, gantry::GantryPosition)
     bx = trans(SVector(p[1]+hw[1], p[2], -SAD))
     by = trans(SVector(p[1], p[2]+hw[2], -SAD))
 
-    a = normalize(b - s)
-    ax = normalize(bx - b)
-    ay = normalize(by - b)
+    az = normalize(b - s)
+    ax = normalize(cross(az, by-b))
+    ay = normalize(cross(az, bx-b))
 
     tanθ = norm(p)/SAD
 
-    Beamlet(hw, ax, ay, a, s/SAD, SAD, tanθ)
+    Beamlet(hw, ax, ay, az, s/SAD, SAD, tanθ)
 end
 
 source_axis(beamlet::Beamlet) = beamlet.beamaxis
