@@ -10,7 +10,7 @@ dose calculation algorithm.
 
 See `dose_fluence_matrix!` for implementation.
 """
-function dose_fluence_matrix(T::Type{<:AbstractMatrix}, pos, beamlets::AbstractVector{<:AbstractBeamlet},
+function dose_fluence_matrix(T::Type{<:AbstractMatrix}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                              kwargs...)
     D = T{Float64}(undef, length(pos), length(beamlets))
@@ -22,7 +22,7 @@ end
 
 Store in a sparse matrix.
 """
-function dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets::AbstractVector{<:AbstractBeamlet},
+function dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                              kwargs...)
     D = spzeros(length(pos), length(beamlets))
@@ -46,7 +46,7 @@ dose_fluence_matrix!
 
 Stores in a sparse matrix
 """
-function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{<:AbstractBeamlet},
+function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                               maxradius=25.)
     _assert_size(D, pos, beamlets)
@@ -77,7 +77,7 @@ end
 
 Stores in a dense matrix.
 """
-function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractVector{<:AbstractBeamlet},
+function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                               maxradius=25.)
     _assert_size(D, pos, beamlets)
