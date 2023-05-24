@@ -23,7 +23,7 @@ using WriteVTK
 using ProgressMeter
 using Interpolations
 using LinearAlgebra
-using Polyester, Tullio
+using Polyester
 using Meshes
 
 import JSON
