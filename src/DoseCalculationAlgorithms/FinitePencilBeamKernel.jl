@@ -98,16 +98,27 @@ function FinitePencilBeamKernel(filename::String; fieldsize=100.)
     end
 end
 
-function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD)
+"""
+    calibrate!(calc, MU, fieldsize, SAD[, SSD=SAD])
+
+Calibrate a dose algorithm with given `MU`, `fielsize` and `SAD`.
+
+Scales the dose such that the maximum dose is 1 Gy for `MU` monitor units, given
+`fieldsize` and source-axis distance (`SAD`).
+Can set source-surface distance `SSD` if `SSD!=SAD`.
+"""
+function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD; beamlet_size=5.)
 
     surf = PlaneSurface(SSD)
 
-    bixel = Bixel(0., 0.5*fieldsize)
+    xb = -0.5*fieldsize:beamlet_size:0.5*fieldsize
+    bixels = bixel_grid(xb, xb)
+
     gantry = GantryPosition(0., 0., SAD)
 
-    beamlet = Beamlet(bixel, gantry)
+    beamlets = Beamlet.(bixels, (gantry,))
 
-    f(x) = -point_dose(SVector(0., 0., -x), beamlet, surf, calc)
+    f(x) = -sum(point_dose.(Ref(SVector(0., 0., -x)), beamlets, Ref(surf), Ref(calc)))
     result = optimize(f, 0., 100.)
     max_depth_dose = -minimum(result)
 
