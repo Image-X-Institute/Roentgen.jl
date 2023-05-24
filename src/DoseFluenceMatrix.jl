@@ -48,7 +48,7 @@ Stores in a sparse matrix
 """
 function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
-                              maxradius=25.)
+                              maxradius=100.)
     _assert_size(D, pos, beamlets)
 
     colptr = D.colptr
@@ -79,7 +79,7 @@ Stores in a dense matrix.
 """
 function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
-                              maxradius=25.)
+                              maxradius=100.)
     _assert_size(D, pos, beamlets)
     @batch per=thread for j in eachindex(beamlets), i in eachindex(pos)
         @inbounds D[i, j] = point_dose(pos[i], beamlets[j], surf, calc, maxradius)
