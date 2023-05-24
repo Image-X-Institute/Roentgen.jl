@@ -10,7 +10,19 @@ dose calculation algorithm.
 
 See `dose_fluence_matrix!` for implementation.
 """
-function dose_fluence_matrix(pos, beamlets::AbstractVector{<:Abstractbeamlet},
+function dose_fluence_matrix(T::Type{<:AbstractMatrix}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
+                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                             kwargs...)
+    D = T{Float64}(undef, length(pos), length(beamlets))
+    dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
+end
+
+"""
+    dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets, surf, calc)
+
+Store in a sparse matrix.
+"""
+function dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                              kwargs...)
     D = spzeros(length(pos), length(beamlets))
@@ -23,14 +35,21 @@ end
 Compute a dose-fluence matrix from dose positions, beamlets, external surface and
 dose calculation algorithm.
 
-Requires the `point_kernel!` method to be defined for the given dose calculation
-algorithm (`calc`). `point_kernel!` computes the dose calculated from the set of
-bixels a given dose point. Stores result in `D`.
+Requires the `point_dose` method to be defined for the given dose calculation
+algorithm (`calc`). `point_dose` computes the dose at a given position from a given
+beamlet. Stores result in `D`.
 """
-function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{<:Abstractbeamlet},
+dose_fluence_matrix!
+
+"""
+    dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets, surf, calc)
+
+Stores in a sparse matrix
+"""
+function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
-                              maxradius=25.)
-    @assert size(D) == (length(pos), length(beamlets))
+                              maxradius=100.)
+    _assert_size(D, pos, beamlets)
 
     colptr = D.colptr
     rowval = D.rowval
@@ -51,6 +70,37 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractVector{
     dose_kernel!(D, pos, beamlets, surf, calc)
 
     D
+end
+
+"""
+    dose_fluence_matrix!(D::AbstractArray, pos, beamlets, surf, calc)
+
+Stores in a dense matrix.
+"""
+function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractArray{<:AbstractBeamlet},
+                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                              maxradius=100.)
+    _assert_size(D, pos, beamlets)
+    @batch per=thread for j in eachindex(beamlets), i in eachindex(pos)
+        @inbounds D[i, j] = point_dose(pos[i], beamlets[j], surf, calc, maxradius)
+    end
+    D
+end
+
+"""
+    _assert_size(D, pos, beamlets)
+
+Ensures size of D is correct
+"""
+_assert_size(D, pos, beamlets) = @assert size(D) == (length(pos), length(beamlets))
+
+function point_dose(pos::SVector{3, T}, beamlet, surf, calc, maxradius) where T<:Number
+    src = source_position(beamlet)
+    a = direction(beamlet)
+    SAD = source_axis_distance(beamlet)  
+
+    !kernel_size(pos-src, a, maxradius/SAD) && return zero(T)
+    point_dose(pos, beamlet, surf, calc)
 end
 
 #--- Dose-Fluence Matrix Computations -----------------------------------------
@@ -122,17 +172,26 @@ function dose_kernel!(D::SparseMatrixCSC, pos, beamlets, surf, calc)
     jprev = 1
     @batch per=thread for n in eachindex(rowval, nzval)
         i = rowval[n]
-        j = sequential_searchsortedlast(colptr, n, jprev)
+        j = _sequential_searchsortedlast(colptr, n, jprev)
         nzval[n] = point_dose(pos[i], beamlets[j], surf, calc)
         jprev = j
     end
 
 end
 
-function sequential_searchsortedlast(a, x, j=1)
-    a[j]<=x<a[j+1] && return j
-    @inbounds for k = j+1:length(a)-1
-        a[k]<=x<a[k+1] && return k
+"""
+    _sequential_searchsortedlast(a, x, jstart)
+
+A `searchsortedlast` where the index is near and greater than previous index
+
+This assumes that the next index is larger than the starting index `jstart`. It first
+checks that `jstart` already satisfies `a[j]<=x<a[j+1]`. If not, it searches for
+`j>jstart`, returning `length(a)` if `a[end]<x`.
+"""
+function _sequential_searchsortedlast(a, x, jstart)
+    @inbounds a[jstart]<=x<a[jstart+1] && return jstart
+    for j = jstart+1:length(a)-1
+        @inbounds a[j]<=x<a[j+1] && return j
     end
     length(a)
 end

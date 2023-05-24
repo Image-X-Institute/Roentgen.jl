@@ -7,13 +7,13 @@ All references to equations refer to equations in the original paper.
 
 #--- Abstract beamlet ---------------------------------------------------------
 
-abstract type Abstractbeamlet <: AbstractFluenceElement end
+abstract type AbstractBeamlet <: AbstractFluenceElement end
 
 export Beamlet, FinitePencilBeamKernel
 
 #--- Beamlet ------------------------------------------------------------------
 
-struct Beamlet{T} <: Abstractbeamlet
+struct Beamlet{T} <: AbstractBeamlet
     halfwidth::SVector{2, T}
     ax::SVector{3, T}
     ay::SVector{3, T}
