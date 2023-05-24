@@ -10,7 +10,12 @@ dose calculation algorithm.
 
 See `dose_fluence_matrix!` for implementation.
 """
-dose_fluence_matrix
+function dose_fluence_matrix(T::Type{<:AbstractMatrix}, pos, beamlets::AbstractVector{<:AbstractBeamlet},
+                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                             kwargs...)
+    D = T{Float64}(undef, length(pos), length(beamlets))
+    dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
+end
 
 """
     dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets, surf, calc)
@@ -21,18 +26,6 @@ function dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets::AbstractVec
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                              kwargs...)
     D = spzeros(length(pos), length(beamlets))
-    dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
-end
-
-"""
-    dose_fluence_matrix(::Type{AbstractMatrix}, pos, beamlets, surf, calc)
-
-Store in a dense matrix matrix.
-"""
-function dose_fluence_matrix(::Type{<:AbstractMatrix}, pos, beamlets::AbstractVector{<:AbstractBeamlet},
-                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
-                             kwargs...)
-    D = zeros(length(pos), length(beamlets))
     dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
 end
 
