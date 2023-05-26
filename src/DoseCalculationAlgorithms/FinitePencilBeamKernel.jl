@@ -63,6 +63,17 @@ source_position(beamlet::Beamlet) = source_axis_distance(beamlet)*source_axis(be
 
 tanθ_to_source(beamlet::Beamlet) = beamlet.tanθ
 
+"""
+    FinitePencilBeamKernel(parameters, scalingfactor, depth, tanθ)
+
+Dose calculation for Finite Pencil Beam Kernel algorithm (Jelen 2005).
+
+Takes the following commissioned parameters:
+- `parameters`: Weights and steepness parameters by depth
+- `scalingfactor`: Scaling factor matrix by depth and tanθ
+- `depth`: Depths of parameters of scaling factor values
+- `tanθ`: Angle from central beam axis of scaling factor value
+"""
 struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation,
                               TScalingFactor<:AbstractInterpolation,
                               T<:Real} <: AbstractDoseAlgorithm
@@ -70,35 +81,44 @@ struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation,
     scalingfactor::TScalingFactor
     α_depth::T  # For scaling depth to interpolation knots
     α_tanθ::T  # For scaling tanθ to interpolation knots
+
+    function FinitePencilBeamKernel(parameters::AbstractVector{SVector{5, T}},
+                                    scalingfactor::AbstractMatrix{T},
+                                    depths::AbstractRange{T}, tanθ::AbstractRange{T}) where T<:Real
+        @assert length(depths) == length(parameters)
+        @assert length(depths) == size(scalingfactor, 1)
+        @assert length(tanθ) == size(scalingfactor, 2)
+
+        interp_method = BSpline(Linear())
+        extrap = Interpolations.Line()
+
+        I_paramI = extrapolate(interpolate(parameters, interp_method), extrap)
+        I_scalingf = extrapolate(interpolate(scalingfactor, interp_method), extrap)
+
+        α_depth = (length(depths)-1)/depths[end]
+        α_tanθ = (length(tanθ)-1)/tanθ[end]
+
+        Tparams = typeof(I_paramI)
+        Tscalingf = typeof(I_scalingf)
+
+        new{Tparams, Tscalingf, T}(I_paramI, I_scalingf, α_depth, α_tanθ)
+    end
 end
 
-function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ,
-                                 scalingfactor::AbstractMatrix)
-    @assert length(depths) == size(parameters, 2)
-    @assert length(depths) == size(scalingfactor, 1)
-    @assert length(tanθ) == size(scalingfactor, 2)
-
-    data = SVector{5}.(eachcol(parameters))
-
-    interp_method = BSpline(Linear())
-    extrap = Interpolations.Line()
-
-    paramI = extrapolate(interpolate(data, interp_method), extrap)
-    scalingfactI = extrapolate(interpolate(scalingfactor, interp_method), extrap)
-
-    α_depth = (length(depths)-1)/depths[end]
-    α_tanθ = (length(tanθ)-1)/tanθ[end]
-
-    FinitePencilBeamKernel(paramI, scalingfactI, α_depth, α_tanθ)
+function FinitePencilBeamKernel(parameters::AbstractMatrix, args...)
+    @assert size(parameters, 1) == 5
+    FinitePencilBeamKernel(SVector{5}.(eachcol(parameters)), args...)
 end
 
+"""
+    FinitePencilBeamKernel(filename::String)
+
+Load commissioned parameters from a `.jld` file.
+"""
 function FinitePencilBeamKernel(filename::String)
-    depth = JLD2.load(filename, "depth")
-    parameters = JLD2.load(filename, "parameters")
-    tanθ = JLD2.load(filename, "tantheta")
-    scalingfactor = JLD2.load(filename, "scalingfactor")
-
-    FinitePencilBeamKernel(depth, parameters, tanθ, scalingfactor)
+    data = JLD2.load(filename)
+    FinitePencilBeamKernel(data["parameters"], data["scalingfactor"],
+                           data["depth"], data["tantheta"])
 end
 
 """
@@ -167,7 +187,6 @@ function fpbk_dose(x, y, w, ux, uy, x₀, y₀)
 
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
-
 
 function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSurface, calc::FinitePencilBeamKernel) where T<:AbstractFloat
     ax, ay, a = beamlet_axes(beamlet)

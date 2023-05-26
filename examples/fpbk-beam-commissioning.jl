@@ -252,7 +252,7 @@ heatmap(tanθ, depth, A, xlabel="tan(θ)", ylabel="Depth (mm)")
 # Create Kernel
 parameters = vcat(params[2:end, :], params[3:4, :])
 
-calc = FinitePencilBeamKernel(depth, parameters, tanθ, A)
+calc = FinitePencilBeamKernel(parameters, A, depth, tanθ)
 calibrate!(calc, 1., fieldsize, SAD; beamlet_size=5.)
 
 # Create dose positions, external surface, gantry and beamlet
