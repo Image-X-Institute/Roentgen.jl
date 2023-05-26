@@ -63,22 +63,33 @@ source_position(beamlet::Beamlet) = source_axis_distance(beamlet)*source_axis(be
 
 tanθ_to_source(beamlet::Beamlet) = beamlet.tanθ
 
-struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation} <: AbstractDoseAlgorithm
+struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation,
+                              TScalingFactor<:AbstractInterpolation,
+                              T<:Real} <: AbstractDoseAlgorithm
     parameters::Tparameters
     scalingfactor::TScalingFactor
+    α_depth::T  # For scaling depth to interpolation knots
+    α_tanθ::T  # For scaling tanθ to interpolation knots
 end
 
-function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scalingfactor::AbstractMatrix)
+function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ,
+                                 scalingfactor::AbstractMatrix)
     @assert length(depths) == size(parameters, 2)
     @assert length(depths) == size(scalingfactor, 1)
     @assert length(tanθ) == size(scalingfactor, 2)
 
     data = SVector{5}.(eachcol(parameters))
-    params_interpolator = linear_interpolation(depths, data, extrapolation_bc=Interpolations.Line())
 
-    scalingfactor_interpolator = linear_interpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Line())
+    interp_method = BSpline(Linear())
+    extrap = Interpolations.Line()
 
-    FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator)
+    paramI = extrapolate(interpolate(data, interp_method), extrap)
+    scalingfactI = extrapolate(interpolate(scalingfactor, interp_method), extrap)
+
+    α_depth = (length(depths)-1)/depths[end]
+    α_tanθ = (length(tanθ)-1)/tanθ[end]
+
+    FinitePencilBeamKernel(paramI, scalingfactI, α_depth, α_tanθ)
 end
 
 function FinitePencilBeamKernel(fid::HDF5.H5DataStore)
@@ -129,15 +140,22 @@ function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD;
     result
 end
 
+_scale_clamp(x, α) = max(α*x, 0)+1
+
 function getparams(calc, depth)
-    p = calc.parameters(depth)
+    x = _scale_clamp(depth, calc.α_depth)
+    p = calc.parameters(x)
     a = p[1]
     ux = SVector(p[2], p[3])
     uy = SVector(p[4], p[5])
     a, ux, uy
 end
 
-getscalingfactor(calc, depth_rad, tanθ) = calc.scalingfactor(depth_rad, abs(tanθ))
+function getscalingfactor(calc, depth_rad, tanθ)
+    x = _scale_clamp(depth_rad, calc.α_depth)
+    y = _scale_clamp(abs(tanθ), calc.α_tanθ)
+    calc.scalingfactor(x, y)
+end
 
 #--- Kernel Profile Functions -------------------------------------------------
 
