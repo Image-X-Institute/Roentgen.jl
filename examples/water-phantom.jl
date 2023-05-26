@@ -12,6 +12,7 @@ Computes the dose for three dose profiles:
 
 using DoseCalculations
 using Plots, StaticArrays
+using SparseArrays, Printf
 
 #--- Setup Dose Calculation --------------------------------------------------------------------------------------------
 
@@ -22,67 +23,104 @@ SAD = 1000.
 SSD = SAD
 
 # Create Fluence Grid
-bixels = [Bixel(0., fieldsize)]
+xb = -0.5*fieldsize:5:0.5*fieldsize
+bixels = bixel_grid(xb, xb)
 
 # Create dose calculation kernel
-calc = ScaledIsoplaneKernel("examples/sample-data/dose-kernel/scaled-isoplane-kernel.json", 280.)
+calc = FinitePencilBeamKernel("examples/sample-data/dose-kernel/finite-pencil-beam-kernel.hdf5"; fieldsize=120.)
 
 # Calibrate: 100 MU at maximum with field size of 100 mm and SSD of 1000. mm
 MU = 100.
 calibrate!(calc, MU, fieldsize, SSD)
 
 # Create External Surface
-surf = PlaneSurface(SAD)
+surf = PlaneSurface(SSD)
 
 gantry = GantryPosition(0., 0., SAD)
-src = DoseCalculations.getposition(gantry)
+beamlets = Beamlet.(bixels, (gantry,))
 
 #--- Depth Dose --------------------------------------------------------------------------------------------------------
 
 # Create dose points
-zp = -400:1.:0
-pos = SVector.(0., 0., zp)
+depth = 0.:1.:500
+pos = SVector.(0., 0., -depth)
 
 # Calculate dose
-@time depth_dose = dose_fluence_matrix(pos, vec(bixels), gantry, surf, calc)[1, :]
+dose = sum(dose_fluence_matrix(Matrix, pos, beamlets, surf, calc); dims=2)
 
-begin
-    depth = getdepth.(Ref(surf), pos, Ref(src))
-    p = plot(xlabel="Depth (mm)", ylabel="Dose (Gy)", ylim=[0, Inf])
-    plot!(depth, MU*vec(depth_dose), label="Calculated")
-    plot!(depth, MU*DoseCalculations.norm_depth_dose.(Ref(calc), depth))
-    hline!([1.], color=:black, label="")
-end
+plot(depth, dose, xlabel="Depth (mm)", ylabel="Dose (Gy/MU)", legend=false)
 
 #--- Off-Axis Profile --------------------------------------------------------------------------------------------------
 
 # Create dose points
-depth = 100.
-xp = -200.:1.:200.
-pos = SVector.(xp, 0., -depth)
+depth = 50.:50:250
+x = -300:2:300
+pos = SVector.(x, 0., -depth')
 
 # Calculate dose
-@time offaxis_dose = dose_fluence_matrix(pos, vec(bixels), gantry, surf, calc)[1, :]
+dose = sum(dose_fluence_matrix(Matrix, pos, beamlets, surf, calc); dims=2)
+dose = reshape(dose, size(pos))
 
 # Plot
 begin
-    p = plot(xlabel="Off-Axis Position (mm)", ylabel="Dose (Gy)", ylim=[0, Inf])
-    plot!(xp, MU*offaxis_dose, label="Depth=$depth mm")
+
+    plt = plot(xlabel="x (mm)", ylabel="Dose (Gy/MU)", legendtitle="Depth")
+    for i in eachindex(depth)
+        plot!(plt, x, dose[:, i], label=@sprintf "%0.0fmm" depth[i])
+    end
+    plt
 end
 
 #--- 2D Dose -----------------------------------------------------------------------------------------------------------
 
 # Create dose points
-depth = 0.:5.:400
-offaxis_pos = -200.:5.:200.
-pos = DoseGrid(offaxis_pos, [0.], -depth)
+depth = 0.:2.:400
+x = -200.:2.:200.
+pos = SVector.(x, 0., -depth')
 
 # Calculate dose
-@time dose = MU*dose_fluence_matrix(pos, vec(bixels), gantry, surf, calc)
-dose = reshape(Array(dose), size(pos));
+dose = sum(dose_fluence_matrix(Matrix, pos, beamlets, surf, calc); dims=2)
+dose = reshape(dose, size(pos))
 
 # Plot
 begin
-    p = plot(xlabel="Off-Axis Position (mm)", ylabel="Depth (mm)")
-    heatmap!(p, offaxis_pos, depth, dose[:, 1, :]', colorbar_title="Dose (Gy)")
+    plt = plot(xlabel="x (mm)", ylabel="Depth (mm)", aspect_ratio=1,
+               xlim=x[[1, end]], ylim=depth[[1, end]])
+    heatmap!(plt, x, depth, dose', colorbar_title="Dose (Gy/MU)")
+end
+
+#--- 3D Dose -----------------------------------------------------------------------------------------------------------
+
+# Create dose points
+Δ = 2.
+depth = 0.:Δ:400
+x = -200.:Δ:200.
+y = -200.:Δ:200.
+z = -depth
+pos = DoseGrid(x, y, z)
+
+# Calculate dose
+dose = sum(dose_fluence_matrix(Matrix, pos, vec(beamlets), surf, calc); dims=2);
+dose = reshape(Array(dose), size(pos));
+
+write_vtk("water", pos, "dose"=>dose)
+
+# Plot Slices
+begin
+    k = searchsortedlast(depth, 100.)
+    plt_xy = plot(ylabel="y (mm)", xticks=[])
+    heatmap!(plt_xy, x, y, dose[:, :, k]', aspect_ratio=1,
+             xlim=x[[1,end]], ylim=y[[1, end]])
+    
+    i = searchsortedlast(x, 0.)
+    plt_yz = plot(xlabel="depth (mm)", yticks=[])
+    heatmap!(plt_yz, depth, y, dose[i, :, :], aspect_ratio=1,
+             xlim=depth[[1,end]], ylim=y[[1, end]])
+
+    j = searchsortedlast(y, 0.)
+    plt_xz = plot(xlabel="x (mm)", ylabel="depth (mm)")
+    heatmap!(plt_xz, x, depth, dose[:, j, :]', aspect_ratio=1,
+             xlim=x[[1,end]], ylim=depth[[1, end]])
+
+    plot(plt_xy, plt_yz, plt_xz; layout=(2, 2), size=(800, 600))
 end
