@@ -107,7 +107,8 @@ Scales the dose such that the maximum dose is 1 Gy for `MU` monitor units, given
 `fieldsize` and source-axis distance (`SAD`).
 Can set source-surface distance `SSD` if `SSD!=SAD`.
 """
-function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD; beamlet_size=5.)
+function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD;
+                    beamlet_size=5.)
 
     surf = PlaneSurface(SSD)
 
@@ -118,7 +119,8 @@ function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD; b
 
     beamlets = Beamlet.(bixels, (gantry,))
 
-    f(x) = -sum(point_dose.(Ref(SVector(0., 0., -x)), beamlets, Ref(surf), Ref(calc)))
+    pos(x) = SVector(0., 0., -x)
+    f(x) = -sum(point_dose.(Ref(pos(x)), beamlets, Ref(surf), Ref(calc)))
     result = optimize(f, 0., 100.)
     max_depth_dose = -minimum(result)
 
