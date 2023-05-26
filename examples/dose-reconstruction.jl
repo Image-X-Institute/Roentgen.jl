@@ -10,11 +10,11 @@ using DoseCalculations
 plan = load_dicom("path/to/dicom/RP.....dcm")
 
 # Create dose calculation kernel
-calc = FinitePencilBeamKernel("examples/sample-data/dose-kernel/finite-pencil-beam-kernel.hdf5")
+calc = FinitePencilBeamKernel("path/to/kernel/file.jld")
 calibrate!(calc, 100., 100., 1000.)
 
 # Load external surface
-mesh = load_structure_from_ply("path/to/stl-or-ply")
+mesh = load_structure_from_ply("path/to/body.stl")
 
 trans = patient_to_fixed(getisocenter(plan[1]))
 surf = CylindricalSurface(transform(mesh, trans))

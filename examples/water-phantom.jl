@@ -27,7 +27,7 @@ xb = -0.5*fieldsize:5:0.5*fieldsize
 bixels = bixel_grid(xb, xb)
 
 # Create dose calculation kernel
-calc = FinitePencilBeamKernel("examples/sample-data/dose-kernel/finite-pencil-beam-kernel.hdf5"; fieldsize=120.)
+calc = FinitePencilBeamKernel("path/to/kernel/file.jld")
 
 # Calibrate: 100 MU at maximum with field size of 100 mm and SSD of 1000. mm
 MU = 100.
