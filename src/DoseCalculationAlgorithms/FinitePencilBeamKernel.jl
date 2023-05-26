@@ -192,7 +192,6 @@ function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSu
     pₐ = rₐ + s
 
     depth = getdepth(surf, pₐ, s)
-    depth < zero(T) && return zero(T)
 
     δ = SAD*(r-rₐ)/Rₐ
     x = dot(δ, ax)

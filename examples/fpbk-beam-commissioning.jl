@@ -285,7 +285,7 @@ diff_heatmap(args...; kwargs...) = diff_heatmap!(plot(), args...; kwargs...)
 
 Δdose = dose-measured_dose
 
-diff_heatmap(x, depth[2:end], Δdose[:, 2:end]'*100,#, clim=5.,
+diff_heatmap(x, depth, Δdose'*100,
              c=reverse(cgrad(:RdBu)),
              xlim=x[[1, end]], ylim=depth[[1, end]],
              xlabel="x (mm)", ylabel="Depth (mm)",
