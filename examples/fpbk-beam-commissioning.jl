@@ -8,8 +8,9 @@ It stores the commissioned kernel in "examples/sample-data/dose-kernel/finite-pe
 =#
 
 using DoseCalculations
-using Plots, StaticArrays
-using Interpolations, LsqFit, HDF5
+using Plots, StaticArraysW
+using Interpolations, LsqFit
+using HDF5, JLD2
 using Statistics, Printf
 
 #--- Set Parameters ------------------------------------------------------------
@@ -30,6 +31,12 @@ begin
         x, z, dose
     end
 end
+
+I = linear_interpolation((x, depth), measured_dose)
+uniform_grid(x) = x[1]:minimum(diff(x)):x[end]
+x = uniform_grid(x)
+depth = uniform_grid(depth)
+measured_dose = I(x, depth)
 
 heatmap(x, depth, measured_dose', title="Measured Dose",
         xlabel="Off-Axis Position (mm)", ylabel="Depth (mm)")
@@ -62,7 +69,7 @@ profiles = extract_profiles(x, measured_dose, depth, SAD; xiso_max=xiso_max)
 
 begin
     plt = plot()
-    for i in eachindex(profiles)[1:10:end]
+    for i in eachindex(profiles)[1:25:end]
         x′, dose = profiles[i]
         plot!(plt, x′, dose, label=@sprintf "%0.0fmm" depth[i])
     end
@@ -193,9 +200,13 @@ function smooth(x, y, nwindow, polyorder=2)
     ynew
 end
 
-params_s = hcat(smooth.(Ref(depth), eachrow(params), 51)...)'
-plot_params!(plts, depth, params_s)
-plot(plts..., layout=grid(2, 2), figheight=(12, 5))
+params_s = hcat(smooth.(Ref(depth), eachrow(params), [21, 11, 21, 51])...)'
+
+begin
+    plts = plot_params(depth, params)
+    plot_params!(plts, depth, params_s)
+    plot(plts..., layout=grid(2, 2), figheight=(12, 5))
+end
 
 begin
     k = searchsortedlast(depth, 200.)
@@ -217,7 +228,7 @@ end
 
 R = @. depth + SAD
 
-tanθmax = xiso_max/SAD
+tanθmax = 100/SAD
 tanθ = range(0., tanθmax, length=101)
 
 function scaling_factor(tanθ, d, R, D, param, SAD)
@@ -231,16 +242,25 @@ function scaling_factor(tanθ, d, R, D, param, SAD)
 
     x′ = SAD*tanθ
     F = profile_at_depth(x′, w, SVector(ux1, ux2), 0.5*fieldsize)
-    exp(D(x′))*R′^2/F
+    exp(D(x′))*(R′/SAD)^2/F
 end
 
 # Set up Interpolators for parameters and measured dose
-p = SVector{3}.(eachcol(params[2:4, :]))
+p = SVector{3}.(eachcol(params_s[2:4, :]))
 p = linear_interpolation(depth, p, extrapolation_bc=Flat())
 
-
 unscaled_profiles = extract_profiles(x, measured_dose, depth, SAD; normalize=false, xiso_max=xiso_max)
-D = linear_interpolation.(getindex.(profiles, 1), getindex.(unscaled_profiles, 2), extrapolation_bc=Line())
+
+begin
+    plt = plot()
+    for i in eachindex(unscaled_profiles)[1:25:end]
+        x′, dose = unscaled_profiles[i]
+        plot!(plt, x′, dose, label=@sprintf "%0.0fmm" depth[i])
+    end
+    plt
+end
+
+D = linear_interpolation.(getindex.(profiles, 1), getindex.(unscaled_profiles, 2), extrapolation_bc=Throw())
 
 # Compute Scaling Factor
 A = scaling_factor.(tanθ', depth, R, D, Ref(p), SAD)
@@ -269,7 +289,9 @@ using Tullio
 @tullio dose[i, j] := DoseCalculations.point_dose(pos[i, j], beamlets[n, m], surf, calc)
 
 # Calculate error
-√sum(@. (dose-measured_dose)^2)
+Δdose = dose-measured_dose
+√sum(@. (Δdose)^2)
+minimum(Δdose)*100, maximum(Δdose)*100
 
 # Plot
 heatmap(x, depth, measured_dose', xlabel="x (mm)", ylabel="Depth (mm)",
@@ -283,13 +305,18 @@ function diff_heatmap!(plt, x, y, f; clim = maximum(abs.(f)), kwargs...)
 end
 diff_heatmap(args...; kwargs...) = diff_heatmap!(plot(), args...; kwargs...)
 
-Δdose = dose-measured_dose
 
 diff_heatmap(x, depth, Δdose'*100,
              c=reverse(cgrad(:RdBu)),
              xlim=x[[1, end]], ylim=depth[[1, end]],
              xlabel="x (mm)", ylabel="Depth (mm)",
              title="Measured Dose", aspect_ratio=1)
+
+begin
+    plt = plot(xlabel="Depth", ylabel="Dose")
+    plot!(depth, dose[1, :])
+    plot!(depth, measured_dose[1, :], color=1, linestyle=:dash)
+end
 
 begin
     depths = [50., 100., 150., 250.]
@@ -304,14 +331,8 @@ end
 
 #--- Save to File --------------------------------------------------------------
 
-
-
-using JLD2
 filename = @sprintf "examples/sample-data/fpbk-fieldsize_%imm.jld2" fieldsize
 JLD2.save(filename, Dict("parameters"=>parameters,
                          "depth"=>depth,
                          "scalingfactor"=>A,
                          "tantheta"=>tanθ))
-
-
-
