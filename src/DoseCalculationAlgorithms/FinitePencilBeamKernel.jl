@@ -92,21 +92,13 @@ function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ,
     FinitePencilBeamKernel(paramI, scalingfactI, α_depth, α_tanθ)
 end
 
-function FinitePencilBeamKernel(fid::HDF5.H5DataStore)
-    parameters = read(fid["parameters"])
-    depths = read(fid["depth"])
+function FinitePencilBeamKernel(filename::String)
+    depth = JLD2.load(filename, "depth")
+    parameters = JLD2.load(filename, "parameters")
+    tanθ = JLD2.load(filename, "tantheta")
+    scalingfactor = JLD2.load(filename, "scalingfactor")
 
-    scalingfactor = read(fid["scaling_factor"])
-    tanθ = read(fid["tan_theta"])
-
-    FinitePencilBeamKernel(depths, parameters, tanθ, scalingfactor)
-end
-
-function FinitePencilBeamKernel(filename::String; fieldsize=100.)
-    h5open(filename, "r") do fid
-        dset = fid["fieldsize-$(Int(fieldsize))mm"]
-        FinitePencilBeamKernel(dset)
-    end
+    FinitePencilBeamKernel(depth, parameters, tanθ, scalingfactor)
 end
 
 """

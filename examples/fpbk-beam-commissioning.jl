@@ -304,16 +304,14 @@ end
 
 #--- Save to File --------------------------------------------------------------
 
-h5open("examples/sample-data/dose-kernel/finite-pencil-beam-kernel.hdf5", "cw") do fid
-    groupname = @sprintf "fieldsize-%imm" fieldsize
-    delete_object(fid, groupname)
 
-    group = create_group(fid, groupname )
 
-    attributes(group)["fieldsize"] = fieldsize
+using JLD2
+filename = @sprintf "examples/sample-data/fpbk-fieldsize_%imm.jld2" fieldsize
+JLD2.save(filename, Dict("parameters"=>parameters,
+                         "depth"=>depth,
+                         "scalingfactor"=>A,
+                         "tantheta"=>tanθ))
 
-    group["parameters"] = parameters
-    group["depth"] = depth
-    group["scaling_factor"] = A
-    group["tan_theta"] = collect(tanθ)
-end
+
+
