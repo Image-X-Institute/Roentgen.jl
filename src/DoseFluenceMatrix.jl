@@ -3,10 +3,17 @@ export dose_fluence_matrix, dose_fluence_matrix!
 #--- Dose-Fluence Matrix-------------------------------------------------------
 
 """
-    dose_fluence_matrix(pos, beamlets, surf, calc)
+    dose_fluence_matrix(T, pos, beamlets, surf, calc)
 
 Compute a dose-fluence matrix from dose positions, beamlets, external surface and
 dose calculation algorithm.
+
+`T` is the matrix type. It currently supports:
+- `Matrix`: Dense CPU
+- `SparseMatrixCSC`: Sparse CPU
+- `CuArray`: Dense GPU
+e.g. `dose_fluence_matrix(SparseMatrixCSC, ...)` will create a sparse matrix
+computed using the CPU.
 
 See `dose_fluence_matrix!` for implementation.
 """
@@ -17,11 +24,13 @@ function dose_fluence_matrix(T::Type{<:AbstractMatrix}, pos, beamlets::AbstractA
     dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
 end
 
-"""
-    dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets, surf, calc)
+function dose_fluence_matrix(::Type{CuArray}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
+                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                             kwargs...)
+    D = CUDA.zeros(length(pos), length(beamlets))
+    dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
+end
 
-Store in a sparse matrix.
-"""
 function dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                              kwargs...)
@@ -30,22 +39,24 @@ function dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets::AbstractArr
 end
 
 """
-    dose_fluence_matrix!(D, pos, beamlets, surf, calc)
+    dose_fluence_matrix!(D<:AbstractMatrix, pos, beamlets, surf, calc)
 
-Compute a dose-fluence matrix from dose positions, beamlets, external surface and
-dose calculation algorithm.
+Compute a dose-fluence matrix from dose positions, beamlets, external surface
+and dose calculation algorithm.
 
 Requires the `point_dose` method to be defined for the given dose calculation
-algorithm (`calc`). `point_dose` computes the dose at a given position from a given
-beamlet. Stores result in `D`.
+algorithm (`calc`). `point_dose` computes the dose at a given position from a
+given beamlet.
+
+It stores result in `D<:AbstractMatrix`. Currently, the following matrix types
+are supported:
+- `D::Matrix`
+- `D::SparseMatrixCSC`
+- `D::CuArray`
+
 """
 dose_fluence_matrix!
 
-"""
-    dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets, surf, calc)
-
-Stores in a sparse matrix
-"""
 function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                               maxradius=100.)
@@ -72,11 +83,6 @@ function dose_fluence_matrix!(D::SparseMatrixCSC, pos, beamlets::AbstractArray{<
     D
 end
 
-"""
-    dose_fluence_matrix!(D::AbstractArray, pos, beamlets, surf, calc)
-
-Stores in a dense matrix.
-"""
 function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                               surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                               maxradius=100.)
@@ -85,6 +91,13 @@ function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractArray{<:A
         @inbounds D[i, j] = point_dose(pos[i], beamlets[j], surf, calc, maxradius)
     end
     D
+end
+
+function dose_fluence_matrix!(D::CuArray, pos, beamlets::AbstractArray{<:AbstractBeamlet},
+                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
+                              maxradius=100.)
+    _assert_size(D, pos, beamlets)
+    D .= point_dose.(vec(pos), permutedims(vec(beamlets)), Ref(surf), Ref(calc), maxradius)
 end
 
 """
