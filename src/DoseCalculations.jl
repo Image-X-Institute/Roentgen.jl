@@ -6,7 +6,7 @@ using StaticArrays
 
 # CUDA
 using CUDA
-using Adapt
+import Adapt
 
 # Coordinates
 using CoordinateTransformations

@@ -5,8 +5,6 @@ Implements the Jelen et al. 2005, "A finite size pencil beam for IMRT dose optim
 All references to equations refer to equations in the original paper.
 =#
 
-import CUDA.cu
-
 #--- Abstract beamlet ---------------------------------------------------------
 
 abstract type AbstractBeamlet <: AbstractFluenceElement end
@@ -109,12 +107,7 @@ function FinitePencilBeamKernel(parameters::AbstractMatrix, args...)
     FinitePencilBeamKernel(SVector{5}.(eachcol(parameters)), args...)
 end
 
-function CUDA.cu(calc::FinitePencilBeamKernel)
-    cu_scalingfactor = adapt(CuArray{Float32}, calc.scalingfactor); # adapt it to GPU memory
-    cu_parameters = adapt(CuArray{SVector{5, Float32}}, calc.parameters);
-
-    FinitePencilBeamKernel(cu_parameters, cu_scalingfactor, calc.α_depth, calc.α_tanθ)
-end
+Adapt.@adapt_structure FinitePencilBeamKernel
 
 """
     FinitePencilBeamKernel(filename::String)
