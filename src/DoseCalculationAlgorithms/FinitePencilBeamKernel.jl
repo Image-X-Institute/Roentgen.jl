@@ -41,13 +41,13 @@ function Beamlet(bixel::Bixel, gantry::GantryPosition)
     bx = trans(SVector(p[1]+hw[1], p[2], -SAD))
     by = trans(SVector(p[1], p[2]+hw[2], -SAD))
 
-    a = normalize(b - s)
-    ax = normalize(bx - b)
-    ay = normalize(by - b)
+    az = normalize(b - s)
+    ax = normalize(cross(az, by-b))
+    ay = normalize(cross(az, bx-b))
 
     tanθ = norm(p)/SAD
 
-    Beamlet(hw, ax, ay, a, s/SAD, SAD, tanθ)
+    Beamlet(hw, ax, ay, az, s/SAD, SAD, tanθ)
 end
 
 source_axis(beamlet::Beamlet) = beamlet.beamaxis
@@ -63,51 +63,87 @@ source_position(beamlet::Beamlet) = source_axis_distance(beamlet)*source_axis(be
 
 tanθ_to_source(beamlet::Beamlet) = beamlet.tanθ
 
-struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation, TScalingFactor<:AbstractInterpolation} <: AbstractDoseAlgorithm
+"""
+    FinitePencilBeamKernel(parameters, scalingfactor, depth, tanθ)
+
+Dose calculation for Finite Pencil Beam Kernel algorithm (Jelen 2005).
+
+Takes the following commissioned parameters:
+- `parameters`: Weights and steepness parameters by depth
+- `scalingfactor`: Scaling factor matrix by depth and tanθ
+- `depth`: Depths of parameters of scaling factor values
+- `tanθ`: Angle from central beam axis of scaling factor value
+"""
+struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation,
+                              TScalingFactor<:AbstractInterpolation,
+                              T<:Real} <: AbstractDoseAlgorithm
     parameters::Tparameters
     scalingfactor::TScalingFactor
-end
+    α_depth::T  # For scaling depth to interpolation knots
+    α_tanθ::T  # For scaling tanθ to interpolation knots
 
-function FinitePencilBeamKernel(depths, parameters::AbstractMatrix, tanθ, scalingfactor::AbstractMatrix)
-    @assert length(depths) == size(parameters, 2)
-    @assert length(depths) == size(scalingfactor, 1)
-    @assert length(tanθ) == size(scalingfactor, 2)
+    function FinitePencilBeamKernel(parameters::AbstractVector{SVector{5, T}},
+                                    scalingfactor::AbstractMatrix{T},
+                                    depths::AbstractRange{T}, tanθ::AbstractRange{T}) where T<:Real
+        @assert length(depths) == length(parameters)
+        @assert length(depths) == size(scalingfactor, 1)
+        @assert length(tanθ) == size(scalingfactor, 2)
 
-    data = SVector{5}.(eachcol(parameters))
-    params_interpolator = linear_interpolation(depths, data, extrapolation_bc=Interpolations.Line())
+        interp_method = BSpline(Linear())
+        extrap = Interpolations.Line()
 
-    scalingfactor_interpolator = linear_interpolation((depths, tanθ), scalingfactor, extrapolation_bc=Interpolations.Line())
+        I_paramI = extrapolate(interpolate(parameters, interp_method), extrap)
+        I_scalingf = extrapolate(interpolate(scalingfactor, interp_method), extrap)
 
-    FinitePencilBeamKernel(params_interpolator, scalingfactor_interpolator)
-end
+        α_depth = (length(depths)-1)/depths[end]
+        α_tanθ = (length(tanθ)-1)/tanθ[end]
 
-function FinitePencilBeamKernel(fid::HDF5.H5DataStore)
-    parameters = read(fid["parameters"])
-    depths = read(fid["depth"])
+        Tparams = typeof(I_paramI)
+        Tscalingf = typeof(I_scalingf)
 
-    scalingfactor = read(fid["scaling_factor"])
-    tanθ = read(fid["tan_theta"])
-
-    FinitePencilBeamKernel(depths, parameters, tanθ, scalingfactor)
-end
-
-function FinitePencilBeamKernel(filename::String; fieldsize=100.)
-    h5open(filename, "r") do fid
-        dset = fid["fieldsize-$(Int(fieldsize))mm"]
-        FinitePencilBeamKernel(dset)
+        new{Tparams, Tscalingf, T}(I_paramI, I_scalingf, α_depth, α_tanθ)
     end
 end
 
-function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD)
+function FinitePencilBeamKernel(parameters::AbstractMatrix, args...)
+    @assert size(parameters, 1) == 5
+    FinitePencilBeamKernel(SVector{5}.(eachcol(parameters)), args...)
+end
+
+"""
+    FinitePencilBeamKernel(filename::String)
+
+Load commissioned parameters from a `.jld` file.
+"""
+function FinitePencilBeamKernel(filename::String)
+    data = JLD2.load(filename)
+    FinitePencilBeamKernel(data["parameters"], data["scalingfactor"],
+                           data["depth"], data["tantheta"])
+end
+
+"""
+    calibrate!(calc, MU, fieldsize, SAD[, SSD=SAD])
+
+Calibrate a dose algorithm with given `MU`, `fielsize` and `SAD`.
+
+Scales the dose such that the maximum dose is 1 Gy for `MU` monitor units, given
+`fieldsize` and source-axis distance (`SAD`).
+Can set source-surface distance `SSD` if `SSD!=SAD`.
+"""
+function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD;
+                    beamlet_size=5.)
 
     surf = PlaneSurface(SSD)
 
-    bixel = Bixel(0., 0.5*fieldsize)
+    xb = -0.5*fieldsize:beamlet_size:0.5*fieldsize
+    bixels = bixel_grid(xb, xb)
+
     gantry = GantryPosition(0., 0., SAD)
 
-    beamlet = Beamlet(bixel, gantry)
+    beamlets = Beamlet.(bixels, (gantry,))
 
-    f(x) = -point_dose(SVector(0., 0., -x), beamlet, surf, calc)
+    pos(x) = SVector(0., 0., -x)
+    f(x) = -sum(point_dose.(Ref(pos(x)), beamlets, Ref(surf), Ref(calc)))
     result = optimize(f, 0., 100.)
     max_depth_dose = -minimum(result)
 
@@ -116,15 +152,22 @@ function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD)
     result
 end
 
+_scale_clamp(x, α) = max(α*x, 0)+1
+
 function getparams(calc, depth)
-    p = calc.parameters(depth)
+    x = _scale_clamp(depth, calc.α_depth)
+    p = calc.parameters(x)
     a = p[1]
     ux = SVector(p[2], p[3])
     uy = SVector(p[4], p[5])
     a, ux, uy
 end
 
-getscalingfactor(calc, depth_rad, tanθ) = calc.scalingfactor(depth_rad, abs(tanθ))
+function getscalingfactor(calc, depth_rad, tanθ)
+    x = _scale_clamp(depth_rad, calc.α_depth)
+    y = _scale_clamp(abs(tanθ), calc.α_tanθ)
+    calc.scalingfactor(x, y)
+end
 
 #--- Kernel Profile Functions -------------------------------------------------
 
@@ -145,7 +188,6 @@ function fpbk_dose(x, y, w, ux, uy, x₀, y₀)
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
 
-
 function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSurface, calc::FinitePencilBeamKernel) where T<:AbstractFloat
     ax, ay, a = beamlet_axes(beamlet)
 
@@ -161,7 +203,6 @@ function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSu
     pₐ = rₐ + s
 
     depth = getdepth(surf, pₐ, s)
-    depth < zero(T) && return zero(T)
 
     δ = SAD*(r-rₐ)/Rₐ
     x = dot(δ, ax)

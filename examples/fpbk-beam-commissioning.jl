@@ -8,15 +8,16 @@ It stores the commissioned kernel in "examples/sample-data/dose-kernel/finite-pe
 =#
 
 using DoseCalculations
-using Plots, StaticArrays
-using Interpolations, LsqFit, HDF5
-using Statistics
+using Plots, StaticArraysW
+using Interpolations, LsqFit
+using HDF5, JLD2
+using Statistics, Printf
 
 #--- Set Parameters ------------------------------------------------------------
 
 SSD = 1000.
 SAD = SSD
-fieldsize = 100.
+fieldsize = 120.
 
 #---  Load Data ----------------------------------------------------------------
 
@@ -31,26 +32,48 @@ begin
     end
 end
 
+I = linear_interpolation((x, depth), measured_dose)
+uniform_grid(x) = x[1]:minimum(diff(x)):x[end]
+x = uniform_grid(x)
+depth = uniform_grid(depth)
+measured_dose = I(x, depth)
+
 heatmap(x, depth, measured_dose', title="Measured Dose",
         xlabel="Off-Axis Position (mm)", ylabel="Depth (mm)")
 
 #--- Fit Steepness and Weight Parameters ---------------------------------------
 
-# Scale offaxis dose profiles by dose along the central axis
-ix = searchsortedfirst(x, 0.)
-measured_dose_scaled = measured_dose./measured_dose[ix, :]'
+# Extract depth profiles:
+# 1. Scale to isocenter
+# 2. Truncate scaled position 
+# 3. Scale dose by maximum dose
 
-heatmap(x, depth, measured_dose_scaled', title="Measured Dose (Scaled)",
-        xlabel="Off-Axis Position (mm)", ylabel="Depth (mm)")
-
-# Scale off-axis position to iso-center
-x′ = @. x*SAD/(SAD+depth')
-begin
-    p = plot(ylabel="Dose (Scaled)", xlabel=xlabel="Scaled Off-Axis Position (mm)")
-    for i in axes(measured_dose_scaled, 2)
-        plot!(p, x′[:, i], measured_dose_scaled[:, i], label="")
+function extract_profile(x, dose, depth, SAD; normalize=true, xiso_max=100.)
+    x′ = x*SAD/(SAD+depth)
+    i = @. -xiso_max<=x′<=xiso_max
+    log_dose = log.(dose[i])
+    if normalize
+        log_dose .-= log(maximum(dose))
     end
-    p
+        
+    x′[i], log_dose
+end
+
+function extract_profiles(x, dose, depth, SAD; kwargs...)
+    extract_profile.(Ref(x), eachcol(dose), depth, SAD; kwargs...)
+end
+
+
+xiso_max = 120. *0.9
+profiles = extract_profiles(x, measured_dose, depth, SAD; xiso_max=xiso_max)
+
+begin
+    plt = plot()
+    for i in eachindex(profiles)[1:25:end]
+        x′, dose = profiles[i]
+        plot!(plt, x′, dose, label=@sprintf "%0.0fmm" depth[i])
+    end
+    plt
 end
 
 # Create Model
@@ -62,12 +85,12 @@ function model(x, p, fieldsize)
     w = p[2]
     ux = @view p[3:4]
 
-    a*profile_at_depth.(x, w, Ref(ux), 0.5*fieldsize)
+    log(a) .+ log.(profile_at_depth.(x, w, Ref(ux), 0.5*fieldsize))
 end
 
 # Least Squares Fit
 
-function fit_profile(x′, measured_dose, fieldsize)
+function fit_profile(x′, log_dose, fieldsize)
     p0 = [1., 0.2, 0.03, 0.4]
 
     lb = [-Inf, 0., 0., 0.]
@@ -75,7 +98,7 @@ function fit_profile(x′, measured_dose, fieldsize)
 
 
     fit = curve_fit((x, p)->model(x, p, fieldsize),
-                    x′, measured_dose, p0,
+                    x′, log_dose, p0,
                     lower=lb, upper=ub)
 
     !fit.converged && return fill(NaN, 4), fill(NaN, 4)
@@ -90,87 +113,185 @@ function fit_profile(x′, measured_dose, fieldsize)
 end
 
 # Fit parameters
-
-params = zeros(4, length(depth))
-errors = zeros(4, length(depth))
-for i in axes(params, 2)
-    p, ε = fit_profile(x′[:, i], measured_dose_scaled[:, i], fieldsize)
-    params[:, i] .= p
-    errors[:, i] .= ε
+begin
+    params = zeros(4, length(depth))
+    errors = zeros(4, length(depth))
+    for (i, profile) in enumerate(profiles)
+        p, ε = fit_profile(profile[1], profile[2], fieldsize)
+        params[:, i] .= p
+        errors[:, i] .= ε
+    end
 end
 
-begin
+function plot_params!(plts, depth, params)
     ylabels = ["a", "w", "ux₁", "ux₂"]
-    p = [plot(depth, params[i, :], yerr=errors[i, :], legend=false, ylabel=ylabels[i]) for i in axes(params, 1)]
-    plot(p..., layout=grid(2, 2), figheight=(12, 5))
+    for i in eachindex(plts)
+        plot!(plts[i], depth, params[i, :], legend=false, ylabel=ylabels[i])
+    end
+    plts
+end
+plot_params(depth, params) = plot_params!([plot() for _ in 1:4], depth, params)
+
+plts = plot_params(depth, params)
+plot(plts..., layout=grid(2, 2), figheight=(12, 5))
+
+#--- Smooth -------------------------------------------------------------------
+
+"""
+    poly(x::Number, p)
+
+Compute the polynomial at `x` with coefficients `p`
+"""
+function poly(x::Number, p)
+    n = 0:length(p)-1
+    sum(@. p*x^n)
+end
+
+function poly(x, p)
+    n = (1:length(p)).-1
+    vec(sum(@. p*x'^n; dims=1))
+end
+
+"""
+    fitpoly(x, y, order)
+
+Fit an `order` polynomial y=f(x).
+
+Returns the coefficients.
+"""
+function fitpoly(x, y, order)
+    p₀ = zeros(order+1)
+    fit = curve_fit(poly, x, y, p₀)
+    fit.param
+end
+
+
+"""
+    smooth(x, y, nwindow, polyorder=2)
+
+Smooth `y` using a Savitzky–Golay filter of order `polyorder`.
+"""
+function smooth(x, y, nwindow, polyorder=2)
+
+    @assert isodd(nwindow) "nwindow must be odd"
+    @assert nwindow>polyorder+1 "nwindow must be greater than polyorder+1"
+
+    ynew = zeros(length(y))
+
+    hn = nwindow÷2
+    N = length(y)
+    
+    for i in eachindex(x, y, ynew)
+
+        i0 = clamp(i-hn, 1, N-nwindow÷2+1)
+        i1 = clamp(i+hn, nwindow÷2, N)
+
+        xi = x[i0:i1]
+        yi = y[i0:i1]
+
+        isresult = @. !ismissing(yi)
+
+        # Fit Polynomial
+        coeff = fitpoly((@view xi[isresult]), (@view yi[isresult]), polyorder)
+
+        # Calculate ynew
+        ynew[i] = poly(x[i], coeff)
+    end
+    ynew
+end
+
+params_s = hcat(smooth.(Ref(depth), eachrow(params), [21, 11, 21, 51])...)'
+
+begin
+    plts = plot_params(depth, params)
+    plot_params!(plts, depth, params_s)
+    plot(plts..., layout=grid(2, 2), figheight=(12, 5))
 end
 
 begin
-    i = searchsortedlast(depth, 100.)
+    k = searchsortedlast(depth, 200.)
+    x′, dose′ = profiles[k]
 
-    p = plot(xlabel="Scaled Off-Axis Position (mm)", ylabel="Dose (Scaled)",
-             title="Depth $(depth[i])mm")
-    plot!(p, x′[:, i], measured_dose_scaled[:, i], label="Measured")
-    xᵢ′ = x′[1, i]:1.:x′[end, i]
+    plt = plot(xlabel="Scaled Off-Axis Position (mm)", ylabel="Dose (Scaled)",)
+            #    title=@sprintf "Depth %0.0fmm" depth[k])
+    plot!(plt, x′, dose′, label="Measured")
 
-    profile = params[1, i]*profile_at_depth.(xᵢ′, params[2, i], Ref(params[3:4, i]), 0.5*fieldsize)
-    plot!(p, xᵢ′, profile, label="Fitted")
+    a = params_s[1, k]
+    w = params_s[2, k]
+    ux = params_s[3:4, k]
+
+    prof = a*profile_at_depth.(x′, w, Ref(ux), 0.5*fieldsize)
+    plot!(plt, x′, log.(prof), label="Fitted")
 end
 
 #--- Compute Scaling Factor ---------------------------------------------------
 
 R = @. depth + SAD
 
-Rmax = depth[end]+SAD
-xmax = maximum(abs.(x))
+tanθmax = 100/SAD
+tanθ = range(0., tanθmax, length=101)
 
-tanθmax = xmax/Rmax
-tanθ = range(0., tanθmax, length=201)
-θ = atan.(tanθ)
-
-function scaling_factor(d, tanθ, R, D, param)
+function scaling_factor(tanθ, d, R, D, param, SAD)
 
     secθ = √(tanθ^2 + 1)
 
     d′ = d*secθ
     R′ = R*secθ
-    x = R*tanθ
 
     w, ux1, ux2 = param(d′)
 
-    F = profile_at_depth(SAD*x/R′, w, [ux1, ux2], 0.5*fieldsize)
-    exp(D(x))*R′^2/F
+    x′ = SAD*tanθ
+    F = profile_at_depth(x′, w, SVector(ux1, ux2), 0.5*fieldsize)
+    exp(D(x′))*(R′/SAD)^2/F
 end
 
 # Set up Interpolators for parameters and measured dose
-p = SVector{3}.(eachcol(params[2:4, :]))
+p = SVector{3}.(eachcol(params_s[2:4, :]))
 p = linear_interpolation(depth, p, extrapolation_bc=Flat())
 
-D = linear_interpolation.(Ref(x), eachcol(log.(measured_dose)), extrapolation_bc=Line())
+unscaled_profiles = extract_profiles(x, measured_dose, depth, SAD; normalize=false, xiso_max=xiso_max)
+
+begin
+    plt = plot()
+    for i in eachindex(unscaled_profiles)[1:25:end]
+        x′, dose = unscaled_profiles[i]
+        plot!(plt, x′, dose, label=@sprintf "%0.0fmm" depth[i])
+    end
+    plt
+end
+
+D = linear_interpolation.(getindex.(profiles, 1), getindex.(unscaled_profiles, 2), extrapolation_bc=Throw())
 
 # Compute Scaling Factor
-A = scaling_factor.(depth, θ', R, D, Ref(p))
+A = scaling_factor.(tanθ', depth, R, D, Ref(p), SAD)
 
-heatmap(rad2deg.(θ), depth, A, xlabel="θ (°)", ylabel="Depth (mm)")
+heatmap(tanθ, depth, A, xlabel="tan(θ)", ylabel="Depth (mm)")
 
 #--- Verify Result ------------------------------------------------------------
 
 # Create Kernel
 parameters = vcat(params[2:end, :], params[3:4, :])
 
-calc = FinitePencilBeamKernel(depth, parameters, tanθ, A; maxradius=280.)
+calc = FinitePencilBeamKernel(parameters, A, depth, tanθ)
+calibrate!(calc, 1., fieldsize, SAD; beamlet_size=5.)
 
 # Create dose positions, external surface, gantry and beamlet
-pos = @. SVector(x, x[ix], -depth')
+pos = @. SVector(x, 0., -depth')
 surf = PlaneSurface(SSD)
 gantry = GantryPosition(0., 0., SAD)
-beamlet = Beamlet(Bixel(0., fieldsize), gantry)
+
+xb = -0.5*fieldsize:5.:0.5*fieldsize
+bixels = bixel_grid(xb, xb)
+beamlets = Beamlet.(bixels, (gantry,))
 
 # Compute dose
-dose = DoseCalculations.point_dose.(pos, Ref(beamlet), Ref(surf), Ref(calc))
+using Tullio
+@tullio dose[i, j] := DoseCalculations.point_dose(pos[i, j], beamlets[n, m], surf, calc)
 
 # Calculate error
-√sum(@. (dose-measured_dose)^2)
+Δdose = dose-measured_dose
+√sum(@. (Δdose)^2)
+minimum(Δdose)*100, maximum(Δdose)*100
 
 # Plot
 heatmap(x, depth, measured_dose', xlabel="x (mm)", ylabel="Depth (mm)",
@@ -178,18 +299,40 @@ heatmap(x, depth, measured_dose', xlabel="x (mm)", ylabel="Depth (mm)",
 
 heatmap(x, depth, dose', xlabel="x (mm)", ylabel="Depth (mm)",
         title="Computed Dose", aspect_ratio=1)
-heatmap(x, depth, dose'-measured_dose', xlabel="x (mm)", ylabel="Depth (mm)",
-        title="Measured Dose", aspect_ratio=1)
+
+function diff_heatmap!(plt, x, y, f; clim = maximum(abs.(f)), kwargs...)
+    heatmap!(plt, x, y, f; clim=clim.*(-1, 1), kwargs...)
+end
+diff_heatmap(args...; kwargs...) = diff_heatmap!(plot(), args...; kwargs...)
+
+
+diff_heatmap(x, depth, Δdose'*100,
+             c=reverse(cgrad(:RdBu)),
+             xlim=x[[1, end]], ylim=depth[[1, end]],
+             xlabel="x (mm)", ylabel="Depth (mm)",
+             title="Measured Dose", aspect_ratio=1)
+
+begin
+    plt = plot(xlabel="Depth", ylabel="Dose")
+    plot!(depth, dose[1, :])
+    plot!(depth, measured_dose[1, :], color=1, linestyle=:dash)
+end
+
+begin
+    depths = [50., 100., 150., 250.]
+    plt = plot(xlabel="x (mm)", ylabel="Dose")
+    for (i, d) in enumerate(depths)
+        k = searchsortedlast(depth, d)
+        plot!(plt, x, dose[:, k], color=i, label=@sprintf "depth=%0.0fmm" d)
+        plot!(plt, x, measured_dose[:, k], color=i, linestyle=:dash, label="")
+    end
+    plot(plt, yscale=:log10, xlim=[0., 280.], ylim=[1e-2, 1.])
+end
 
 #--- Save to File --------------------------------------------------------------
 
-h5open("examples/sample-data/dose-kernel/finite-pencil-beam-kernel.hdf5", "w") do fid
-    group = create_group(fid, "fieldsize-$(Int(fieldsize))mm")
-
-    attributes(group)["fieldsize"] = fieldsize
-
-    group["parameters"] = parameters
-    group["depth"] = depth
-    group["scaling_factor"] = A
-    group["tan_theta"] = collect(tanθ)
-end
+filename = @sprintf "examples/sample-data/fpbk-fieldsize_%imm.jld2" fieldsize
+JLD2.save(filename, Dict("parameters"=>parameters,
+                         "depth"=>depth,
+                         "scalingfactor"=>A,
+                         "tantheta"=>tanθ))
