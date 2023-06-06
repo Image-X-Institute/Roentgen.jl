@@ -4,6 +4,7 @@ authors = ["lmejn <33491793+lmejn@users.noreply.github.com>"]
 version = "0.8.1"
 
 [deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
 DICOM = "a26e6606-dd52-5f6a-a97f-4f611373d757"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
