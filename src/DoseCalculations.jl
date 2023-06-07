@@ -45,8 +45,6 @@ include("DicomPlan.jl")
 
 include("TreatmentField.jl")
 
-include("Grids.jl")
-
 include("ExternalSurfaces.jl")
 
 include("DosePoints.jl")
