@@ -40,6 +40,24 @@
         end
 
         @test getarea(bixel) == width[1]*width[2]
+
+        @testset "Subdivision" begin
+            n = 4, 3
+            subbixels = subdivide(bixel, n...)
+            @test size(subbixels) == n
+
+            @test all(getwidth.(subbixels) .≈ Ref(width./n))
+            @test sum(getarea.(subbixels)) ≈ getarea(bixel)
+
+            # Test left-most edge of subbixels in both dimensions
+            @test all(getedge.(subbixels[1, :], 1) .≈ getedge(bixel, 1))
+            @test all(getedge.(subbixels[:, 1], 2) .≈ getedge(bixel, 2))
+
+            # Test spacing between subbixels
+            @test all(diff(getcenter.(subbixels, 1), dims=1) .≈ width[1]/n[1])
+            @test all(diff(getcenter.(subbixels, 2), dims=2) .≈ width[2]/n[2])
+
+        end
     end
 end
 
