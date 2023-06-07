@@ -1,21 +1,41 @@
 @testset "Bixels" begin
 
-    pos = SVector(1., 2.)
-    width = SVector(3., 4.)
-    bixel = Bixel(pos, width)
+    @testset "Constructors" begin
+        x, y, wx, wy = rand(4)
+        bixel = Bixel(x, y, wx, wy)
+        @test bixel.position == [x, y]
+        @test bixel.width == [wx, wy]
 
-    @testset "Position" begin
-        @test getposition(bixel) == pos
-        @test getposition(bixel, 1) == pos[1]
-        @test bixel[1] == pos[1]
+        x, y, w = rand(3)
+        bixel = Bixel(x, y, w, w)
+        @test bixel.position == [x, y]
+        @test bixel.width == [w, w]
+
+        x, w = rand(2), rand(2)
+        @time bixel = Bixel(x, w)
+        @test bixel.position == x
+        @test bixel.width == w
+        
     end
 
-    @testset "Dimensions" begin
-        @test getwidth(bixel) == width
-        @test getwidth(bixel, 1) == width[1]
-    end
+    @testset "Methods" begin
+        pos = SVector(1., 2.)
+        width = SVector(3., 4.)
+        bixel = Bixel(pos, width)
 
-    @test getarea(bixel) == width[1]*width[2]
+        @testset "Position" begin
+            @test getposition(bixel) == pos
+            @test getposition(bixel, 1) == pos[1]
+            @test bixel[1] == pos[1]
+        end
+
+        @testset "Dimensions" begin
+            @test getwidth(bixel) == width
+            @test getwidth(bixel, 1) == width[1]
+        end
+
+        @test getarea(bixel) == width[1]*width[2]
+    end
 end
 
 @testset "Bixel Grid" begin

@@ -33,8 +33,8 @@ function Beamlet(bixel::Bixel, gantry::GantryPosition)
     s = getposition(gantry)
     SAD = getSAD(gantry)
 
-    p = position(bixel)
-    hw = 0.5*width(bixel)
+    p = getposition(bixel)
+    hw = 0.5*getwidth(bixel)
 
     trans = bld_to_fixed(gantry)
     b = trans(SVector(p[1], p[2], -SAD))

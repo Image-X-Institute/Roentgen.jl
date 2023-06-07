@@ -7,7 +7,7 @@
 
 export fluence, fluence!, bixel_grid, bixels_from_bld
 
-export Bixel, position, width, area, subdivide
+export Bixel, getposition, getwidth, getarea, subdivide
 
 #--- Abstract Fluence Element -------------------------------------------------
 
@@ -36,11 +36,14 @@ end
 
 Bixel(x::T, y::T, wx::T, wy::T) where T<:AbstractFloat = Bixel{T}(SVector(x, y), SVector(wx, wy))
 Bixel(x::T, y::T, w::T) where T<:AbstractFloat = Bixel(x, y, w, w)
-Bixel(x::T, w::T) where T<:AbstractFloat = Bixel(x, x, w, w)
-
-function Bixel(x::AbstractVector{T}, w::AbstractVector{T}) where T<:AbstractFloat 
-    Bixel{T}(x[1], x[2], w[1], w[2])
+function Bixel(x::AbstractVector, w::AbstractVector)
+    x, w = promote(x, w)
+    Bixel(SVector(x...), SVector(w...))
 end
+
+# function Bixel(x::AbstractVector{T}, w::AbstractVector{T}) where T<:AbstractFloat 
+#     Bixel{T}(x[1], x[2], w[1], w[2])
+# end
 
 
 """
@@ -51,39 +54,39 @@ Get the centre position of the bixel.
 Base.getindex(bixel::Bixel, i::Int) = bixel.position[i]
 
 """
-    position(bixel::Bixel)
+    getposition(bixel::Bixel)
 
 Get the position of the bixel.
 """
-position(bixel::Bixel) = bixel.position
+getposition(bixel::Bixel) = bixel.position
 
 """
-    position(bixel::Bixel, i::Int)
+    getposition(bixel::Bixel, i::Int)
 
 Get the ith coordinate of the position.
 """
-position(bixel::Bixel, i::Int) = bixel.position[i]
+getposition(bixel::Bixel, i::Int) = bixel.position[i]
 
 """
-    width(bixel::Bixel)
+    getwidth(bixel::Bixel)
 
 Return the width of the bixel.
 """
-width(bixel::Bixel) = bixel.width
+getwidth(bixel::Bixel) = bixel.width
 
 """
-    width(bixel::Bixel, i::Int)
+    getwidth(bixel::Bixel, i::Int)
 
 Return the width of the bixel along axis `i`.
 """
-width(bixel::Bixel, i::Int) = bixel.width[i]
+getwidth(bixel::Bixel, i::Int) = bixel.width[i]
 
 """
-    area(bixel::Bixel)
+    getarea(bixel::Bixel)
 
 Return the area of the bixel.
 """
-area(bixel::Bixel) = prod(bixel.width)
+getarea(bixel::Bixel) = prod(bixel.width)
 
 """
     subdivide(bixel::Bixel, nx::Integer, ny::Integer)
@@ -93,8 +96,8 @@ Subdivide a bixel by specifing the number of partitions `nx` and `ny`.
 Returns a grid of bixels.
 """
 function subdivide(bixel::Bixel, nx::Integer, ny::Integer)
-    Δx, Δy = width(bixel)
-    x, y = position(bixel)
+    Δx, Δy = getwidth(bixel)
+    x, y = getposition(bixel)
 
     xsub = range(x-0.5*Δx, x+0.5*Δx, length=nx+1)
     xsub = 0.5*(xsub[1:end-1] .+ xsub[2:end])
@@ -111,7 +114,7 @@ end
 Subdivide by specifing widths `δx` and `δy`
 """
 function subdivide(bixel::Bixel{T}, δx::T, δy::T) where T<:AbstractFloat
-    Δx, Δy = width(bixel)
+    Δx, Δy = getwidth(bixel)
 
     nx = ceil(Int, Δx/δx)
     ny = ceil(Int, Δy/δy)
@@ -272,7 +275,7 @@ end
 Compute the fluence of a rectangle with edges at `xlim` and `ylim` on a bixel.
 """
 function fluence_from_rectangle(bixel::Bixel, xlim, ylim)
-    overlap(position(bixel, 1), width(bixel, 1), xlim[1], xlim[2])*overlap(position(bixel, 2), width(bixel, 2), ylim[1], ylim[2])
+    overlap(getposition(bixel, 1), getwidth(bixel, 1), xlim[1], xlim[2])*overlap(getposition(bixel, 2), getwidth(bixel, 2), ylim[1], ylim[2])
 end
 
 #--- Computing Fluence -------------------------------------------------------------------------------------------------
@@ -333,7 +336,7 @@ From an MLC aperture.
 """
 function fluence(bixel::Bixel{T}, mlc::MultiLeafCollimator) where T<:AbstractFloat
 
-    hw = 0.5*width(bixel, 2)
+    hw = 0.5*getwidth(bixel, 2)
     i1 = max(1, locate(mlc, bixel[2]-hw))
     i2 = min(length(mlc), locate(mlc, bixel[2]-hw))
 
@@ -353,7 +356,7 @@ This method assumes the bixel is entirely within the `i`th leaf track, and does
 not overlap with other leaves. Does not check whether these assumptions are true.
 """
 function fluence(bixel::AbstractBixel, index::Int, mlcx::AbstractMatrix)
-    overlap(position(bixel, 1), width(bixel, 1), mlcx[1, index], mlcx[2, index])
+    overlap(getposition(bixel, 1), getwidth(bixel, 1), mlcx[1, index], mlcx[2, index])
 end
 
 #--- Moving Aperture fluences ------------------------------------------------------------------------------------------
@@ -365,7 +368,7 @@ From an MLC aperture sequence.
 """
 function fluence(bixel::Bixel{T}, mlc1::MultiLeafCollimator, mlc2::MultiLeafCollimator) where T<:AbstractFloat
 
-    hw = 0.5*width(bixel, 2)
+    hw = 0.5*getwidth(bixel, 2)
     i1 = max(1, locate(mlc1, bixel[2]-hw))
     i2 = min(length(mlc1), locate(mlc1, bixel[2]-hw))
 
@@ -394,8 +397,8 @@ Computes the time-weighted fluence as the MLC moves from position `mlcx1` to `ml
 Assumes the MLC leaves move in a straight line.
 """
 function fluence_from_moving_aperture(bixel::Bixel{T}, mlcx1, mlcx2) where T<:AbstractFloat
-    xL = bixel[1] - 0.5*width(bixel, 1)
-    xU = bixel[1] + 0.5*width(bixel, 1)
+    xL = bixel[1] - 0.5*getwidth(bixel, 1)
+    xU = bixel[1] + 0.5*getwidth(bixel, 1)
 
     ΨB = fluence_onesided(mlcx1[1], mlcx2[1], xL, xU)
     ΨA = fluence_onesided(mlcx1[2], mlcx2[2], xL, xU)
