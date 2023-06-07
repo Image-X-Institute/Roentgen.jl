@@ -284,7 +284,9 @@ end
 Compute the fluence of a rectangle with edges at `xlim` and `ylim` on a bixel.
 """
 function fluence_from_rectangle(bixel::Bixel, xlim, ylim)
-    overlap(getcenter(bixel, 1), getwidth(bixel, 1), xlim[1], xlim[2])*overlap(getcenter(bixel, 2), getwidth(bixel, 2), ylim[1], ylim[2])
+    Ax = overlap(getcenter(bixel, 1), getwidth(bixel, 1), xlim[1], xlim[2])
+    Ay = overlap(getcenter(bixel, 2), getwidth(bixel, 2), ylim[1], ylim[2])
+    Ax*Ay
 end
 
 #--- Computing Fluence -------------------------------------------------------------------------------------------------
