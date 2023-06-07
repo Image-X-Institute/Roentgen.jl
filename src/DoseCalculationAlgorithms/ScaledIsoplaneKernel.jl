@@ -201,7 +201,7 @@ function point_kernel!(rowval, nzval, pos::AbstractVector{T}, bixels, surf, gant
     n = 0
     for i in eachindex(bixels)
         bixel = bixels[i]
-        x, y = getposition(bixel)
+        x, y = getcenter(bixel)
 
         r² = (x - x_iso)^2 + (y - y_iso)^2
 

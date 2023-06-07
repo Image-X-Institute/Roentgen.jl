@@ -7,7 +7,7 @@
 
 export fluence, fluence!, bixel_grid, bixels_from_bld
 
-export Bixel, getposition, getwidth, getarea, subdivide
+export Bixel, getcenter, getwidth, getedge, getarea, subdivide
 
 #--- Abstract Fluence Element -------------------------------------------------
 
@@ -54,18 +54,18 @@ Get the centre position of the bixel.
 Base.getindex(bixel::Bixel, i::Int) = bixel.position[i]
 
 """
-    getposition(bixel::Bixel)
+    getcenter(bixel::Bixel)
 
 Get the position of the bixel.
 """
-getposition(bixel::Bixel) = bixel.position
+getcenter(bixel::Bixel) = bixel.position
 
 """
-    getposition(bixel::Bixel, i::Int)
+    getcenter(bixel::Bixel, i::Int)
 
 Get the ith coordinate of the position.
 """
-getposition(bixel::Bixel, i::Int) = bixel.position[i]
+getcenter(bixel::Bixel, i::Int) = bixel.position[i]
 
 """
     getwidth(bixel::Bixel)
@@ -80,6 +80,15 @@ getwidth(bixel::Bixel) = bixel.width
 Return the width of the bixel along axis `i`.
 """
 getwidth(bixel::Bixel, i::Int) = bixel.width[i]
+
+"""
+    getedge(bixel::Bixel[, dim::Int])
+
+Return the lower edge of the bixel.
+
+Can specify a `dim` for which dimension (x or y).
+"""
+getedge(bixel::Bixel, args...) = getcenter(bixel, args...) - 0.5*getwidth(bixel, args...)
 
 """
     getarea(bixel::Bixel)
@@ -97,7 +106,7 @@ Returns a grid of bixels.
 """
 function subdivide(bixel::Bixel, nx::Integer, ny::Integer)
     Δx, Δy = getwidth(bixel)
-    x, y = getposition(bixel)
+    x, y = getcenter(bixel)
 
     xsub = range(x-0.5*Δx, x+0.5*Δx, length=nx+1)
     xsub = 0.5*(xsub[1:end-1] .+ xsub[2:end])
@@ -275,7 +284,7 @@ end
 Compute the fluence of a rectangle with edges at `xlim` and `ylim` on a bixel.
 """
 function fluence_from_rectangle(bixel::Bixel, xlim, ylim)
-    overlap(getposition(bixel, 1), getwidth(bixel, 1), xlim[1], xlim[2])*overlap(getposition(bixel, 2), getwidth(bixel, 2), ylim[1], ylim[2])
+    overlap(getcenter(bixel, 1), getwidth(bixel, 1), xlim[1], xlim[2])*overlap(getcenter(bixel, 2), getwidth(bixel, 2), ylim[1], ylim[2])
 end
 
 #--- Computing Fluence -------------------------------------------------------------------------------------------------
@@ -356,7 +365,7 @@ This method assumes the bixel is entirely within the `i`th leaf track, and does
 not overlap with other leaves. Does not check whether these assumptions are true.
 """
 function fluence(bixel::AbstractBixel, index::Int, mlcx::AbstractMatrix)
-    overlap(getposition(bixel, 1), getwidth(bixel, 1), mlcx[1, index], mlcx[2, index])
+    overlap(getcenter(bixel, 1), getwidth(bixel, 1), mlcx[1, index], mlcx[2, index])
 end
 
 #--- Moving Aperture fluences ------------------------------------------------------------------------------------------

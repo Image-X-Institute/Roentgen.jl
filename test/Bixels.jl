@@ -23,15 +23,20 @@
         width = SVector(3., 4.)
         bixel = Bixel(pos, width)
 
-        @testset "Position" begin
-            @test getposition(bixel) == pos
-            @test getposition(bixel, 1) == pos[1]
+        @testset "Center" begin
+            @test getcenter(bixel) == pos
+            @test getcenter(bixel, 1) == pos[1]
             @test bixel[1] == pos[1]
         end
 
-        @testset "Dimensions" begin
+        @testset "Width" begin
             @test getwidth(bixel) == width
             @test getwidth(bixel, 1) == width[1]
+        end
+
+        @testset "Edge" begin
+            @test getedge(bixel) == pos - 0.5*width
+            @test getedge(bixel, 1) == pos[1] - 0.5*width[1]
         end
 
         @test getarea(bixel) == width[1]*width[2]
