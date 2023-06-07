@@ -43,4 +43,16 @@
         y = sort(2*rand(2).-1)
         @test DoseCalculations.fluence_from_rectangle(bixel, x, y) ≈ (x[2]-x[1])*(y[2]-y[1])/getarea(bixel)
     end
+
+    @testset "Fluence from Beam Limiting Devices" begin
+        @testset "Jaws" begin
+            
+            bixel = Bixel(0.5, 0., 1., 2.)
+            x = sort(rand(2))
+            y = sort(2*rand(2).-1)
+            jaws = Jaws(x, y)
+
+            @test fluence(bixel, jaws) ≈ (x[2]-x[1])*(y[2]-y[1])/getarea(bixel)
+        end
+    end
 end
