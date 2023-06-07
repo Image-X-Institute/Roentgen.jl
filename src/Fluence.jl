@@ -347,9 +347,10 @@ From an MLC aperture.
 """
 function fluence(bixel::Bixel{T}, mlc::MultiLeafCollimator) where T<:AbstractFloat
 
-    hw = 0.5*getwidth(bixel, 2)
-    i1 = max(1, locate(mlc, bixel[2]-hw))
-    i2 = min(length(mlc), locate(mlc, bixel[2]-hw))
+    w = getwidth(bixel, 2)
+    y = getedge(bixel, 2)
+    i1 = max(1, locate(mlc, y))
+    i2 = min(length(mlc), locate(mlc, y+w))
 
     Ψ = zero(T)
     @inbounds for j=i1:i2

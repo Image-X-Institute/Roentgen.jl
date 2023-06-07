@@ -45,6 +45,41 @@
     end
 
     @testset "Fluence from Beam Limiting Devices" begin
+
+        @testset "MultiLeafCollimator" begin
+
+            mlcx = [-10. -5. -8.
+                      5. 12.  6.]
+            mlcy = -10.:5.:5
+            
+            mlc = MultiLeafCollimator(mlcx, mlcy)
+            
+            # Inside aperture
+            bixel = Bixel(1., 0.1, 2., 3.)
+            @test fluence(bixel, mlc) ≈ 1.
+            
+            # Outside aperture
+            bixel = Bixel(-10., -3., 5., 3.)
+            @test fluence(bixel, mlc) ≈ 0.
+            
+            # Overlapping aperture
+            bixel = Bixel(5., -3., 6., 8.)
+            
+            Δx = [mlcx[2, 3] - getedge(bixel, 1)
+                  getwidth(bixel, 1)
+                  mlcx[2, 1] - getedge(bixel, 1)]
+            
+            Δy = [getedge(bixel, 2)+getwidth(bixel, 2)-mlcy[3],
+                  mlcy[3]-mlcy[2],
+                  mlcy[2]-getedge(bixel, 2)]
+            @test fluence(bixel, mlc) ≈ sum(Δx.*Δy)/getarea(bixel)
+            
+            # Suppying an index            
+            bixel = Bixel(6., 2.5, 5., 5.)
+            @test fluence(bixel, mlc) ≈ fluence(bixel, 3, getpositions(mlc))
+
+        end
+
         @testset "Jaws" begin
             
             bixel = Bixel(0.5, 0., 1., 2.)
@@ -56,3 +91,17 @@
         end
     end
 end
+
+using DoseCalculations
+using Plots
+using BeamLimitingDevicePlots
+using Test
+
+begin
+    p = plot()
+    plot_bld!(p, bixel)
+    plot_bld!(p, mlc; invert=true)
+end
+
+using BenchmarkTools
+@btime fluence($bixel, $mlc);
