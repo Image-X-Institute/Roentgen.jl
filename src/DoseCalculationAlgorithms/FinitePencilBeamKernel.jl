@@ -81,34 +81,33 @@ struct FinitePencilBeamKernel{Tparameters<:AbstractInterpolation,
     scalingfactor::TScalingFactor
     α_depth::T  # For scaling depth to interpolation knots
     α_tanθ::T  # For scaling tanθ to interpolation knots
+end
 
-    function FinitePencilBeamKernel(parameters::AbstractVector{SVector{5, T}},
-                                    scalingfactor::AbstractMatrix{T},
-                                    depths::AbstractRange{T}, tanθ::AbstractRange{T}) where T<:Real
-        @assert length(depths) == length(parameters)
-        @assert length(depths) == size(scalingfactor, 1)
-        @assert length(tanθ) == size(scalingfactor, 2)
+function FinitePencilBeamKernel(parameters::AbstractVector{SVector{5, T}},
+                                scalingfactor::AbstractMatrix{T},
+                                depths::AbstractRange{T}, tanθ::AbstractRange{T}) where T<:Real
+    @assert length(depths) == length(parameters)
+    @assert length(depths) == size(scalingfactor, 1)
+    @assert length(tanθ) == size(scalingfactor, 2)
 
-        interp_method = BSpline(Linear())
-        extrap = Interpolations.Line()
+    interp_method = BSpline(Linear())
+    extrap = Interpolations.Line()
 
-        I_paramI = extrapolate(interpolate(parameters, interp_method), extrap)
-        I_scalingf = extrapolate(interpolate(scalingfactor, interp_method), extrap)
+    I_paramI = extrapolate(interpolate(parameters, interp_method), extrap)
+    I_scalingf = extrapolate(interpolate(scalingfactor, interp_method), extrap)
 
-        α_depth = (length(depths)-1)/depths[end]
-        α_tanθ = (length(tanθ)-1)/tanθ[end]
+    α_depth = (length(depths)-1)/depths[end]
+    α_tanθ = (length(tanθ)-1)/tanθ[end]
 
-        Tparams = typeof(I_paramI)
-        Tscalingf = typeof(I_scalingf)
-
-        new{Tparams, Tscalingf, T}(I_paramI, I_scalingf, α_depth, α_tanθ)
-    end
+    FinitePencilBeamKernel(I_paramI, I_scalingf, α_depth, α_tanθ)
 end
 
 function FinitePencilBeamKernel(parameters::AbstractMatrix, args...)
     @assert size(parameters, 1) == 5
     FinitePencilBeamKernel(SVector{5}.(eachcol(parameters)), args...)
 end
+
+Adapt.@adapt_structure FinitePencilBeamKernel
 
 """
     FinitePencilBeamKernel(filename::String)

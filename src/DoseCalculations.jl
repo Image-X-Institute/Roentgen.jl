@@ -4,6 +4,10 @@ module DoseCalculations
 using SparseArrays
 using StaticArrays
 
+# CUDA
+using CUDA
+import Adapt
+
 # Coordinates
 using CoordinateTransformations
 using Rotations
