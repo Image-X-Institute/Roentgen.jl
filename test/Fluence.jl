@@ -100,15 +100,3 @@
         end
     end
 end
-
-using DoseCalculations
-using Plots
-using BeamLimitingDevicePlots
-using Test
-
-begin
-    p = plot()
-    plot_bld!(p, bixel)
-    plot_bld!(p, mlc; invert=true)
-end
-
