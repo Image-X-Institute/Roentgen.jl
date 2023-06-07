@@ -10,6 +10,7 @@ using QuadGK, HCubature
     include("utils.jl")
     include("interpolation.jl")
     include("CoordinateSystems.jl")
+    include("Gantry.jl")
     include("DosePoints.jl")
     include("DoseFluenceMatrix.jl")
     include("ExternalSurfaces.jl")
