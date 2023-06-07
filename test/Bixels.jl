@@ -12,7 +12,7 @@
         @test bixel.width == [w, w]
 
         x, w = rand(2), rand(2)
-        @time bixel = Bixel(x, w)
+        bixel = Bixel(x, w)
         @test bixel.position == x
         @test bixel.width == w
         
