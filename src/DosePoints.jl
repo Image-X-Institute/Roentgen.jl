@@ -175,7 +175,7 @@ Must have the fields `x`, `y`, and `z`.
 """
 abstract type AbstractDoseGrid <: DosePositions end
 
-Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i)...)
+Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i))
 Base.getindex(pos::AbstractDoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
 
 """

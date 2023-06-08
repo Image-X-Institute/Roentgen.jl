@@ -44,6 +44,30 @@ end
 
     @testset "DoseGrid" begin
 
+        axes = (-10.:1.:10., 10.:2.:20, -20.:5.:30.)
+        pos = DoseGrid(axes...)
+        
+        n = length.(axes)
+        N = prod(n)
+        
+        @test size(pos) == n
+        @test length(pos) == N
+        
+        @test eachindex(pos) == Base.OneTo(N)
+        @test CartesianIndices(pos) == CartesianIndices(n)
+        
+        # Linear Indexing
+        index = rand(1:N)
+        gridindex = Tuple(CartesianIndices(n)[index])
+        @test pos[index] ≈ SVector(getindex.(axes, gridindex))
+        
+        # Cartesian Indexing
+        index = rand(CartesianIndices(n))
+        @test pos[index] ≈ SVector(getindex.(axes, Tuple(index)))
+        @test pos[Tuple(index)...] ≈ pos[index]
+
+        test_operations(pos)
+
         function test_hdf5(pos)
             filename = "tmp.hdf5"
             
@@ -70,8 +94,6 @@ end
             rm(filename)
         end
 
-        pos = DoseGrid(5., CylinderBounds(200., 200.))
-        test_operations(pos)
         @testset "IO - HDF5" test_hdf5(pos)
 
     end
