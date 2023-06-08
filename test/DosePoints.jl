@@ -35,9 +35,9 @@ end
                 v = rand(3)
                 pos_new = op(pos, v)
                 
-                @test getx(pos_new) == op.(getx(pos), v[1])
-                @test gety(pos_new) == op.(gety(pos), v[2])
-                @test getz(pos_new) == op.(getz(pos), v[3])    
+                for i=1:3
+                    @test getaxes(pos_new, i) == op.(getaxes(pos, i), v[i])
+                end 
             end
         end
     end
