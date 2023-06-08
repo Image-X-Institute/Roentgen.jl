@@ -20,6 +20,7 @@ using QuadGK, HCubature
     include("Fluence.jl")
     #include("ScaledIsoplaneKernel.jl") # DISABLED, See src/DoseCalculationAlgorithms/ScaledIsoplaneKernel.jl
     include("MultiLeafCollimator.jl")
+    include("Jaws.jl")
     include("MultiLeafCollimatorSequence.jl")
 
     # Finite Pencil Beam Kernel
