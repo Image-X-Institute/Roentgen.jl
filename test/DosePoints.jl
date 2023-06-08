@@ -55,6 +55,8 @@ end
         
         @test eachindex(pos) == Base.OneTo(N)
         @test CartesianIndices(pos) == CartesianIndices(n)
+
+        @test Tuple(getaxes(pos)) == axes
         
         # Linear Indexing
         index = rand(1:N)
@@ -122,6 +124,8 @@ end
         
         @test eachindex(pos) == Base.OneTo(nval)
         @test CartesianIndices(pos) == indices
+
+        @test Tuple(getaxes(pos)) == axes
         
         # Linear Indexing
         index = rand(1:nval)
