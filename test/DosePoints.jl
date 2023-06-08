@@ -106,6 +106,47 @@ end
     end
 
     @testset "DoseGridMasked" begin
+
+        axes = (-10.:1.:10., 10.:2.:20, -20.:5.:30.)
+
+        n = length.(axes)
+        N = prod(n)
+        
+        nval = 5
+        indices = getindex.(Ref(CartesianIndices(n)), sort(rand(1:N, nval)))
+        
+        pos = DoseGridMasked(axes..., indices, Vector{Vector{Int}}(undef, 0))
+        
+        @test size(pos) == (nval,)
+        @test length(pos) == nval
+        
+        @test eachindex(pos) == Base.OneTo(nval)
+        @test CartesianIndices(pos) == indices
+        
+        # Linear Indexing
+        index = rand(1:nval)
+        gridindex = CartesianIndices(pos)[index]
+        @test pos[index] ≈ SVector(getindex.(axes, Tuple(gridindex)))
+        
+        # Cartesian Indexing
+        index = rand(CartesianIndices(pos))
+        @test pos[index] ≈ SVector(getindex.(axes, Tuple(index)))
+        @test pos[Tuple(index)...] ≈ pos[index]
+        
+        # Iteration
+        p, i = iterate(pos)
+        @test p ≈ pos[1] && i==2
+        
+        p, i = iterate(pos, 2)
+        @test p ≈ pos[2] && i==3
+
+        # Operations
+        test_operations(pos)
+
+        # Constructor with bounds
+        bounds = CylinderBounds(13., 12., SVector(rand(3)...))
+        pos = DoseGridMasked(2., bounds)
+        @test all([DoseCalculations.within(bounds, pos[i]) for p in pos])
         
         function test_hdf5(pos)
             filename = "tmp.hdf5"
@@ -135,8 +176,6 @@ end
             rm(filename)
         end
 
-        pos = DoseGridMasked(5., CylinderBounds(200., 200.))
-        test_operations(pos)
         @testset "IO - HDF5" test_hdf5(pos)
     end
 end
