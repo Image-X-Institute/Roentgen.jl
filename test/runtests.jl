@@ -16,6 +16,7 @@ using QuadGK, HCubature
     include("ExternalSurfaces.jl")
     include("meshes.jl")
     include("Bixels.jl")
+    include("Beamlet.jl")
     include("Fluence.jl")
     #include("ScaledIsoplaneKernel.jl") # DISABLED, See src/DoseCalculationAlgorithms/ScaledIsoplaneKernel.jl
     include("MultiLeafCollimator.jl")

@@ -38,12 +38,11 @@ function Beamlet(bixel::Bixel, gantry::GantryPosition)
 
     trans = bld_to_fixed(gantry)
     b = trans(SVector(p[1], p[2], -SAD))
-    bx = trans(SVector(p[1]+hw[1], p[2], -SAD))
     by = trans(SVector(p[1], p[2]+hw[2], -SAD))
 
     az = normalize(b - s)
-    ax = normalize(cross(az, by-b))
-    ay = normalize(cross(az, bx-b))
+    ax = normalize(cross(az, normalize(by-b)))
+    ay = normalize(cross(az, ax))
 
     tanθ = norm(p)/SAD
 
