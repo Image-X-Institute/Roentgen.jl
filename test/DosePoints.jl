@@ -65,6 +65,13 @@ end
         index = rand(CartesianIndices(n))
         @test pos[index] ≈ SVector(getindex.(axes, Tuple(index)))
         @test pos[Tuple(index)...] ≈ pos[index]
+        
+        # Iteration
+        p, i = iterate(pos)
+        @test p ≈ pos[1] && i==2
+        
+        p, i = iterate(pos, 2)
+        @test p ≈ pos[2] && i==3
 
         test_operations(pos)
 
