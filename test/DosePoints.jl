@@ -1,4 +1,34 @@
 @testset "DosePoints" begin
+
+    @testset "Bounds" begin
+
+        @testset "CylinderBounds" begin
+            d, h = rand(2)
+            c = SVector(rand(3)...)
+            bounds = CylinderBounds(d, h, c)
+        
+            # Compare the two constructors
+            @test CylinderBounds(d, h, zeros(3)) == CylinderBounds(d, h)
+        
+            pmin, pmax = DoseCalculations.extent(bounds)
+            @test 0.5*(pmin+pmax) ≈ c
+            @test pmax-pmin ≈ [d, d, h]
+        
+            # At center (inside)
+            @test DoseCalculations.within(bounds, c)
+        
+            # Random position inside
+            function rand_pos(α)
+                θ = 2π*rand()
+                @. c + 0.5*α*[d, d, h]*[cos(θ), sin(θ), 1.]
+            end
+            @test DoseCalculations.within(bounds, rand_pos(0.8))
+        
+            # Random position outside
+            @test !DoseCalculations.within(bounds,  rand_pos(1.2))
+        end
+    end
+
     function test_operations(pos::DoseCalculations.AbstractDoseGrid)
         @testset "Operations" begin
             @testset "$(String(Symbol(op)))" for op in (+, -, *, /)
