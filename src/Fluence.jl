@@ -192,11 +192,11 @@ function bixel_grid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
     iU = locate(mlc, jaws.y[2])
 
     y = getedges(mlc)[iL:iU]
-    y = minmax.(y, jaws.y[1], jaws.y[2])
+    y = clamp.(y, jaws.y[1], jaws.y[2])
     Δy = diff(y)
 
     x = snapped_range(jaws.x[1], jaws.x[end], Δx)
-    x = minmax.(x, jaws.x[1], jaws.x[2])
+    x = clamp.(x, jaws.x[1], jaws.x[2])
     Δx = diff(x)
 
     x = 0.5*(x[1:end-1] + x[2:end])
@@ -430,7 +430,7 @@ Computes the fluence for a leaf trajectory from `xs` to `xf`, over a bixel from
 function fluence_onesided(xs, xf, xL, xU)
 
     # If leaf positions are the same, compute static fluence
-    xs == xf && return (xU - minmax(xs, xL, xU))/(xU-xL)
+    xs == xf && return (xU - clamp(xs, xL, xU))/(xU-xL)
 
     # Otherwise compute moving fluence
 
@@ -456,4 +456,4 @@ Compute the height of position `x` between `(x1, 0)` and `(x2, 1)`
 
 Used in `intersection_area`.
 """
-leaf_trajectory(x, x1, x2) = minmax((x-x1)/(x2-x1), 0, 1)
+leaf_trajectory(x, x1, x2) = clamp((x-x1)/(x2-x1), 0, 1)

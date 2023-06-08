@@ -10,13 +10,6 @@ function scale_to_isoplane(pᵢ, z_plane)
 end
 
 """
-    minmax(x, l, u)
-
-Return `x` if `l<=x<=u`, `l` if `x<l` or `u` if `u<x`
-"""
-minmax(x, l, u) = max(l, min(x, u)) # Ensures l<=x<=u
-
-"""
     snapped_range(x1, x2, Δ)
 
 Create a range from x1 to x2 which is "snapped" to the step Δ.
