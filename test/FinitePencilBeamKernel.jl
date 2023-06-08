@@ -34,44 +34,49 @@ end
 @testset "Finite Pencil Beam Kernel" begin
 
     linear(x, a, b) = a*x+b
-    function setup_calc(depthfun, tanθfun)
+    
+    function setup_calc(wfun, uxfun, uyfun, Afun)
         depth = range(0., 300., length=11)
-
-        ux₀ = [0.5, 0.04]
-        uy₀ = [0.4, 0.03]
-
-        w = depthfun.(depth)
-        ux = ux₀'.*depthfun.(depth)
-        uy = uy₀'.*depthfun.(depth)
-
-        parameters = hcat(w, ux, uy)'
-
+    
+        w = wfun.(depth)
+        ux = uxfun.(depth)
+        uy = uyfun.(depth)
+    
+        parameters = [SVector(w[i], ux[i]..., uy[i]...) for i in eachindex(w, ux, uy)]
+    
         tanθ = range(0., deg2rad(1.), length=9)
-
-        scalingfactor = @. depthfun(depth)*tanθfun(tanθ)'
-
+    
+        scalingfactor = @. Afun(depth, tanθ')
+    
         depth, tanθ, FinitePencilBeamKernel(parameters, scalingfactor, depth, tanθ)
     end
 
     @testset "Parameters and Scaling Factor" begin
 
-        depthfun(x) = linear(x, 0.001, 0.4)
-        tanθfun(x) = linear(x, 0.1, 0.1)
-
-        depth, tanθ, calc = setup_calc(depthfun, tanθfun)
-
+        wfun(x) = linear(x, 0.001, 0.4)
+        uxfun(x) = [0.5, 0.04].*linear(x, 0.001, 0.4)
+        uyfun(x) = [0.4, 0.03].*linear(x, 0.001, 0.4)
+        Afun(x, y) = linear(x, 0.001, 0.4)*linear(y, 0.1, 0.1)
+        
+        depth, tanθ, calc = setup_calc(wfun, uxfun, uyfun, Afun)
+        
         d = depth[end]*rand()
-        a, ux, uy = DoseCalculations.getparams(calc, d) 
-    
-        @test a ≈ depthfun(d)
-        @test ux ≈ ux₀.*depthfun(d)
-        @test uy ≈ uy₀.*depthfun(d)
-
+        w, ux, uy = DoseCalculations.getparams(calc, d) 
+                
+        @test w ≈ wfun(d)
+        @test ux ≈ uxfun(d)
+        @test uy ≈ uyfun(d)
+        
         d = depth[end]*rand()
         t = tanθ[end]*rand()
-
+        
         A = DoseCalculations.getscalingfactor(calc, d, t)
-        @test A ≈ depthfun(d)*tanθfun(t)
+        @test A ≈ Afun(d, t)
     end
 
 end
+# 
+
+
+# 28.5 -> 30
+# 34.8% -> 63.4
