@@ -21,4 +21,7 @@ using QuadGK, HCubature
     #include("ScaledIsoplaneKernel.jl") # DISABLED, See src/DoseCalculationAlgorithms/ScaledIsoplaneKernel.jl
     include("MultiLeafCollimator.jl")
     include("MultiLeafCollimatorSequence.jl")
+
+    # Finite Pencil Beam Kernel
+    include("FinitePencilBeamKernel.jl")
 end
