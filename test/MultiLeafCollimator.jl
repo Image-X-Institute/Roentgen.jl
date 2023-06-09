@@ -145,4 +145,9 @@
         @test_throws AssertionError("Number of leaf positions per track != 2") MultiLeafCollimator(x, y)
     end
 
+    @testset "REPL IO" begin
+        @test length(DoseCalculations._str_closedaperture(10, 80)) == 80
+        @test length(DoseCalculations._str_aperture(10, [10, 20], 80)) == 80
+    end
+
 end

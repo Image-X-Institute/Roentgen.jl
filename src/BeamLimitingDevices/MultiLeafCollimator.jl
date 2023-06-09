@@ -88,21 +88,6 @@ Base.firstindex(mlc::MultiLeafCollimator) = 1
 Base.lastindex(mlc::MultiLeafCollimator) = mlc.n
 Base.eachindex(mlc::MultiLeafCollimator) = Base.OneTo(mlc.n)
 
-function show_leaf_positions(io::IO, mlc::MultiLeafCollimator, maxdigits)
-    for j =1:2
-        println(io)
-        for i in eachindex(mlc)
-
-            msg = string(round(mlc.positions[j, i]; digits=maxdigits))
-
-            colwidth = maximum(@. length(string(round(mlc.positions[:, i]; digits=maxdigits))))
-            msgwidth = length(msg)
-
-            print(io, " ", msg, repeat(" ", colwidth-msgwidth+1))
-        end
-    end
-end
-
 #--- Indexing
 
 function Base.getindex(mlc::MultiLeafCollimator, i::Int)
@@ -135,13 +120,6 @@ setpositions!(mlc::MultiLeafCollimator, x) = mlc.positions .= x
 
 closeleaves!(mlc::MultiLeafCollimator) = setpositions!(mlc, zeros(2, length(mlc)))
 
-function Base.show(io::IO, mlc::MultiLeafCollimator)
-    maxdigits = 6
-    print(io, size(mlc.positions, 1), "x", size(mlc.positions, 2), " MultiLeafCollimator")
-    # show(io, getpositions(mlc))
-    show_leaf_positions(io, mlc, maxdigits)
-end
-
 #= Shifting the MLC
 
     Adds ability to move and scale the MLC
@@ -153,4 +131,45 @@ for op in (:+, :-, :*, :/)
             MultiLeafCollimator( ($op).(mlc.positions, x[1]), ($op).(mlc.edges, x[2]))
         end
     end)
+end
+
+#--- IO
+
+_io_conv(x, lw) = round(Int, lw*(x+120)/240.)
+_str_closedaperture(i, lw) = (@sprintf "%3i: " i)*repeat("░", lw-5)
+
+function _str_aperture(i, linepos, lw)
+    l = (@sprintf "%3i: " i)*repeat("░", linepos[1]-1)
+    c = repeat(" ", linepos[2]-linepos[1]+1)
+    r = repeat("░", lw-5-linepos[2])
+    l*c*r
+end
+
+function Base.show(io::IO, mlc::MultiLeafCollimator)
+    println(io, size(mlc.positions, 1), "x", size(mlc.positions, 2), " MultiLeafCollimator")
+
+    lw = 80
+    prevline = false
+    for i in eachindex(mlc)
+        pos = mlc.positions[:, i]
+        linepos = _io_conv.(pos, lw)
+
+        if pos[1]!=pos[2]
+
+            if !prevline
+                println(io, "  ⋮")
+                println(io, _str_closedaperture(i-1, lw))
+            end
+            println(io, _str_aperture(i, linepos, lw))
+
+            prevline=true
+        else
+            if prevline
+                println(io, _str_closedaperture(i, lw))
+                println(io, "  ⋮")
+            end
+            prevline=false
+        end
+
+    end
 end
