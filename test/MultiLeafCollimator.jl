@@ -77,8 +77,8 @@
 
         # Similar
         mlc_sim = similar(mlc)
-        @test length(mlc_sim) == length(mlc2)
-        @test getedges(mlc_sim) == getedges(mlc2)
+        @test length(mlc_sim) == length(mlc)
+        @test getedges(mlc_sim) == getedges(mlc)
 
         # Deep copy
         mlc_cp = copy(mlc)
