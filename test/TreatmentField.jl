@@ -22,12 +22,12 @@
 
         filename = "tmp.hdf5"
         h5open(filename, "w") do file
-            save(file, field)
+            DoseCalculations.save(file, field)
         end
 
         @testset "Write/Read" begin
             field2 = h5open(filename, "r") do file
-                load(VMATField, file)
+                DoseCalculations.load(VMATField, file)
             end
             @test field.mlc == field2.mlc
             @test field.jaws == field2.jaws

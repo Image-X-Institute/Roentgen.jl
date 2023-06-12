@@ -81,7 +81,7 @@ end
             filename = "tmp.hdf5"
             
             h5open(filename, "w") do file
-                save(file, pos)
+                DoseCalculations.save(file, pos)
             end
 
             @testset "Write" begin 
@@ -95,7 +95,7 @@ end
 
             @testset "Read" begin 
                 pos2 = h5open(filename, "r") do file
-                    load(DoseGrid, file)
+                    DoseCalculations.load(DoseGrid, file)
                 end
                 @test pos2.axes == pos.axes
             end
@@ -156,7 +156,7 @@ end
             filename = "tmp.hdf5"
             
             h5open(filename, "w") do file
-                save(file, pos)
+                DoseCalculations.save(file, pos)
             end
 
             @testset "Write" begin 
@@ -172,7 +172,7 @@ end
 
             @testset "Read" begin 
                 pos2 = h5open(filename, "r") do file
-                    load(DoseGridMasked, file)
+                    DoseCalculations.load(DoseGridMasked, file)
                 end
                 @test pos2.axes == pos.axes
             end

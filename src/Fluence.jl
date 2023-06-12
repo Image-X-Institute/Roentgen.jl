@@ -221,7 +221,8 @@ Create bixels corresponding to the provided beam limiting devices.
 
 From MultiLeafCollimator and Jaws.
 """
-function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T}; Δx=5., Δy=5.) where T<:AbstractFloat
+function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T};
+    Δx=5., snap_to_aperture=true) where T<:AbstractFloat
 
     bixels = Bixel{T}[]
 
@@ -234,15 +235,19 @@ function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T}; Δx=5.
         yL = max(yL, jaws.y[1])
         yU = min(yU, jaws.y[2])
 
+        Δy = yU - yL
+
         if xU - xL > zero(T)
             x = snapped_range(xL, xU, Δx)
-            # x = max.(xL, min.(x, xU))
+            if snap_to_aperture
+                x = clamp.(x, xL, xU)
+            end
             xc = 0.5*(x[2:end] + x[1:end-1])
             δx = x[2:end] - x[1:end-1]
 
-            y = 0.5*(yL + yU)
+            yc = 0.5*(yL + yU)
 
-            b = Bixel.(xc, y, δx, Δy)
+            b = Bixel.(xc, yc, δx, Δy)
 
             append!(bixels, vec(b))
         end

@@ -16,7 +16,7 @@
 
     filename = "tmp.hdf5"
     h5open(filename, "w") do file
-        save(file, jaws)
+        DoseCalculations.save(file, jaws)
     end
 
     @testset "Write" begin
@@ -33,7 +33,7 @@
 
     @testset "Read" begin
         jaws2 = h5open(filename, "r") do file
-            load(Jaws, file)
+            DoseCalculations.load(Jaws, file)
         end
         @test getx(jaws2) == getx(jaws)
         @test gety(jaws2) == gety(jaws)
