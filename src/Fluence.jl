@@ -217,22 +217,6 @@ Create bixels corresponding to the provided beam limiting devices.
 """ bixels_from_bld
 
 """
-    bixel_from_bld(jaws::Jaws)
-
-From Jaws.
-"""
-function bixels_from_bld(jaws::Jaws{T}) where T<:AbstractFloat
-
-    x = T(0.5)*(jaws.x[1]+jaws.x[2])
-    y = T(0.5)*(jaws.y[1]+jaws.y[2])
-
-    Δx = jaws.x[2] - jaws.x[1]
-    Δy = jaws.y[2] - jaws.y[1]
-
-    [Bixel(x, y, Δx, Δy)]
-end
-
-"""
     bixels_from_bld(mlcx, mlc::MultiLeafCollimator, jaws::Jaws)
 
 From MultiLeafCollimator and Jaws.
