@@ -71,7 +71,7 @@ end
         @test getΔMU(field, 3) == 0.5*(meterset[4]-meterset[2])
         @test getΔMU(field, ncontrol) == 0.5*(meterset[ncontrol]-meterset[ncontrol-1])
     
-        @test sum(getΔMU.(Ref(field), 1:ncontrol)) == meterset[end]
+        @test sum(getΔMU.(Ref(field), 1:ncontrol)) ≈ meterset[end]
     end
 
     @testset "Resample" begin
