@@ -69,7 +69,7 @@
     end
 end
 
-@testset "Bixel Grids" begin
+@testset "Bixel Grid" begin
     # Default Constructor
     x = -12.:2.:8.
     y = -3.:3.:9.
@@ -139,7 +139,8 @@ end
         mlc = rand_mlc(y)
         
         jaws = Jaws(-13., 18., -28., 16., )
-        bixels = BixelGrid(mlc, jaws, 5.)
+        Δ = 5.
+        bixels = BixelGrid(mlc, jaws, Δ)
         
         test_bixelgrid_jaws(bixels, jaws)
 
