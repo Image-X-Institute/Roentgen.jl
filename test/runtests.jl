@@ -22,6 +22,7 @@ using QuadGK, HCubature
     include("MultiLeafCollimator.jl")
     include("Jaws.jl")
     include("MultiLeafCollimatorSequence.jl")
+    include("TreatmentField.jl")
 
     # Finite Pencil Beam Kernel
     include("FinitePencilBeamKernel.jl")

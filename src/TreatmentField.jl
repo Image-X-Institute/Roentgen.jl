@@ -252,13 +252,15 @@ See `resample(field, ηₛ::AbstractVector{T}; by=:MU)` for details.
 function resample(field, Δη::T; by=:MU, include_end=true) where T<:Number
 
     if(by==:time)
+        η_start = field.meterset[1]/field.dose_rate
         η_end = field.meterset[end]/field.dose_rate
     elseif(by==:MU)
+        η_start = field.meterset[1]
         η_end = field.meterset[end]
     end
 
-    η = collect(zero(T):Δη:η_end)
-    if(include_end && η[end] < η_end)
+    η = collect(η_start:Δη:η_end)
+    if(include_end && η[end] != η_end)
         push!(η, η_end)
     end
     resample(field, η; by=by)
