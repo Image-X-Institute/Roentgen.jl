@@ -63,5 +63,6 @@ export calibrate!
 export load, save, write_vtk, write_nrrd
 
 export BixelGrid
+export MockKernel
 
 end # module
