@@ -221,9 +221,12 @@ function extent(surf::CylindricalSurface)
     SVector(minimum(x), minimum(y), minimum(z)), SVector(maximum(x), maximum(y), maximum(z))
 end
 
-function isinside(surf::CylindricalSurface, pos)
-    pos[1]^2+pos[3]^2 == 0. && return true
+function isinside(surf::CylindricalSurface, pos::AbstractVector{T}) where T<:Real
+    x, y, z = pos
 
-    ϕ, y = atan(pos[1], pos[3]), pos[2]
-    pos[1]^2+pos[3]^2 < surf.I(ϕ, y)^2
+    (y<surf.y[1]||surf.y[end]<=y) && return false
+    x^2+z^2 == zero(T) && return true
+
+    ϕ = atan(x, z)
+    x^2+z^2 < surf.I(ϕ, y)^2
 end

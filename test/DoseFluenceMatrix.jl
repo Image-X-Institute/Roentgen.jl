@@ -64,3 +64,25 @@
     @test !DoseCalculations.kernel_size(r, a, maxradius/SAD)
 
 end
+
+@testset "Dose-Fluence Matrix Calculation" begin
+    depth = 0.:20.:400
+    x = -200.:20.:200.
+    pos = SVector.(x, 0., -depth')
+
+    fs = 10.
+    xb = -0.5*fs:5:0.5*fs
+    bixels = BixelGrid(xb, xb)
+
+    calc = MockKernel()
+
+    surf = PlaneSurface(1000.)
+
+    gantry = GantryPosition(0., 0., 1000.)
+    beamlets = Beamlet.(bixels, (gantry,))
+
+    Dsaved = JLD2.load("test-data/dose_fluence_matrix.jld2", "mock-kernel")
+
+    @test Dsaved == dose_fluence_matrix(Matrix, pos, beamlets, surf, calc; maxradius=5.)
+    @test Dsaved == dose_fluence_matrix(SparseMatrixCSC, pos, beamlets, surf, calc; maxradius=5.)
+end

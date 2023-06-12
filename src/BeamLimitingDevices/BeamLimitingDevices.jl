@@ -49,6 +49,8 @@ Jaws(fieldsize::T) where T<:AbstractFloat = Jaws(-0.5*fieldsize, 0.5*fieldsize, 
 getx(jaws::Jaws) = jaws.x
 gety(jaws::Jaws) = jaws.y
 
+getarea(jaws::Jaws) = (jaws.x[2]-jaws.x[1])*(jaws.y[2]-jaws.y[1])
+
 #--- IO
 
 """

@@ -23,6 +23,7 @@ using DelimitedFiles
 using Glob
 using DICOM
 using WriteVTK
+using Printf
 
 using ProgressMeter
 using Interpolations
@@ -32,7 +33,6 @@ using Meshes
 
 import JSON
 
-include("utils/FileConverters.jl")
 include("utils/interpolation.jl")
 include("utils/misc.jl")
 
@@ -44,8 +44,6 @@ include("BeamLimitingDevices/BeamLimitingDevices.jl")
 include("DicomPlan.jl")
 
 include("TreatmentField.jl")
-
-include("Grids.jl")
 
 include("ExternalSurfaces.jl")
 
@@ -63,5 +61,8 @@ include("DoseReconstructions.jl")
 export calibrate!
 
 export load, save, write_vtk, write_nrrd
+
+export BixelGrid
+export MockKernel
 
 end # module

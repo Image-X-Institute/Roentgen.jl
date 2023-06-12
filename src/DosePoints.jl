@@ -2,7 +2,7 @@ import Base.+, Base.length, Base.getindex, Base.eachindex
 
 export save, DoseGrid, DoseGridMasked, CylinderBounds, gridsize, MeshBounds, SurfaceBounds
 
-export getx, gety, getz
+export getaxes
 
 #--- Bounds ------------------------------------------------------------------------------------------------------------
 
@@ -175,29 +175,18 @@ Must have the fields `x`, `y`, and `z`.
 """
 abstract type AbstractDoseGrid <: DosePositions end
 
-Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i)...)
+Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i))
 Base.getindex(pos::AbstractDoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
 
 """
-    getx(pos::AbstractDoseGrid)
+    getaxes(pos::AbstractDoseGrid[, dim])
 
-Return the x axis of the grid
-"""
-getx(pos::AbstractDoseGrid) = pos.axes[1]
+Return the axes of the grid.
 
+Optionally, can specify which dimension.
 """
-    gety(pos::AbstractDoseGrid)
-
-Return the y axis of the grid
-"""
-gety(pos::AbstractDoseGrid) = pos.axes[2]
-
-"""
-    getz(pos::AbstractDoseGrid)
-
-Return the z axis of the grid
-"""
-getz(pos::AbstractDoseGrid) = pos.axes[3]
+getaxes(pos::AbstractDoseGrid) = pos.axes
+getaxes(pos::AbstractDoseGrid, dim) = pos.axes[dim]
 
 #--- DoseGrid ----------------------------------------------------------------------------------------------------------
 """
@@ -244,7 +233,10 @@ Base.getindex(pos::DoseGrid, i::Int) = pos[CartesianIndices(pos)[i]]
 for op in (:+, :-, :*, :/)
     eval(quote
         function Base.$op(pos::DoseGrid, v::AbstractVector{<:Real})
-            DoseGrid( ($op).(getx(pos), v[1]), ($op).(gety(pos), v[2]), ($op).(getz(pos), v[3]))
+            x = ($op).(getaxes(pos, 1), v[1])
+            y = ($op).(getaxes(pos, 2), v[2])
+            z = ($op).(getaxes(pos, 3), v[3])
+            DoseGrid(x, y, z)
         end
     end)
 end
@@ -267,7 +259,8 @@ write_vtk(filename::String, pos::DoseGrid, data::Dict) =  write_vtk(filename, po
 
 function get_nrrd_props(pos::AbstractDoseGrid)
     origin = tuple(pos[1, 1, 1]...)
-    directions = (step(getx(pos)), 0, 0), (0, step(gety(pos)), 0), (0, 0, step(getz(pos)))
+    x, y, z = getaxes(pos)
+    directions = (step(x), 0, 0), (0, step(y), 0), (0, 0, step(z))
     
     Dict("space origin"=>origin,
          "space directions"=>directions,
@@ -291,11 +284,9 @@ end
 Store `DoseGrid` data to an HDF5 file/group
 """
 function save(file::HDF5.H5DataStore, pos::DoseGrid)
-    
-    file["pos/x"] = collect(getx(pos))
-    file["pos/y"] = collect(gety(pos))
-    file["pos/z"] = collect(getz(pos))
-
+    for (i, ax) in enumerate("xyz")
+        file["pos/$ax"] = collect(getaxes(pos, i))
+    end
     nothing
 end
 
@@ -386,9 +377,9 @@ end
 for op in (:+, :-, :*, :/)
     eval(quote
         function Base.$op(pos::DoseGridMasked, v::AbstractVector{<:Real})
-            x = ($op).(getx(pos), v[1])
-            y = ($op).(gety(pos), v[2])
-            z = ($op).(getz(pos), v[3])
+            x = ($op).(getaxes(pos, 1), v[1])
+            y = ($op).(getaxes(pos, 2), v[2])
+            z = ($op).(getaxes(pos, 3), v[3])
             DoseGridMasked(x, y, z, pos.indices, pos.cells)
         end
     end)
@@ -476,9 +467,9 @@ Store `DoseGridMasked` data to an HDF5 file/group
 """
 function save(file::HDF5.H5DataStore, pos::DoseGridMasked)
     
-    file["pos/x"] = collect(getx(pos))
-    file["pos/y"] = collect(gety(pos))
-    file["pos/z"] = collect(getz(pos))
+    for (i, ax) in enumerate("xyz")
+        file["pos/$ax"] = collect(getaxes(pos, i))
+    end
 
     file["pos/indices"] = hcat(collect.(Tuple.(pos.indices))...)
 

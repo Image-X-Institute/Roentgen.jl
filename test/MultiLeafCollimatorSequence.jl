@@ -40,7 +40,7 @@
 
         filename = "tmp.hdf5"
         h5open(filename, "w") do file
-            save(file, mlc)
+            DoseCalculations.save(file, mlc)
         end
 
         file = h5open(filename, "r")
@@ -59,7 +59,7 @@
 
         @testset "Read" begin
             mlc2 = h5open(filename, "r") do file
-                load(MultiLeafCollimatorSequence, file)
+                DoseCalculations.load(MultiLeafCollimatorSequence, file)
             end
             @test mlc2 == mlc
         end
