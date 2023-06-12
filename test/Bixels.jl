@@ -151,3 +151,19 @@ end
     end
 
 end
+
+@testset "Bixels from BLD" begin
+    x = [-3. -20. 3. -5. 11. -15.
+          2.  20. 3.  7. 13. -8.]
+    y = -15.:5.:15.
+    mlc = MultiLeafCollimator(x, y)
+    jaws = Jaws(-13., 18., -12., 14., )
+    
+    test_data_path = "test-data/bixels_from_aperture.jld2"
+
+    bixels = bixels_from_bld(mlc, jaws; Δx=5., snap_to_aperture=true)
+    @test bixels == JLD2.load(test_data_path, "snap=true")
+
+    bixels = bixels_from_bld(mlc, jaws; Δx=5., snap_to_aperture=false)
+    @test bixels == JLD2.load(test_data_path, "snap=false")
+end
