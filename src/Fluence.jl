@@ -4,8 +4,9 @@
 # Functions for creating fluence grids and computing fluence from beam-limiting
 # devices.
 #
+import Base.IndexStyle
 
-export fluence, fluence!, bixel_grid, bixels_from_bld
+export fluence, fluence!, bixels_from_bld
 
 export Bixel, getcenter, getwidth, getedge, getarea, subdivide
 
@@ -133,8 +134,32 @@ end
 
 #--- Bixel Grid ---------------------------------------------------------------
 
+struct BixelGrid{Tx,Ty} <: AbstractArray{Bixel, 2}
+    axes::Tuple{Tx, Ty}
+end
+BixelGrid(x, y) = BixelGrid((x, y))
+
+Base.size(grid::BixelGrid) = tuple(length(grid.axes[1])-1,
+                                    length(grid.axes[2])-1)
+
+function Base.getindex(grid::BixelGrid, I::Vararg{Int, 2})
+    lb = @. getindex(grid.axes, I)
+    ub = @. getindex(grid.axes, I+1)
+    x = SVector(@. 0.5*(lb+ub))
+    w = SVector(@. ub-lb)
+
+    Bixel(x, w)
+end
+
+Base.IndexStyle(::Type{<:BixelGrid}) = IndexCartesian()
+
+getaxes(grid::BixelGrid) = grid.axes
+getaxes(grid::BixelGrid, dim::Int) = grid.axes[dim]
+
+#--- Constructors 
+
 """
-    bixel_grid(x, y, Δx[, Δy])
+    BixelGrid(x, y, Δx[, Δy])
 
 Construct a grid of bixels.
 
@@ -144,31 +169,27 @@ spacing value (see `snapped_range` for details).
 
 If Δy not specified, assumes Δy = Δx.
 """
-function bixel_grid(x, y, Δx, Δy)
-    x = snapped_range(x[1], x[end], Δx)
-    y = snapped_range(y[1], y[end], Δy)
+function BixelGrid(x, y, Δx, Δy)
+    xrange = snapped_range(x[1], x[end], Δx)
+    yrange = snapped_range(y[1], y[end], Δy)
 
-    Δx = @. x[2:end] - x[1:end-1]
-    Δy = @. y[2:end] - y[1:end-1]
-
-    x = @. 0.5*(x[1:end-1] + x[2:end])
-    y = @. 0.5*(y[1:end-1] + y[2:end])
-
-    Bixel.(SVector.(x, y'), SVector.(Δx, Δy'))
+    BixelGrid(xrange, yrange)
 end
-
-bixel_grid(x, y, Δ) = bixel_grid(x, y, Δ, Δ)
+BixelGrid(x, y, Δ) = BixelGrid(x, y, Δ, Δ)
 
 """
-    bixel_grid(jaws::Jaws, Δx[, Δy])
+    BixelGrid(jaws::Jaws, Δx[, Δy])
 
 Uses the jaw positions to construct a bixel grid.
 
 If Δy not specified, assumes Δy = Δx
 """
-bixel_grid(jaws::Jaws, Δx, Δy) = bixel_grid(jaws.x, jaws.y, Δx, Δy)
-
-bixel_grid(jaws::Jaws, Δ) = bixel_grid(jaws, Δ, Δ)
+function BixelGrid(jaws::Jaws, Δx, Δy)
+    xrange = clamp.(snapped_range(getx(jaws)..., Δx), getx(jaws)...)
+    yrange = clamp.(snapped_range(gety(jaws)..., Δy), gety(jaws)...)
+    BixelGrid(xrange, yrange)
+end
+BixelGrid(jaws::Jaws, Δ) = BixelGrid(jaws, Δ, Δ)
 
 """
     bixel_grid(x::AbstractRange, y::AbstractRange)

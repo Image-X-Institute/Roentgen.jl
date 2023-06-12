@@ -23,3 +23,4 @@ Examples:
 
 """
 snapped_range(x1, x2, Δ) = Δ*(floor(Int, x1/Δ):ceil(Int, x2/Δ))
+snapped_range(x::AbstractRange, Δ) = snapped_range(first(x), last(x), Δ)

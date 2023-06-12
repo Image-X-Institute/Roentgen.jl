@@ -68,3 +68,49 @@
         end
     end
 end
+
+@testset "Bixel Grids" begin
+    # Default Constructor
+    x = -12.:2.:8.
+    y = -3.:3.:9.
+    
+    function test_bixelgrid(bixels, x, y)
+        @test size(bixels) == (length(x)-1, length(y)-1)
+        @test all(getwidth.(bixels) .== Ref([step(x), step(y)]))
+        @test all(getedge.(bixels, 1) .== x[1:end-1])
+        @test all(getedge.(bixels, 2) .== y[1:end-1]')
+    end
+    @testset "Default Constr." begin
+        bixels = BixelGrid(x, y)
+        test_bixelgrid(bixels, x, y)
+    end
+
+    # Snapped Range
+    @testset "Snapped Range" begin
+        Δx, Δy = 5., 2.
+        xsnap, ysnap = DoseCalculations.snapped_range.((x, y), (Δx, Δy))
+    
+        bixels = BixelGrid(x, y, Δx, Δy)
+
+        test_bixelgrid(bixels, xsnap, ysnap)
+        Δ = 10*rand()
+        @test BixelGrid(x, y, Δ, Δ) == BixelGrid(x, y, Δ)
+    end
+    
+    # From Jaws
+    @testset "From Jaws" begin
+        Δx, Δy = 5., 2.
+        jaws = Jaws(-13., 9., -1., 9.)
+        bixels = BixelGrid(jaws, 5., 2.)
+
+        left_edge = getedge.(bixels[1, :], 1)
+        @test all(left_edge .== jaws.x[1])
+        right_edge = @. getedge(bixels[end, :], 1)+getwidth(bixels[end, :], 1)
+        @test all(right_edge .== jaws.x[2])
+
+        @test sum(getarea.(bixels)) == getarea(jaws)
+
+        Δ = 10*rand()
+        @test BixelGrid(x, y, Δ, Δ) == BixelGrid(x, y, Δ)
+    end
+end
