@@ -192,14 +192,7 @@ end
 BixelGrid(jaws::Jaws, Δ) = BixelGrid(jaws, Δ, Δ)
 
 """
-    bixel_grid(x::AbstractRange, y::AbstractRange)
-
-Uses the start and end positions and step of each range to construct the bixel grid.
-"""
-bixel_grid(x::AbstractRange, y::AbstractRange) = bixel_grid(x, y, step(x), step(y))
-
-"""
-    bixel_grid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
+    BixelGrid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
 
 Grid that fits in an MLC and the jaws.
 
@@ -207,23 +200,14 @@ Bixel y widths are of the same width as the MLC leaf widths. Creates smaller wid
 in the case where the jaws are halfway within a leaf width. Bixel x widths are
 set by `Δx`.`
 """
-function bixel_grid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
+function BixelGrid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
 
-    iL = locate(mlc, jaws.y[1])
-    iU = locate(mlc, jaws.y[2])
+    j1, j2 = locate.(Ref(mlc), gety(jaws))
 
-    y = getedges(mlc)[iL:iU]
-    y = clamp.(y, jaws.y[1], jaws.y[2])
-    Δy = diff(y)
+    y = clamp.(getedges(mlc)[j1:j2+1], gety(jaws)...)
+    x = clamp.(snapped_range(getx(jaws)..., Δx), getx(jaws)...)
 
-    x = snapped_range(jaws.x[1], jaws.x[end], Δx)
-    x = clamp.(x, jaws.x[1], jaws.x[2])
-    Δx = diff(x)
-
-    x = 0.5*(x[1:end-1] + x[2:end])
-    y = 0.5*(y[1:end-1] + y[2:end])
-
-    Bixel.(x, y', Δx, Δy')
+    BixelGrid(x, y)
 end
 
 """

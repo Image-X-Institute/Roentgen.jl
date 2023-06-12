@@ -98,19 +98,55 @@ end
     end
     
     # From Jaws
-    @testset "From Jaws" begin
-        Δx, Δy = 5., 2.
-        jaws = Jaws(-13., 9., -1., 9.)
-        bixels = BixelGrid(jaws, 5., 2.)
 
+    function test_bixelgrid_jaws(bixels, jaws)
         left_edge = getedge.(bixels[1, :], 1)
         @test all(left_edge .== jaws.x[1])
         right_edge = @. getedge(bixels[end, :], 1)+getwidth(bixels[end, :], 1)
         @test all(right_edge .== jaws.x[2])
 
+        bottom_edge = getedge.(bixels[:, 1], 2)
+        @test all(bottom_edge .== jaws.y[1])
+        top_edge = @. getedge(bixels[:, end], 2)+getwidth(bixels[:, end], 2)
+        @test all(top_edge .== jaws.y[2])
+
         @test sum(getarea.(bixels)) == getarea(jaws)
+    end
+
+    @testset "From Jaws" begin
+        Δx, Δy = 5., 2.
+        jaws = Jaws(-13., 9., -1., 9.)
+        bixels = BixelGrid(jaws, 5., 2.)
+
+        test_bixelgrid_jaws(bixels, jaws)
 
         Δ = 10*rand()
         @test BixelGrid(x, y, Δ, Δ) == BixelGrid(x, y, Δ)
     end
+
+    @testset "From MLC" begin
+        function rand_mlc(y)
+            n = length(y)-1
+            xB = rand(n)
+            xA = xB .+ rand(n)
+            x = vcat(xB', xA')
+            @. x = 20*x-10.
+            
+            MultiLeafCollimator(x, y)
+        end
+
+        y = -60:5.:60.
+        mlc = rand_mlc(y)
+        
+        jaws = Jaws(-13., 18., -28., 16., )
+        bixels = BixelGrid(mlc, jaws, 5.)
+        
+        test_bixelgrid_jaws(bixels, jaws)
+
+        @test all(@. getwidth(bixels, 1)[2:end-1, :] == Δ)
+
+        j1, j2 = locate.(Ref(mlc), gety(jaws))
+        @test all(@. getedge(bixels, 2)[:, 2:end] == y[j1+1:j2]')
+    end
+
 end
