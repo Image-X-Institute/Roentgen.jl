@@ -71,28 +71,42 @@ end
 
 @testset "Bixel Grid" begin
     # Default Constructor
-    x = -12.:2.:8.
-    y = -3.:3.:9.
     
     function test_bixelgrid(bixels, x, y)
+
         @test size(bixels) == (length(x)-1, length(y)-1)
-        @test all(getwidth.(bixels) .== Ref([step(x), step(y)]))
+
+        # x
+        @test all(getwidth.(bixels, 1) .== diff(x))
+        @test all(getwidth.(bixels, 1) .> 0.)
         @test all(getedge.(bixels, 1) .== x[1:end-1])
+
+        # y
+        @test all(getwidth.(bixels, 2) .== diff(y)')
+        @test all(getwidth.(bixels, 2) .> 0.)
         @test all(getedge.(bixels, 2) .== y[1:end-1]')
     end
+
+    test_bixelgrid_methods(bixels) = test_bixelgrid(bixels, getaxes(bixels)...)
+
     @testset "Default Constr." begin
+        x = -12.:2.:8.
+        y = -3.:3.:9.
         bixels = BixelGrid(x, y)
         test_bixelgrid(bixels, x, y)
     end
 
     # Snapped Range
     @testset "Snapped Range" begin
+        x = -12.:2.:8.
+        y = -3.:3.:9.
         Δx, Δy = 5., 2.
         xsnap, ysnap = DoseCalculations.snapped_range.((x, y), (Δx, Δy))
     
         bixels = BixelGrid(x, y, Δx, Δy)
 
         test_bixelgrid(bixels, xsnap, ysnap)
+
         Δ = 10*rand()
         @test BixelGrid(x, y, Δ, Δ) == BixelGrid(x, y, Δ)
     end
@@ -118,36 +132,11 @@ end
         jaws = Jaws(-13., 9., -1., 9.)
         bixels = BixelGrid(jaws, 5., 2.)
 
-        test_bixelgrid_jaws(bixels, jaws)
+        @testset "Constructor" test_bixelgrid_jaws(bixels, jaws)
+        @testset "Methods" test_bixelgrid_methods(bixels)
 
         Δ = 10*rand()
-        @test BixelGrid(x, y, Δ, Δ) == BixelGrid(x, y, Δ)
-    end
-
-    @testset "From MLC" begin
-        function rand_mlc(y)
-            n = length(y)-1
-            xB = rand(n)
-            xA = xB .+ rand(n)
-            x = vcat(xB', xA')
-            @. x = 20*x-10.
-            
-            MultiLeafCollimator(x, y)
-        end
-
-        y = -60:5.:60.
-        mlc = rand_mlc(y)
-        
-        jaws = Jaws(-13., 18., -28., 16., )
-        Δ = 5.
-        bixels = BixelGrid(mlc, jaws, Δ)
-        
-        test_bixelgrid_jaws(bixels, jaws)
-
-        @test all(@. getwidth(bixels, 1)[2:end-1, :] == Δ)
-
-        j1, j2 = locate.(Ref(mlc), gety(jaws))
-        @test all(@. getedge(bixels, 2)[:, 2:end] == y[j1+1:j2]')
+        @test BixelGrid(jaws, Δ, Δ) == BixelGrid(jaws, Δ)
     end
 
 end

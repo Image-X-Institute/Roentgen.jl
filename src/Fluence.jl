@@ -138,7 +138,7 @@ end
 BixelGrid(x, y) = BixelGrid((x, y))
 
 Base.size(grid::BixelGrid) = tuple(length(grid.axes[1])-1,
-                                    length(grid.axes[2])-1)
+                                   length(grid.axes[2])-1)
 
 function Base.getindex(grid::BixelGrid, I::Vararg{Int, 2})
     lb = @. getindex(grid.axes, I)
@@ -188,25 +188,6 @@ function BixelGrid(jaws::Jaws, Δx, Δy)
     BixelGrid(xrange, yrange)
 end
 BixelGrid(jaws::Jaws, Δ) = BixelGrid(jaws, Δ, Δ)
-
-"""
-    BixelGrid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
-
-Grid that fits in an MLC and the jaws.
-
-Bixel y widths are of the same width as the MLC leaf widths. Creates smaller widths
-in the case where the jaws are halfway within a leaf width. Bixel x widths are
-set by `Δx`.`
-"""
-function BixelGrid(mlc::AbstractMultiLeafCollimator, jaws::Jaws, Δx)
-
-    j1, j2 = locate.(Ref(mlc), gety(jaws))
-
-    y = clamp.(getedges(mlc)[j1:j2+1], gety(jaws)...)
-    x = clamp.(snapped_range(getx(jaws)..., Δx), getx(jaws)...)
-
-    BixelGrid(x, y)
-end
 
 """
     bixels_from_bld(args::AbstractBeamLimitingDevice...)
