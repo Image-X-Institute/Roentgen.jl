@@ -143,31 +143,10 @@ Whether `p` is within the mesh
 """
 within(bounds::SurfaceBounds, p) = isinside(bounds.surf, p)
 
-#--- Dose Positions ----------------------------------------------------------------------------------------------------
-
-abstract type DosePositions end
-
-Base.iterate(pos::DosePositions) = iterate(pos, 1)
-function Base.iterate(pos::DosePositions, i)
-    i>length(pos) && return nothing
-    pos[i], i+1
-end
-
-for op in (:+, :-)
-    eval(quote
-        function Base.$op(pos::DosePositions, v::AbstractVector{<:AbstractVector})
-            ($op).(pos, v)
-        end
-        function Base.$op(pos::DosePositions, v::AbstractVector{<:Real})
-            ($op).(pos, (v,))
-        end
-    end)
-end
-
 #--- AbstractDoseGrid ----------------------------------------------------------------------------------------------------------
 
 """
-    AbstractDoseGrid <: DosePositions
+    AbstractDoseGrid
 
 A type of Dose Positions on a regular grid.
 
