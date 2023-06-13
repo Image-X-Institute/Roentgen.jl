@@ -281,7 +281,7 @@ surf = PlaneSurface(SSD)
 gantry = GantryPosition(0., 0., SAD)
 
 xb = -0.5*fieldsize:5.:0.5*fieldsize
-bixels = bixel_grid(xb, xb)
+bixels = BixelGrid(xb, xb)
 beamlets = Beamlet.(bixels, (gantry,))
 
 # Compute dose

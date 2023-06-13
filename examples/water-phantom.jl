@@ -24,7 +24,7 @@ SSD = SAD
 
 # Create Fluence Grid
 xb = -0.5*fieldsize:5:0.5*fieldsize
-bixels = bixel_grid(xb, xb)
+bixels = BixelGrid(xb, xb)
 
 # Create dose calculation kernel
 calc = FinitePencilBeamKernel("path/to/kernel/file.jld")

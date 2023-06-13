@@ -28,7 +28,7 @@ pos = DoseGridMasked(5., SurfaceBounds(surf), trans)
 pos_fixed = trans.(pos)
 
 # Create Bixels
-bixels = bixel_grid(getmlc(controlpoint), getjaws(controlpoint), 5.)
+bixels = BixelGrid(getmlc(controlpoint), getjaws(controlpoint), 5.)
 
 # Compute fluence map from aperture
 Ψ = fluence(bixels, getmlc(controlpoint)); # Compute the fluence

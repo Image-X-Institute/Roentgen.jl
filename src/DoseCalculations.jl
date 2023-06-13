@@ -33,6 +33,9 @@ using Meshes
 
 import JSON
 
+# Imports 
+import Base.IndexStyle, Base.show
+
 include("utils/interpolation.jl")
 include("utils/misc.jl")
 

@@ -1,7 +1,7 @@
 name = "DoseCalculations"
 uuid = "b0d14063-c48a-4081-83d5-5a5ab48cb495"
 authors = ["lmejn <33491793+lmejn@users.noreply.github.com>"]
-version = "0.10.0"
+version = "0.11.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"

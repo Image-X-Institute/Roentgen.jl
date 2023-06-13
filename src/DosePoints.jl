@@ -143,40 +143,16 @@ Whether `p` is within the mesh
 """
 within(bounds::SurfaceBounds, p) = isinside(bounds.surf, p)
 
-#--- Dose Positions ----------------------------------------------------------------------------------------------------
-
-abstract type DosePositions end
-
-Base.iterate(pos::DosePositions) = iterate(pos, 1)
-function Base.iterate(pos::DosePositions, i)
-    i>length(pos) && return nothing
-    pos[i], i+1
-end
-
-for op in (:+, :-)
-    eval(quote
-        function Base.$op(pos::DosePositions, v::AbstractVector{<:AbstractVector})
-            ($op).(pos, v)
-        end
-        function Base.$op(pos::DosePositions, v::AbstractVector{<:Real})
-            ($op).(pos, (v,))
-        end
-    end)
-end
-
 #--- AbstractDoseGrid ----------------------------------------------------------------------------------------------------------
 
 """
-    AbstractDoseGrid <: DosePositions
+    AbstractDoseGrid
 
 A type of Dose Positions on a regular grid.
 
-Must have the fields `x`, `y`, and `z`.
+Must have `axes` field defined.
 """
-abstract type AbstractDoseGrid <: DosePositions end
-
-Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i))
-Base.getindex(pos::AbstractDoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
+abstract type AbstractDoseGrid{T, N} <: AbstractArray{SVector{3, T}, N} end
 
 """
     getaxes(pos::AbstractDoseGrid[, dim])
@@ -188,22 +164,22 @@ Optionally, can specify which dimension.
 getaxes(pos::AbstractDoseGrid) = pos.axes
 getaxes(pos::AbstractDoseGrid, dim) = pos.axes[dim]
 
+gridsize(pos::AbstractDoseGrid) = tuple(length.(pos.axes)...)
+
 #--- DoseGrid ----------------------------------------------------------------------------------------------------------
 """
     DoseGrid
 
 Cartesian Dose Grid
 """
-struct DoseGrid{TVec<:AbstractVector} <: AbstractDoseGrid
-    axes::SVector{3, TVec}
-    function DoseGrid(x, y, z)
-        ax = x, y, z
-        if(!all(@. typeof(ax) <: StepRangeLen))
-            ax = collect.(ax)
-        end
-        new{typeof(ax[1])}(SVector(ax...))
+struct DoseGrid{T, Tx<:AbstractVector, Ty<:AbstractVector, Tz<:AbstractVector} <: AbstractDoseGrid{T, 3}
+    axes::Tuple{Tx, Ty, Tz}
+    function DoseGrid(axes::Tuple{Tx, Ty, Tz}) where {T<:Real, 
+        Tx<:AbstractVector{T}, Ty<:AbstractVector{T}, Tz<:AbstractVector{T}}
+        new{T, Tx, Ty, Tz}((axes))
     end
 end
+DoseGrid(x, y, z) = DoseGrid((x, y, z))
 
 """
     DoseGrid(Δ, bounds::AbstractBounds)
@@ -222,17 +198,13 @@ function DoseGrid(Δ, bounds::AbstractBounds, transform=IdentityTransformation()
     DoseGrid(ax...)
 end
 
-Base.size(pos::DoseGrid) = tuple(length.(pos.axes)...)
-Base.length(pos::DoseGrid) = prod(length.(pos.axes))
-
-Base.eachindex(pos::DoseGrid) = Base.OneTo(length(pos))
-Base.CartesianIndices(pos::DoseGrid) = CartesianIndices(size(pos))
-
-Base.getindex(pos::DoseGrid, i::Int) = pos[CartesianIndices(pos)[i]]
+Base.size(pos::DoseGrid) = gridsize(pos)
+Base.IndexStyle(::Type{<:DoseGrid}) = IndexCartesian()
+Base.getindex(pos::DoseGrid, I::Vararg{Int, 3}) = SVector(getindex.(pos.axes, I))
 
 for op in (:+, :-, :*, :/)
     eval(quote
-        function Base.$op(pos::DoseGrid, v::AbstractVector{<:Real})
+        function Base.$op(pos::T, v::AbstractVector{<:Real}) where T<:DoseGrid
             x = ($op).(getaxes(pos, 1), v[1])
             y = ($op).(getaxes(pos, 2), v[2])
             z = ($op).(getaxes(pos, 3), v[3])
@@ -310,18 +282,34 @@ end
 
 Cartesian Dose Grid with a mask to reduce the number of dose points used.
 """
-struct DoseGridMasked{TVec<:AbstractVector} <: AbstractDoseGrid
-    axes::SVector{3, TVec}
+struct DoseGridMasked{T<:Real, Tx, Ty, Tz} <: AbstractDoseGrid{T, 1}
+    axes::Tuple{Tx, Ty, Tz}
     indices::Vector{CartesianIndex{3}}
-    cells::Vector{Vector{Int}}
-    function DoseGridMasked(x, y, z, indices, cells)
-        ax = x, y, z
-        if(!all(@. typeof(ax) <: StepRangeLen))
-            ax = collect.(ax)
-        end
-        new{typeof(ax[1])}(SVector(ax...), indices, cells)
+
+    function DoseGridMasked(axes::Tuple{Tx, Ty, Tz}, indices) where {T<:Real, 
+        Tx<:AbstractVector{T}, Ty<:AbstractVector{T}, Tz<:AbstractVector{T}}
+        new{T, Tx, Ty, Tz}(axes, indices)
     end
 end
+DoseGridMasked(x, y, z, indices) = DoseGridMasked((x, y, z), indices)
+
+Base.IndexStyle(::Type{<:DoseGridMasked}) = Base.IndexLinear()
+Base.size(pos::DoseGridMasked) = (length(pos.indices),)
+Base.CartesianIndices(pos::DoseGridMasked) = pos.indices
+
+function Base.getindex(pos::DoseGridMasked, i::Int)
+    I = CartesianIndices(pos)[i]
+    SVector(getindex.(pos.axes, Tuple(I)))
+end
+"""
+    getaxes(pos::DoseGrid[, dim])
+
+Return the axes of the grid.
+
+Optionally, can specify which dimension.
+"""
+getaxes(pos::DoseGridMasked) = pos.axes
+getaxes(pos::DoseGridMasked, dim) = pos.axes[dim]
 
 """
     DoseGridMasked(Δ, bounds::AbstractBounds, transform=I)
@@ -352,26 +340,7 @@ function DoseGridMasked(Δ, bounds::AbstractBounds, transform=IdentityTransforma
         end
     end
 
-    # Cells
-
-    neighbours = vec([CartesianIndex(i,j,k) for i=0:1, j=0:1, k=0:1])[2:end]
-
-    cells = Vector{Int}[]
-    for i in eachindex(indices)
-        cell = [i]
-        for n in neighbours
-            index = indices[i] + n
-
-            if(checkbounds(Bool, linear_index, index) && linear_index[index] != 0)
-                push!(cell, linear_index[index])
-            end
-        end
-        if(length(cell)==8)
-            push!(cells, cell)
-        end
-    end
-
-    DoseGridMasked(x, y, z, indices, cells)
+    DoseGridMasked(x, y, z, indices)
 end
 
 for op in (:+, :-, :*, :/)
@@ -380,23 +349,14 @@ for op in (:+, :-, :*, :/)
             x = ($op).(getaxes(pos, 1), v[1])
             y = ($op).(getaxes(pos, 2), v[2])
             z = ($op).(getaxes(pos, 3), v[3])
-            DoseGridMasked(x, y, z, pos.indices, pos.cells)
+            DoseGridMasked(x, y, z, pos.indices)
         end
     end)
 end
 
-Base.length(pos::DoseGridMasked) = length(pos.indices)
-Base.size(pos::DoseGridMasked) = (length(pos),)
 
-gridsize(pos::DoseGridMasked) = tuple(length.(pos.axes)...)
-
-Base.getindex(pos::DoseGridMasked, i::Int) = pos[pos.indices[i]]
-
-Base.eachindex(pos::DoseGridMasked) = eachindex(pos.indices)
-Base.CartesianIndices(pos::DoseGridMasked) = pos.indices
 
 #--- IO
-
 function Base.show(io::IO, pos::DoseGridMasked)
     print(io, "x=")
     Base.show(io, pos.axes[1])
@@ -410,11 +370,43 @@ end
 # VTK
 
 """
-    vtk_create_cell(cell)
+    _get_cells(pos)
+
+Returns a list of cell connectivities
+"""
+function _get_cells(pos)
+    neighbours = vec([CartesianIndex(i,j,k) for i=0:1, j=0:1, k=0:1])[2:end]
+
+    indices = CartesianIndices(pos)
+    linear_index = zeros(gridsize(pos))
+
+    for i in eachindex(pos)
+        linear_index[indices[i]] = i
+    end
+
+    cells = Vector{Int}[]
+    for i in eachindex(indices)
+        cell = [i]
+    
+        for n in neighbours
+            index = indices[i] + n
+            if(checkbounds(Bool, linear_index, index) && linear_index[index]!=0)
+                push!(cell, linear_index[index])
+            end
+        end
+        if(length(cell)==8)
+            push!(cells, cell)
+        end
+    end
+    cells
+end
+
+"""
+    _vtk_create_cell(cell)
 
 Return the VTK cell type for a list of cell indices.
 """
-function vtk_create_cell(cell)
+function _vtk_create_cell(cell)
     n = length(cell)
     n==5 && return MeshCell(VTKCellTypes.VTK_PYRAMID, cell)
     n==6 && return MeshCell(VTKCellTypes.VTK_WEDGE, cell)
@@ -427,8 +419,9 @@ end
 Save `DoseGridMasked` to the VTK Unstructured Grid (vtu) format.
 """
 function write_vtk(filename::String, pos::DoseGridMasked, data::Vararg)
-    points = [pos[i] for i in eachindex(pos)]
-    cells = vtk_create_cell.(pos.cells)
+    points = collect(pos)
+    
+    cells = _vtk_create_cell.(_get_cells(pos))
 
     vtk_grid(filename, points, cells) do vtkfile
         for (key, value) in data
@@ -473,9 +466,6 @@ function save(file::HDF5.H5DataStore, pos::DoseGridMasked)
 
     file["pos/indices"] = hcat(collect.(Tuple.(pos.indices))...)
 
-    file["cells/index"] = cumsum(vcat(1, length.(pos.cells)))
-    file["cells/cells"] = vcat(pos.cells...)
-
     nothing
 end
 
@@ -493,9 +483,5 @@ function load(::Type{DoseGridMasked}, file::HDF5.H5DataStore)
     indices = read(file["pos/indices"])
     indices = [CartesianIndex(col...) for col in eachcol(indices)]
 
-    index = read(file["cells/index"])
-    cells = read(file["cells/cells"])
-    cells = [cells[index[i]:index[i+1]-1] for i in 1:length(index)-1]
-
-    DoseGridMasked(x, y, z, indices, cells)
+    DoseGridMasked(x, y, z, indices)
 end

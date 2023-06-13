@@ -134,7 +134,7 @@ function calibrate!(calc::FinitePencilBeamKernel, MU, fieldsize, SAD, SSD=SAD;
     surf = PlaneSurface(SSD)
 
     xb = -0.5*fieldsize:beamlet_size:0.5*fieldsize
-    bixels = bixel_grid(xb, xb)
+    bixels = BixelGrid(xb, xb)
 
     gantry = GantryPosition(0., 0., SAD)
 
