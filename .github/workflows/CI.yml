@@ -30,6 +30,9 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v1
+        with:
+          cache-registries: "true"
+          cache-name: "tests"
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
@@ -48,6 +51,9 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v1
+        with:
+          cache-registries: "true"
+          cache-name: "docs"
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-docdeploy@v1
         env:
