@@ -67,9 +67,9 @@
     end
 end
 
-@testset "DosePoints" begin
+# @testset "DosePoints" begin
 
-    function test_operations(pos::DoseCalculations.AbstractDoseGrid)
+    function test_operations(pos)
         @testset "Operations" begin
             @testset "$(String(Symbol(op)))" for op in (+, -, *, /)
                 v = rand(3)
@@ -84,36 +84,27 @@ end
 
     @testset "DoseGrid" begin
 
-        axes = (-10.:1.:10., 10.:2.:20, -20.:5.:30.)
-        pos = DoseGrid(axes...)
-        
+        x, y, z = -10.:3.:10., 10.:5.:20, -20.:15.:30.
+        axes = (x, y, z)
+        pos = DoseGrid(axes)
+
         n = length.(axes)
-        N = prod(n)
+
+        # Other Constructor
+        @test pos == DoseGrid(x, y, z)
+        
+        # Base Methods
         
         @test size(pos) == n
-        @test length(pos) == N
-        
-        @test eachindex(pos) == Base.OneTo(N)
-        @test CartesianIndices(pos) == CartesianIndices(n)
-
+        @test eachindex(pos) == CartesianIndices(n)
+    
         @test Tuple(getaxes(pos)) == axes
+        @test getaxes(pos, 2) == axes[2]
         
-        # Linear Indexing
-        index = rand(1:N)
-        gridindex = Tuple(CartesianIndices(n)[index])
-        @test pos[index] ≈ SVector(getindex.(axes, gridindex))
-        
-        # Cartesian Indexing
+        # Indexing
         index = rand(CartesianIndices(n))
         @test pos[index] ≈ SVector(getindex.(axes, Tuple(index)))
         @test pos[Tuple(index)...] ≈ pos[index]
-        
-        # Iteration
-        p, i = iterate(pos)
-        @test p ≈ pos[1] && i==2
-        
-        p, i = iterate(pos, 2)
-        @test p ≈ pos[2] && i==3
 
         test_operations(pos)
 
@@ -222,4 +213,4 @@ end
 
         @testset "IO - HDF5" test_hdf5(pos)
     end
-end
+# end

@@ -173,10 +173,7 @@ A type of Dose Positions on a regular grid.
 
 Must have the fields `x`, `y`, and `z`.
 """
-abstract type AbstractDoseGrid <: DosePositions end
-
-Base.getindex(pos::AbstractDoseGrid, i::Vararg{Int, 3}) = SVector(getindex.(pos.axes, i))
-Base.getindex(pos::AbstractDoseGrid, i::CartesianIndex{3}) = pos[i[1], i[2], i[3]]
+abstract type AbstractDoseGrid{T} <: AbstractArray{T, 3} end
 
 """
     getaxes(pos::AbstractDoseGrid[, dim])
@@ -194,14 +191,15 @@ getaxes(pos::AbstractDoseGrid, dim) = pos.axes[dim]
 
 Cartesian Dose Grid
 """
-struct DoseGrid{TVec<:AbstractVector} <: AbstractDoseGrid
-    axes::SVector{3, TVec}
-    function DoseGrid(x, y, z)
-        ax = x, y, z
-        if(!all(@. typeof(ax) <: StepRangeLen))
-            ax = collect.(ax)
-        end
-        new{typeof(ax[1])}(SVector(ax...))
+struct DoseGrid{T<:Real, Tx, Ty, Tz} <: AbstractDoseGrid{T}
+    axes::Tuple{Tx, Ty, Tz}
+    function DoseGrid(axes::Tuple{Tx, Ty, Tz}) where {T<:Real, 
+        Tx<:AbstractVector{T}, Ty<:AbstractVector{T}, Tz<:AbstractVector{T}}
+        new{T, Tx, Ty, Tz}((axes))
+    end
+    function DoseGrid(x::Tx, y::Ty, z::Tz) where {T<:Real, 
+        Tx<:AbstractVector{T}, Ty<:AbstractVector{T}, Tz<:AbstractVector{T}}
+        new{T, Tx, Ty, Tz}((x, y, z))
     end
 end
 
@@ -223,12 +221,8 @@ function DoseGrid(Δ, bounds::AbstractBounds, transform=IdentityTransformation()
 end
 
 Base.size(pos::DoseGrid) = tuple(length.(pos.axes)...)
-Base.length(pos::DoseGrid) = prod(length.(pos.axes))
-
-Base.eachindex(pos::DoseGrid) = Base.OneTo(length(pos))
-Base.CartesianIndices(pos::DoseGrid) = CartesianIndices(size(pos))
-
-Base.getindex(pos::DoseGrid, i::Int) = pos[CartesianIndices(pos)[i]]
+Base.IndexStyle(::Type{<:DoseGrid}) = IndexCartesian()
+Base.getindex(pos::DoseGrid, I::Vararg{Int, 3}) = SVector(getindex.(pos.axes, I))
 
 for op in (:+, :-, :*, :/)
     eval(quote
@@ -310,7 +304,7 @@ end
 
 Cartesian Dose Grid with a mask to reduce the number of dose points used.
 """
-struct DoseGridMasked{TVec<:AbstractVector} <: AbstractDoseGrid
+struct DoseGridMasked{TVec<:AbstractVector}
     axes::SVector{3, TVec}
     indices::Vector{CartesianIndex{3}}
     cells::Vector{Vector{Int}}
