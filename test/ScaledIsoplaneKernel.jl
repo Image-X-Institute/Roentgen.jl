@@ -44,7 +44,7 @@ See src/DoseCalculationAlgorithms/ScaledIsoplaneKernel.jl
         calc = ScaledIsoplaneKernel("src/DoseCalculationAlgorithms/sample-kernel-data/6x/", 280.)
 
         function get_dose(Δx, Δy)
-            bixels = DoseCalculations.bixel_grid(jaws, Δx, Δy)
+            bixels = DoseCalculations.BixelGrid(jaws, Δx, Δy)
             sum(dose_fluence_matrix(pos, vec(bixels), surf, calc))
         end
 

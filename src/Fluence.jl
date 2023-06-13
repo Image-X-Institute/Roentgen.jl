@@ -4,8 +4,6 @@
 # Functions for creating fluence grids and computing fluence from beam-limiting
 # devices.
 #
-import Base.IndexStyle
-
 export fluence, fluence!, bixels_from_bld
 
 export Bixel, getcenter, getwidth, getedge, getarea, subdivide

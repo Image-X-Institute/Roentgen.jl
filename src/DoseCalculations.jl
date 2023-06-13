@@ -58,6 +58,9 @@ include("Structures.jl")
 
 include("DoseReconstructions.jl")
 
+# Imports 
+import Base.IndexStyle
+
 export calibrate!
 
 export load, save, write_vtk, write_nrrd
