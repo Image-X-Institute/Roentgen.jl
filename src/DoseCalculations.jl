@@ -33,6 +33,9 @@ using Meshes
 
 import JSON
 
+# Imports 
+import Base.IndexStyle, Base.show
+
 include("utils/interpolation.jl")
 include("utils/misc.jl")
 
@@ -57,9 +60,6 @@ include("DoseFluenceMatrix.jl")
 include("Structures.jl")
 
 include("DoseReconstructions.jl")
-
-# Imports 
-import Base.IndexStyle
 
 export calibrate!
 

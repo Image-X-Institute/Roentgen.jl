@@ -67,18 +67,16 @@
     end
 end
 
-# @testset "DosePoints" begin
+@testset "DosePoints" begin
 
     function test_operations(pos)
-        @testset "Operations" begin
-            @testset "$(String(Symbol(op)))" for op in (+, -, *, /)
-                v = rand(3)
-                pos_new = op(pos, v)
-                
-                for i=1:3
-                    @test getaxes(pos_new, i) == op.(getaxes(pos, i), v[i])
-                end 
-            end
+        @testset "$(String(Symbol(op)))" for op in (+, -, *, /)
+            v = rand(3)
+            pos_new = op(pos, v)
+            
+            for i=1:3
+                @test getaxes(pos_new, i) == op.(getaxes(pos, i), v[i])
+            end 
         end
     end
 
@@ -92,7 +90,7 @@ end
 
         # Other Constructor
         @test pos == DoseGrid(x, y, z)
-        
+
         # Base Methods
         
         @test size(pos) == n
@@ -140,48 +138,37 @@ end
 
     @testset "DoseGridMasked" begin
 
-        axes = (-10.:1.:10., 10.:2.:20, -20.:5.:30.)
+        x, y, z = -10.:3.:10., 10.:5.:20, -20.:15.:30.
+        ax = x, y, z
 
-        n = length.(axes)
+        n = length.(ax)
         N = prod(n)
-        
         nval = 5
         indices = getindex.(Ref(CartesianIndices(n)), sort(rand(1:N, nval)))
         
-        pos = DoseGridMasked(axes..., indices, Vector{Vector{Int}}(undef, 0))
-        
+        pos = DoseGridMasked(ax, indices)
+
         @test size(pos) == (nval,)
         @test length(pos) == nval
         
         @test eachindex(pos) == Base.OneTo(nval)
         @test CartesianIndices(pos) == indices
 
-        @test Tuple(getaxes(pos)) == axes
-        
-        # Linear Indexing
-        index = rand(1:nval)
-        gridindex = CartesianIndices(pos)[index]
-        @test pos[index] ≈ SVector(getindex.(axes, Tuple(gridindex)))
-        
-        # Cartesian Indexing
-        index = rand(CartesianIndices(pos))
-        @test pos[index] ≈ SVector(getindex.(axes, Tuple(index)))
-        @test pos[Tuple(index)...] ≈ pos[index]
-        
-        # Iteration
-        p, i = iterate(pos)
-        @test p ≈ pos[1] && i==2
-        
-        p, i = iterate(pos, 2)
-        @test p ≈ pos[2] && i==3
+        @test getaxes(pos) == ax
+        @test getaxes(pos, 2) == ax[2]
 
+        @testset "Indexing" for index in eachindex(pos)
+            i, j, k = Tuple(indices[index])
+            @test pos[index] == [x[i], y[j], z[k]]
+        end
+    
         # Operations
         test_operations(pos)
 
         # Constructor with bounds
         bounds = CylinderBounds(13., 12., SVector(rand(3)...))
-        pos = DoseGridMasked(2., bounds)
-        @test all([DoseCalculations.within(bounds, pos[i]) for p in pos])
+        pos = DoseGridMasked(6., bounds)
+        @test all(DoseCalculations.within.(Ref(bounds), pos))
         
         function test_hdf5(pos)
             filename = "tmp.hdf5"
@@ -196,8 +183,6 @@ end
                     @test haskey(file, "pos/x")
                     @test haskey(file, "pos/y")
                     @test haskey(file, "pos/z")
-                    @test haskey(file, "cells/index")
-                    @test haskey(file, "cells/cells")
                 end
             end
 
@@ -213,4 +198,4 @@ end
 
         @testset "IO - HDF5" test_hdf5(pos)
     end
-# end
+end
