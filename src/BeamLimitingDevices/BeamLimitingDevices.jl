@@ -12,7 +12,6 @@ abstract type AbstractBeamLimitingDevice end
 
 include("MultiLeafCollimator.jl")
 include("MultiLeafCollimatorSequence.jl")
-include("MultiLeafCollimatorIO.jl")
 
 #--- Jaws --------------------------------------------------------------------------------------------------------------
 
@@ -50,27 +49,3 @@ getx(jaws::Jaws) = jaws.x
 gety(jaws::Jaws) = jaws.y
 
 getarea(jaws::Jaws) = (jaws.x[2]-jaws.x[1])*(jaws.y[2]-jaws.y[1])
-
-#--- IO
-
-"""
-    save(file::HDF5.H5DataStore, jaws::Jaws)
-
-Store `Jaws` data to an HDF5 file/group
-"""
-function save(file::HDF5.H5DataStore, jaws::Jaws)
-    file["jaws/x"] = Vector(jaws.x)
-    file["jaws/y"] = Vector(jaws.y)
-    nothing
-end
-
-"""
-    load(::Type{Jaws}, file::HDF5.H5DataStore)
-
-Load `Jaws` data from an HDF5 file/group
-"""
-function load(::Type{Jaws}, file::HDF5.H5DataStore)
-    x = read(file["jaws/x"])
-    y = read(file["jaws/y"])
-    Jaws(x, y)
-end

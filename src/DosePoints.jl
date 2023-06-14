@@ -250,32 +250,6 @@ function write_nrrd(filename::String, pos::DoseGrid, data::AbstractArray)
     FileIO.save(filename, reshape(data, size(pos)), props=props)
 end
 
-"""
-    save(file::HDF5.H5DataStore, pos::DoseGrid)
-
-Store `DoseGrid` data to an HDF5 file/group
-"""
-function save(file::HDF5.H5DataStore, pos::DoseGrid)
-    for (i, ax) in enumerate("xyz")
-        file["pos/$ax"] = collect(getaxes(pos, i))
-    end
-    nothing
-end
-
-"""
-    load(::Type{DoseGrid}, file::HDF5.H5DataStore)
-
-Load `DoseGrid` data from an HDF5 file/group
-"""
-function load(::Type{DoseGrid}, file::HDF5.H5DataStore)
-    
-    x = read(file["pos/x"])
-    y = read(file["pos/y"])
-    z = read(file["pos/z"])
-
-    DoseGrid(x, y, z)
-end
-
 #--- DoseGridMasked ----------------------------------------------------------------------------------------------------
 """
     DoseGridMasked
@@ -449,39 +423,4 @@ function write_nrrd(filename::String, pos::DoseGridMasked, data::AbstractArray; 
     end
     
     FileIO.save(filename, datagrid, props=props)
-end
-
-# HDF5
-
-"""
-    save(file::HDF5.H5DataStore, pos::DoseGridMasked)
-
-Store `DoseGridMasked` data to an HDF5 file/group
-"""
-function save(file::HDF5.H5DataStore, pos::DoseGridMasked)
-    
-    for (i, ax) in enumerate("xyz")
-        file["pos/$ax"] = collect(getaxes(pos, i))
-    end
-
-    file["pos/indices"] = hcat(collect.(Tuple.(pos.indices))...)
-
-    nothing
-end
-
-"""
-    load(::Type{DoseGridMasked}, file::HDF5.H5DataStore)
-
-Load `DoseGridMasked` data from an HDF5 file/group
-"""
-function load(::Type{DoseGridMasked}, file::HDF5.H5DataStore)
-    
-    x = read(file["pos/x"])
-    y = read(file["pos/y"])
-    z = read(file["pos/z"])
-
-    indices = read(file["pos/indices"])
-    indices = [CartesianIndex(col...) for col in eachcol(indices)]
-
-    DoseGridMasked(x, y, z, indices)
 end

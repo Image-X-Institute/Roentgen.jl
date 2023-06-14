@@ -9,38 +9,6 @@
         @test mlc / Δ == MultiLeafCollimator(x./Δ[1], y./Δ[2])
         @test mlc * Δ == MultiLeafCollimator(x.*Δ[1], y.*Δ[2])
     end
-
-    function test_io_hdf5(mlc)
-
-        filename = "tmp.hdf5"
-        h5open(filename, "w") do file
-            DoseCalculations.save(file, mlc)
-        end
-
-        file = h5open(filename, "r")
-        close(file)
-
-        @testset "Write" begin
-            h5open(filename, "r") do file
-                @test haskey(file, "mlc")
-                @test haskey(file, "mlc/edges")
-                @test haskey(file, "mlc/positions")
-
-                @test read(file["mlc/edges"]) == getedges(mlc)
-                @test read(file["mlc/positions"]) == getpositions(mlc)
-            end
-        end
-
-        @testset "Read" begin
-            mlc2 = h5open(filename, "r") do file
-                DoseCalculations.load(MultiLeafCollimator, file)
-            end
-            @test mlc2 == mlc
-        end
-
-        rm(filename)
-
-    end
     
     y = -30.:5:30.
 
@@ -113,8 +81,6 @@
 
     @testset "Operate with Vector" test_operations(mlc, rand(2))
     @testset "Operate with Tuple" test_operations(mlc, tuple(rand(2)...))
-
-    @testset "HDF5 - IO" test_io_hdf5(mlc)
         
     @testset "Basic Constructor" begin
         n = length(y)-1

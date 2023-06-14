@@ -1,6 +1,6 @@
 using Test
 using DoseCalculations
-using HDF5, JLD2
+using JLD2
 using StaticArrays, SparseArrays
 using Meshes
 using LinearAlgebra, Rotations
