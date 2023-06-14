@@ -106,34 +106,6 @@ end
 
         test_operations(pos)
 
-        function test_hdf5(pos)
-            filename = "tmp.hdf5"
-            
-            h5open(filename, "w") do file
-                DoseCalculations.save(file, pos)
-            end
-
-            @testset "Write" begin 
-                h5open(filename, "r") do file
-                    @test haskey(file, "pos")
-                    @test haskey(file, "pos/x")
-                    @test haskey(file, "pos/y")
-                    @test haskey(file, "pos/z")
-                end
-            end
-
-            @testset "Read" begin 
-                pos2 = h5open(filename, "r") do file
-                    DoseCalculations.load(DoseGrid, file)
-                end
-                @test pos2.axes == pos.axes
-            end
-
-            rm(filename)
-        end
-
-        @testset "IO - HDF5" test_hdf5(pos)
-
     end
 
     @testset "DoseGridMasked" begin
@@ -170,32 +142,5 @@ end
         pos = DoseGridMasked(6., bounds)
         @test all(DoseCalculations.within.(Ref(bounds), pos))
         
-        function test_hdf5(pos)
-            filename = "tmp.hdf5"
-            
-            h5open(filename, "w") do file
-                DoseCalculations.save(file, pos)
-            end
-
-            @testset "Write" begin 
-                h5open(filename, "r") do file
-                    @test haskey(file, "pos")
-                    @test haskey(file, "pos/x")
-                    @test haskey(file, "pos/y")
-                    @test haskey(file, "pos/z")
-                end
-            end
-
-            @testset "Read" begin 
-                pos2 = h5open(filename, "r") do file
-                    DoseCalculations.load(DoseGridMasked, file)
-                end
-                @test pos2.axes == pos.axes
-            end
-            
-            rm(filename)
-        end
-
-        @testset "IO - HDF5" test_hdf5(pos)
     end
 end

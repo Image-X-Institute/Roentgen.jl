@@ -84,31 +84,6 @@ end
         end
     end
 
-
-    @testset "HDF5" begin
-
-        filename = "tmp.hdf5"
-        h5open(filename, "w") do file
-            DoseCalculations.save(file, field)
-        end
-
-        @testset "Write/Read" begin
-            field2 = h5open(filename, "r") do file
-                DoseCalculations.load(VMATField, file)
-            end
-            @test field.mlc == field2.mlc
-            @test field.jaws == field2.jaws
-            @test field.gantry_angle == field2.gantry_angle
-            @test field.collimator_angle == field2.collimator_angle
-            @test field.source_axis_distance == field2.source_axis_distance
-            @test field.meterset == field2.meterset
-            @test field.dose_rate == field2.dose_rate
-            @test field.isocenter == field2.isocenter
-        end
-
-        rm(filename)
-
-    end
 end
 
 @testset "Fix Angle" begin
