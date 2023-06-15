@@ -118,6 +118,31 @@ Implemented Surfaces:
         end
     end
 
+    @testset "Plane" begin
+        n = SVector(rand(3)...)
+        p₀ = SVector(rand(3)...)
+        plane = DoseCalculations.Plane(n, p₀)
+    
+        p = SVector(rand(3)...)
+        v = SVector(rand(3)...)
+    
+        @testset "Intersection" begin
+            pI = intersect(plane, p, v)
+    
+            # On Plane
+            @test dot(n, pI) ≈ dot(n, p₀)
+    
+            # On Line
+            λ = (pI - p)./v
+            @test all(λ .≈ λ[1])
+        end
+    
+        @testset "No Intersection" begin
+            v = cross(n, p)
+            @test intersect(plane, p, v) === nothing
+        end
+    end
+
     @testset "LinearSurface" begin
 
         function test_angle(surf, ϕg, SAD, SSDc)
