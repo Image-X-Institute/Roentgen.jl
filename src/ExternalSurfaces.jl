@@ -139,18 +139,41 @@ end
 struct LinearSurface{T<:AbstractInterpolation}
     params::T
 
-    function LinearSurface(distance::AbstractVector)
-        @assert length(distance)==361 "Distance must be supplied at every degree"
-        I = interpolate(distance, BSpline(Linear()))
+    function LinearSurface(params)
+        @assert length(params)==361 "Distance must be supplied at every degree"
+        I = interpolate(params, BSpline(Linear()))
         new{typeof(I)}(I)
     end
 end
+
+LinearSurface(n, p) = LinearSurface(vcat.(n, p))
 
 function LinearSurface(ϕg, n, p)
     params = vcat.(n, p)
     I = linear_interpolation(ϕg, params)
     dist = I.(deg2rad.(0:360))
     LinearSurface(dist)
+end
+
+function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.)) where {T<:Real}
+    N = 361
+    ϕg = 2π*range(0, 1, length=N)
+    n = Vector{SVector{3, T}}(undef, N)
+    p = Vector{SVector{3, T}}(undef, N)
+
+    pos = SVector(zeros(T, 3)...)
+
+    for i in eachindex(ϕg, n, p)
+        src = SAD*SVector(sin(ϕg[i]), zero(T), cos(ϕg[i]))
+        pos = SVector(zeros(T, 3)...)
+        line = Segment(Point(src), Point(pos))
+
+        pᵢ = coordinates.(intersect_mesh(line, mesh))
+        p[i] = pᵢ[1]
+        n[i] = normalize(src)
+    end
+
+    LinearSurface(n, p)
 end
 
 function getplane(surf::LinearSurface, src::SVector{3})
