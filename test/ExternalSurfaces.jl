@@ -117,4 +117,53 @@ Implemented Surfaces:
             @test getSSD(surf, pos, src) ≈ getSSD(meshsurf, pos, src) atol=0.01
         end
     end
+
+    @testset "LinearSurface" begin
+
+        function test_angle(surf, ϕg, SAD, SSDc)
+        
+            gantry = GantryPosition(ϕg, 0., SAD)
+            src = DoseCalculations.getposition(gantry)
+        
+            T = RotY(ϕg)
+        
+            @testset "Along Central Axis" begin
+                z = 20*rand().-10
+                pos = T*SVector(0., 0., z)
+                @test getSSD(surf, pos, src) ≈ SSDc
+            end
+        
+            @testset "Off-Axis" begin
+        
+                R = 750.
+                SSD = SSDc*√(1+(R/SAD)^2)
+                
+                θ = 2π*rand()
+                z = 20*rand().-10
+                α = (SAD-z)/SAD
+        
+                pos = T*SVector(α*R*sin(θ), α*R*cos(θ), z)
+                @test getSSD(surf, pos, src) ≈ SSD
+            end
+        end
+
+        SAD = 1000.
+        
+        ϕg = [0., π/3., π, 4*π/3, 2π]
+        r = @. 50*cos(ϕg) + 550.
+        x = @. r*sin(ϕg)
+        z = @. r*cos(ϕg)
+        
+        SSDc = SAD.-r
+        
+        p = SVector.(x, 0., z)
+        n = normalize.(p)
+        
+        surf = DoseCalculations.LinearSurface(ϕg, n, p)
+        
+        @testset "$(rad2deg(ϕg[i])), $(SSDc[i])" for i in eachindex(ϕg, SSDc)
+            test_angle(surf, ϕg[i], SAD, SSDc[i])
+        end
+        
+    end
 end
