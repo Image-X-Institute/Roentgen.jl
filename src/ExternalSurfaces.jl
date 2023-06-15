@@ -16,6 +16,7 @@ It current contains two types of external surfaces:
 =#
 
 export ConstantSurface, PlaneSurface, MeshSurface, CylindricalSurface
+export LinearSurface
 export getdepth, getSSD, compute_SSD!
 
 #--- AbstractExternalSurface --------------------------------------------------
@@ -119,6 +120,58 @@ function getSSD(surf::MeshSurface, pos::Point, src::Point)
     pI = intersect_mesh(line, surf.mesh)
     length(pI)==0 && return Inf
     minimum(norm.(pI .- Ref(src)))
+end
+
+#--- Linear Surface ------------------------------------------------------------
+
+struct Plane{T}
+    n::SVector{3, T}
+    p::SVector{3, T}
+end
+
+function intersect(plane::Plane, p::SVector{3, T}, v::SVector{3, T}) where T<:Real
+    nv = dot(plane.n, v)
+    isapprox(nv, zero(T), atol=T(1e-16)) && return nothing
+    λ = dot(plane.n, plane.p - p)/nv
+    p + λ*v
+end
+
+struct LinearSurface{T<:AbstractInterpolation}
+    params::T
+
+    function LinearSurface(distance::AbstractVector)
+        @assert length(distance)==361 "Distance must be supplied at every degree"
+        I = interpolate(distance, BSpline(Linear()))
+        new{typeof(I)}(I)
+    end
+end
+
+function LinearSurface(ϕg, n, p)
+    params = vcat.(n, p)
+    I = linear_interpolation(ϕg, params)
+    dist = I.(deg2rad.(0:360))
+    LinearSurface(dist)
+end
+
+function getplane(surf::LinearSurface, src::SVector{3})
+    ϕg = atand(src[1], src[3])
+    ϕg = mod(ϕg, 360)+1
+    param = surf.params(ϕg)
+    Plane(param[SVector(1, 2, 3)], param[SVector(4, 5, 6)])
+end
+
+function getSSD(surf::LinearSurface, pos, src)
+    plane = getplane(surf, src)
+    pI = intersect(plane, src, pos-src)
+    pI === nothing && return NaN
+    norm(pI-src)
+end
+
+function getdepth(surf::LinearSurface, pos, src)
+    plane = getplane(surf, src)
+    pI = intersect(plane, src, pos-src)
+    pI === nothing && return NaN
+    norm(pI-pos)
 end
 
 #--- CylindricalSurface --------------------------------------------------------
