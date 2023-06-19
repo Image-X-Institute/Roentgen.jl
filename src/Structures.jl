@@ -92,6 +92,20 @@ function intersect_mesh_multi_threaded(line::Geometry, mesh::Domain{Dim, T}) whe
     vcat(intersection_points...)
 end
 
+
+closest_intersection(from, to, mesh::Domain) = closest_intersection(Point(from), Point(to), mesh)
+
+function closest_intersection(from::Point, to::Point, mesh::Domain)
+    line = Segment(from, to)
+    pI = intersect_mesh(line, mesh)
+
+    length(pI)==0 && return nothing
+    length(pI)==1 && return pI[1]
+
+    s = argmin(@. norm(coordinates(pI)-(from,)))
+    pI[s]
+end
+
 #--- File IO ------------------------------------------------------------------
 
 """

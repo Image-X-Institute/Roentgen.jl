@@ -166,10 +166,8 @@ function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.)) where {T<:Real}
     for i in eachindex(ϕg, n, p)
         src = SAD*SVector(sin(ϕg[i]), zero(T), cos(ϕg[i]))
         pos = SVector(zeros(T, 3)...)
-        line = Segment(Point(src), Point(pos))
 
-        pᵢ = coordinates.(intersect_mesh(line, mesh))
-        p[i] = pᵢ[1]
+        p[i] = coordinates(closest_intersection(src, pos, mesh))
         n[i] = normalize(src)
     end
 
