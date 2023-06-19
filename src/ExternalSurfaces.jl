@@ -102,8 +102,31 @@ getSSD(surf::PlaneSurface, pos::Point, src) = getSSD(surf, coordinates(pos), src
 
 An external surface defined by a 3D mesh.
 """
-struct MeshSurface{T} <: AbstractExternalSurface
-    mesh::Mesh{3, T}
+struct MeshSurface{TMesh, TBox} <: AbstractExternalSurface
+    mesh::TMesh
+    boxes::Vector{TBox}
+
+    function MeshSurface(mesh::Partition)
+        boxes = boundingbox.(mesh)
+        new{typeof(mesh), eltype(boxes)}(mesh, boxes)
+    end
+end
+
+function _boxwidth(mesh)
+    box = boundingbox(mesh)
+    pmin, pmax = extrema(box)
+    pmax - pmin
+end
+
+function MeshSurface(mesh::SimpleMesh, boxwidths::AbstractVector{T}) where T<:Real
+    part = BlockPartition(boxwidths)
+    blockmesh = partition(mesh, part)
+    MeshSurface(blockmesh)
+end
+
+function MeshSurface(mesh::SimpleMesh, n::Union{Int, AbstractVector{Int}}=8)
+    widths = SVector(_boxwidth(mesh))
+    MeshSurface(mesh, widths./n)
 end
 
 """
@@ -115,9 +138,16 @@ Returns `Inf` if no intersection is found.
 """
 getSSD(surf::MeshSurface, pos, src) = getSSD(surf, Point(pos), Point(src))
 
-function getSSD(surf::MeshSurface, pos::Point, src::Point)
-    line = Ray(src, pos-src)
-    pI = intersect_mesh(line, surf.mesh)
+function getSSD(surf::MeshSurface, pos::T, src::T) where T<:Point
+    line = Segment(SVector(src, pos))
+
+    pI = T[]
+    for (i, block) in enumerate(surf.mesh)
+        if hasintersect(line, surf.boxes[i])
+            append!(pI, intersect_mesh_single_threaded(line, block))
+        end
+    end
+
     length(pI)==0 && return Inf
     minimum(norm.(pI .- Ref(src)))
 end
