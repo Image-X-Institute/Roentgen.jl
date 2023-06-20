@@ -155,15 +155,16 @@ end
 #--- Linear Surface ------------------------------------------------------------
 
 struct Plane{T}
-    n::SVector{3, T}
     p::SVector{3, T}
+    n::SVector{3, T}
 end
 
-function intersect(plane::Plane, p::SVector{3, T}, v::SVector{3, T}) where T<:Real
+function intersection_point(plane::Plane, p1::SVector{3, T}, p2::SVector{3, T}) where T<:Real
+    v = p2-p1
     nv = dot(plane.n, v)
     isapprox(nv, zero(T), atol=T(1e-16)) && return nothing
-    λ = dot(plane.n, plane.p - p)/nv
-    p + λ*v
+    λ = dot(plane.n, plane.p - p1)/nv
+    p1 + λ*v
 end
 
 struct LinearSurface{T<:AbstractInterpolation}
@@ -176,51 +177,70 @@ struct LinearSurface{T<:AbstractInterpolation}
     end
 end
 
-LinearSurface(n, p) = LinearSurface(vcat.(n, p))
+LinearSurface(p, n) = LinearSurface(vcat.(p, n))
 
-function LinearSurface(ϕg, n, p)
-    params = vcat.(n, p)
+function LinearSurface(ϕg, p, n)
+    params = vcat.(p, n)
     I = linear_interpolation(ϕg, params)
     dist = I.(deg2rad.(0:360))
     LinearSurface(dist)
 end
 
-function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.)) where {T<:Real}
+"""
+    LinearSurface(mesh[, SAD=1000, ΔΘ=deg2rad(1)])
+
+Construct a LinearSurface from a mesh.
+
+Computes a set of planes parallel to the surface of the mesh.
+"""
+function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.), ΔΘ=deg2rad(1)) where {T<:Real}
     N = 361
     ϕg = 2π*range(0, 1, length=N)
     n = Vector{SVector{3, T}}(undef, N)
     p = Vector{SVector{3, T}}(undef, N)
 
     pos = SVector(zeros(T, 3)...)
+    vy = SVector(0., 1., 0.)
+
+    x = SAD*tan(ΔΘ)
 
     for i in eachindex(ϕg, n, p)
         src = SAD*SVector(sin(ϕg[i]), zero(T), cos(ϕg[i]))
-        pos = SVector(zeros(T, 3)...)
 
-        p[i] = coordinates(closest_intersection(src, pos, mesh))
-        n[i] = normalize(src)
+        v = x*normalize(cross(pos-src, vy))
+
+        pp = pos+v
+        pm = pos-v
+
+        pIc = closest_intersection(src, pos, mesh)
+        pIp = closest_intersection(src, pp, mesh)
+        pIm = closest_intersection(src, pm, mesh)
+
+        p[i] = pIc
+        n[i] = normalize(cross(pIp-pIm, vy))
     end
 
-    LinearSurface(n, p)
+    LinearSurface(p, n)
 end
 
 function getplane(surf::LinearSurface, src::SVector{3})
     ϕg = atand(src[1], src[3])
     ϕg = mod(ϕg, 360)+1
     param = surf.params(ϕg)
-    Plane(param[SVector(1, 2, 3)], param[SVector(4, 5, 6)])
+
+    p = param[SVector(1, 2, 3)]
+    n = param[SVector(4, 5, 6)]
+
+    Plane(p, n)
 end
 
-function getSSD(surf::LinearSurface, pos, src)
+function intersection_point(surf::LinearSurface, pos, src)
     plane = getplane(surf, src)
-    pI = intersect(plane, src, pos-src)
-    pI === nothing && return NaN
-    norm(pI-src)
+    intersection_point(plane, pos, src)
 end
 
 function getdepth(surf::LinearSurface, pos, src)
-    plane = getplane(surf, src)
-    pI = intersect(plane, src, pos-src)
+    pI = intersection_point(surf, pos, src)
     pI === nothing && return NaN
     norm(pI-pos)
 end
