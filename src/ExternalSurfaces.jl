@@ -129,28 +129,25 @@ function MeshSurface(mesh::SimpleMesh, n::Union{Int, AbstractVector{Int}}=8)
     MeshSurface(mesh, widths./n)
 end
 
-"""
-    getSSD(surf::MeshSurface, pos, src)
-
-When applied to a `MeshSurface`, it returns the smallest distance to the mesh.
-
-Returns `Inf` if no intersection is found. 
-"""
-getSSD(surf::MeshSurface, pos, src) = getSSD(surf, Point(pos), Point(src))
-
-function getSSD(surf::MeshSurface, pos::T, src::T) where T<:Point
-    line = Segment(SVector(src, pos))
-
+function intersection_points(surf::MeshSurface, pos::T, src::T) where T<:Point
+    line = Segment(pos, src)
     pI = T[]
     for (i, block) in enumerate(surf.mesh)
         if hasintersect(line, surf.boxes[i])
             append!(pI, intersect_mesh_single_threaded(line, block))
         end
     end
-
-    length(pI)==0 && return Inf
-    minimum(norm.(pI .- Ref(src)))
+    pI
 end
+
+function getdepth(surf::MeshSurface, pos::T, src::T) where T<:Point
+    pts = intersection_points(surf, pos, src)
+    length(pts)==0 && return NaN
+
+    push!(pts, pos)
+    sum(@. norm(pts[1:2:end]-pts[2:2:end]))
+end
+getdepth(surf::MeshSurface, pos, src) = getdepth(surf, Point(pos), Point(src))
 
 #--- Linear Surface ------------------------------------------------------------
 
