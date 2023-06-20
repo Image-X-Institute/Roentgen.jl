@@ -314,11 +314,14 @@ end
 
 function getSSD(surf::CylindricalSurface, pos, src)
 
-    sign(distance_to_surface(0., surf, pos, src)) == sign(distance_to_surface(1., surf, pos, src)) && return Inf
+    f(x) = distance_to_surface(x, surf, pos, src)
 
-    λ = find_zero(x->distance_to_surface(x, surf, pos, src), (0., 1.), AlefeldPotraShi())
+    sign(f(0)) == sign(f(1.)) && return Inf
+
+    λ = find_zero(f, (0.5, 1.), AlefeldPotraShi()) #verbose=true
     λ*norm(src-pos)
 end
+getdepth(surf::CylindricalSurface, pos, src) = norm(pos - src) - getSSD(surf, pos, src)
 
 function write_vtk(filename::String, surf::CylindricalSurface)
 
