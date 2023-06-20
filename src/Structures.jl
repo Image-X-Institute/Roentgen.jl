@@ -49,7 +49,7 @@ Find the intersection points of the `line` and the `mesh`.
 
 Returns a list of intersection points, and an empty list if none present.
 """
-function intersect_mesh(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
+function intersect_mesh(line::Segment, mesh::Domain{Dim, T}) where {Dim, T}
     if(Threads.nthreads()==1)
         return intersect_mesh_single_threaded(line, mesh)
     else
@@ -62,7 +62,7 @@ end
 
 Single-threaded version of `intersect_mesh`.
 """
-function intersect_mesh_single_threaded(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
+function intersect_mesh_single_threaded(line::Segment, mesh::Domain{Dim, T}) where {Dim, T}
     intersection_points = Point{Dim, T}[]
     for cell in mesh
         pt = intersect(line, cell)
@@ -78,7 +78,7 @@ end
 
 Multi-threaded version of `intersect_mesh`.
 """
-function intersect_mesh_multi_threaded(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
+function intersect_mesh_multi_threaded(line::Segment, mesh::Domain{Dim, T}) where {Dim, T}
     intersection_points = Vector{Vector{Point{Dim, T}}}(undef, Threads.nthreads())
     for i=1:Threads.nthreads()
         intersection_points[i] = Point{Dim, T}[]
@@ -92,18 +92,29 @@ function intersect_mesh_multi_threaded(line::Geometry, mesh::Domain{Dim, T}) whe
     vcat(intersection_points...)
 end
 
+#--- Closest Intersection ------------------------------------------------------
 
-closest_intersection(from, to, mesh::Domain) = closest_intersection(Point(from), Point(to), mesh)
+"""
+    closest_intersection(p1, p2, mesh::Domain)
 
-function closest_intersection(from::Point, to::Point, mesh::Domain)
-    line = Segment(from, to)
-    pI = intersect_mesh(line, mesh)
+Return the point on the line `p1->p2` and `mesh` closest to `p1`
 
+Finds all points of intersection, then returns the point closest to `p1`.
+If no intersections are found, it returns `nothing`.
+"""
+function closest_intersection(p1, p2, mesh::Domain)
+    # Find intersection points
+    segment = Segment(SVector(Point(p1), Point(p2)))
+    pI = intersect_mesh(segment, mesh)
+
+    # If none found, return nothing
     length(pI)==0 && return nothing
-    length(pI)==1 && return pI[1]
 
-    s = argmin(@. norm(coordinates(pI)-(from,)))
-    pI[s]
+    # Otherwise, return the closest
+    length(pI)==1 && return coordinates(pI[1])
+
+    s = argmin(@. norm(coordinates(pI)-(p1,)))
+    coordinates(pI[s])
 end
 
 #--- File IO ------------------------------------------------------------------

@@ -68,4 +68,7 @@ export load, save, write_vtk, write_nrrd
 export BixelGrid
 export MockKernel
 
+# Structures
+export closest_intersection
+
 end # module
