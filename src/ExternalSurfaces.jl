@@ -32,7 +32,7 @@ abstract type AbstractExternalSurface end
 
 Get the Source-Surface Distance (SSD) for position `pos` to the radiation source `src`.
 """
-getSSD(surf::AbstractExternalSurface, pos, src)
+getSSD(surf::AbstractExternalSurface, pos, src) = norm(pos-src) - getdepth(surf, pos, src)
 
 """
     getdepth(surf::AbstractExternalSurface, pos, src)
@@ -41,7 +41,7 @@ Get the depth of the position `pos` below the surface from the radiation source 
 
 Computes the depth by subtracting 
 """
-getdepth(surf::AbstractExternalSurface, pos, src) = norm(pos - src) - getSSD(surf, pos, src)
+getdepth(surf::AbstractExternalSurface, pos, src)
 
 #--- ConstantSurface ----------------------------------------------------------
 
