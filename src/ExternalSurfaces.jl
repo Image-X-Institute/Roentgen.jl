@@ -300,9 +300,8 @@ function CylindricalSurface(mesh::SimpleMesh, y)
 end
 
 # Methods
-function _distance_to_surface(λ, surf, pos, src)
-    r = pos + λ*(src-pos)
 
+function _interp(surf::CylindricalSurface, r)
     ϕ = atand(r[1], r[3])
     i = mod(ϕ, 360)+1
 
@@ -310,7 +309,13 @@ function _distance_to_surface(λ, surf, pos, src)
     j = (r[2]-first(yg))/step(yg)
     j = clamp(j+1, 1, length(yg))
 
-    rho = surf.I(i, j)
+    surf.I(i, j)
+end
+
+function _distance_to_surface(λ, surf, pos, src)
+    r = pos + λ*(src-pos)
+
+    rho = _interp(surf, r)
 
     idx = SVector(1, 3)
     rho^2 - dot(r[idx], r[idx])
@@ -356,6 +361,5 @@ function isinside(surf::CylindricalSurface, pos::AbstractVector{T}) where T<:Rea
     (y<surf.y[1]||surf.y[end]<=y) && return false
     x^2+z^2 == zero(T) && return true
 
-    ϕ = atan(x, z)
-    x^2+z^2 < surf.I(ϕ, y)^2
+    x^2+z^2 < _interp(surf, pos)^2
 end
