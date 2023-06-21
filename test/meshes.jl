@@ -12,8 +12,14 @@ These tests load a sample mesh from an stl file, then compares the output of
     test_intersection_point(p, p_truth, ε) = norm(p - p_truth) < ε
 
     function test_intersections(s, mesh, pts_truth, ε)
-        pts = DoseCalculations.intersect_mesh_single_threaded(s, mesh)
+        pts = DoseCalculations.intersect_mesh(s, mesh)
         @test length(pts) == length(pts_truth)
+
+        s = sortperm(getindex.(coordinates.(pts), 1))
+        pts = pts[s]
+        sT = sortperm(getindex.(coordinates.(pts_truth), 1))
+        pts_truth = pts_truth[sT]
+
         @testset "$pI, $pIT" for (pI, pIT) in zip(pts, pts_truth)
             @test test_intersection_point(pI, pIT, ε)
         end
@@ -35,8 +41,6 @@ These tests load a sample mesh from an stl file, then compares the output of
             p1 = (-299.9, -50.6, 139.3)
             p2 = (273.7, 113., -151.6)
             s = Segment(p1, p2)
-
-            DoseCalculations.intersect_mesh_single_threaded(s, mesh)
 
             pts_truth = [Point(-134.77, -3.50, 55.56)
                          Point(159.98, 80.57, -93.93)]
@@ -64,7 +68,9 @@ These tests load a sample mesh from an stl file, then compares the output of
         p1 = (-299.9, -50.6, 139.3)
         p2 = (273.7, 113., -151.6)
         s = Segment(p1, p2)
-        @test DoseCalculations.intersect_mesh(s, parts) == DoseCalculations.intersect_mesh(s, mesh)
+        pts_truth = DoseCalculations.intersect_mesh(s, mesh)
+
+        test_intersections(s, parts, pts_truth, atol(Float64))
     end
 
     @testset "Closest Intersection" begin
