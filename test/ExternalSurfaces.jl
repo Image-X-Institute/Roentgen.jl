@@ -120,26 +120,28 @@ Implemented Surfaces:
 
     @testset "Plane" begin
         n = SVector(rand(3)...)
-        p₀ = SVector(rand(3)...)
-        plane = DoseCalculations.Plane(n, p₀)
-    
         p = SVector(rand(3)...)
-        v = SVector(rand(3)...)
+        plane = DoseCalculations.Plane(p, n)
+    
+        l1 = SVector(rand(3)...)
+        l2 = SVector(rand(3)...)
+        v = l2-l1
     
         @testset "Intersection" begin
-            pI = intersect(plane, p, v)
+            pI = DoseCalculations.intersection_point(plane, l1, l2)
     
             # On Plane
-            @test dot(n, pI) ≈ dot(n, p₀)
+            @test dot(n, pI) ≈ dot(n, p)
     
             # On Line
-            λ = (pI - p)./v
+            λ = (pI - l1)./v
             @test all(λ .≈ λ[1])
         end
     
         @testset "No Intersection" begin
-            v = cross(n, p)
-            @test intersect(plane, p, v) === nothing
+            n = cross(SVector(rand(3)...), v)
+            plane = DoseCalculations.Plane(p, n)
+            @test DoseCalculations.intersection_point(plane, l1, l2) === nothing
         end
     end
 
@@ -156,6 +158,7 @@ Implemented Surfaces:
                 z = 20*rand().-10
                 pos = T*SVector(0., 0., z)
                 @test getSSD(surf, pos, src) ≈ SSDc
+                @test getdepth(surf, pos, src) ≈ norm(pos-src)-SSDc
             end
         
             @testset "Off-Axis" begin
@@ -169,6 +172,7 @@ Implemented Surfaces:
         
                 pos = T*SVector(α*R*sin(θ), α*R*cos(θ), z)
                 @test getSSD(surf, pos, src) ≈ SSD
+                @test getdepth(surf, pos, src) ≈ norm(pos-src)-SSD
             end
         end
 
@@ -184,7 +188,7 @@ Implemented Surfaces:
         p = SVector.(x, 0., z)
         n = normalize.(p)
         
-        surf = DoseCalculations.LinearSurface(ϕg, n, p)
+        surf = LinearSurface(ϕg, p, n)
         
         @testset "$(rad2deg(ϕg[i])), $(SSDc[i])" for i in eachindex(ϕg, SSDc)
             test_angle(surf, ϕg[i], SAD, SSDc[i])

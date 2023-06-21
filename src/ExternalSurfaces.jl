@@ -231,15 +231,19 @@ function getplane(surf::LinearSurface, src::SVector{3})
     Plane(p, n)
 end
 
-function intersection_point(surf::LinearSurface, pos, src)
+function getSSD(surf::LinearSurface, pos, src)
     plane = getplane(surf, src)
-    intersection_point(plane, pos, src)
+    pI = intersection_point(plane, pos, src)
+    pI === nothing && return Inf
+    norm(pI-src)
 end
 
 function getdepth(surf::LinearSurface, pos, src)
-    pI = intersection_point(surf, pos, src)
+    plane = getplane(surf, src)
+    pI = intersection_point(plane, pos, src)
     pI === nothing && return NaN
-    norm(pI-pos)
+    v = pI-pos
+    sign(dot(plane.n, v))*norm(v)
 end
 
 #--- CylindricalSurface --------------------------------------------------------
