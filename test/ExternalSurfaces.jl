@@ -101,7 +101,7 @@ Implemented Surfaces:
         end
     end
 
-    @time @testset "Cylindrical Surface" begin
+    @testset "Cylindrical Surface" begin
         mesh = load_structure_from_ply(_test_mesh_path)
         meshsurf = MeshSurface(mesh)
         surf = CylindricalSurface(mesh, 20., 36)
