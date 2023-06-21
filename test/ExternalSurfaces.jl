@@ -26,7 +26,7 @@ Implemented Surfaces:
         @test getSSD(surf, pos, src) ≈ SSD_truth
         @test getdepth(surf, pos, src) ≈ depth_truth
     
-        λ = 2*rand()
+        λ = 1.05
         pos2 = src + λ*(pos - src)
         @test getSSD(surf, pos2, src) ≈ SSD_truth
 
@@ -80,20 +80,15 @@ Implemented Surfaces:
         structure = load_structure_from_ply("test_mesh.stl")
         surf = MeshSurface(structure)
 
-        # Test 1 - Visually inspected for accuracy
-
         @testset "Visual Inspection 1" begin
             src = SVector(0., 0., 1000.)
             pos = SVector(0., 0., 0.)
             test_surface(surf, pos, src, 884.0906064830797, 115.90939351692032)
         end
 
-        # Test 2 - Visually inspected for accuracy
-
         @testset "Visual Inspection 2" begin
             src = SVector(-335, 0., 942)
             pos = SVector(30., 20., 10.)
-
             test_surface(surf, pos, src, 875.0481662974585, 126.075702162384)
         end 
     end

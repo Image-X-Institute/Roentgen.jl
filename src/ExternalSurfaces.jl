@@ -130,14 +130,13 @@ function MeshSurface(mesh::SimpleMesh, n::Union{Int, AbstractVector{Int}}=8)
 end
 
 function intersection_points(surf::MeshSurface, pos::T, src::T) where T<:Point
-    line = Segment(pos, src)
-    pI = T[]
-    for (i, block) in enumerate(surf.mesh)
-        if hasintersect(line, surf.boxes[i])
-            append!(pI, intersect_mesh_single_threaded(line, block))
-        end
-    end
-    pI
+    intersect_mesh(Segment(pos, src), surf.mesh, surf.boxes)
+end
+
+function getSSD(surf::MeshSurface, pos, src)
+    pt = closest_intersection(pos, src, surf.mesh, surf.boxes)
+    pt===nothing && return Inf
+    norm(pt-src)
 end
 
 function getdepth(surf::MeshSurface, pos::T, src::T) where T<:Point
