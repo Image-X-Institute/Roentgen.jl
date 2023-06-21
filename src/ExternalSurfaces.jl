@@ -16,6 +16,7 @@ It current contains two types of external surfaces:
 =#
 
 export ConstantSurface, PlaneSurface, MeshSurface, CylindricalSurface
+export LinearSurface
 export getdepth, getSSD, compute_SSD!
 
 #--- AbstractExternalSurface --------------------------------------------------
@@ -31,7 +32,7 @@ abstract type AbstractExternalSurface end
 
 Get the Source-Surface Distance (SSD) for position `pos` to the radiation source `src`.
 """
-getSSD(surf::AbstractExternalSurface, pos, src)
+getSSD(surf::AbstractExternalSurface, pos, src) = norm(pos-src) - getdepth(surf, pos, src)
 
 """
     getdepth(surf::AbstractExternalSurface, pos, src)
@@ -40,7 +41,7 @@ Get the depth of the position `pos` below the surface from the radiation source 
 
 Computes the depth by subtracting 
 """
-getdepth(surf::AbstractExternalSurface, pos, src) = norm(pos - src) - getSSD(surf, pos, src)
+getdepth(surf::AbstractExternalSurface, pos, src)
 
 #--- ConstantSurface ----------------------------------------------------------
 
@@ -63,6 +64,7 @@ regardless of `pos`.
 """
 getSSD(surf::ConstantSurface, pos, src) = surf.source_surface_distance
 
+getdepth(surf::ConstantSurface, pos, src) = norm(pos-src)-getSSD(surf, pos, src)
 
 #--- PlaneSurface -------------------------------------------------------------
 
@@ -91,8 +93,9 @@ hypotenuse(a, b) = √(dot(a,a)*dot(b,b))/dot(a,b)
 When applied to a `PlaneSurface`, it returns the distance to the plane.
 """
 getSSD(surf::PlaneSurface, pos, src) = surf.source_surface_distance*hypotenuse(src, src - pos)
-
 getSSD(surf::PlaneSurface, pos::Point, src) = getSSD(surf, coordinates(pos), src)
+
+getdepth(surf::PlaneSurface, pos, src) = norm(pos-src)-getSSD(surf, pos, src)
 
 #--- MeshSurface --------------------------------------------------------------
 
@@ -101,24 +104,147 @@ getSSD(surf::PlaneSurface, pos::Point, src) = getSSD(surf, coordinates(pos), src
 
 An external surface defined by a 3D mesh.
 """
-struct MeshSurface{T} <: AbstractExternalSurface
-    mesh::Mesh{3, T}
+struct MeshSurface{TMesh, TBox} <: AbstractExternalSurface
+    mesh::TMesh
+    boxes::Vector{TBox}
+
+    function MeshSurface(mesh::Partition)
+        boxes = boundingbox.(mesh)
+        new{typeof(mesh), eltype(boxes)}(mesh, boxes)
+    end
+end
+
+function _boxwidth(mesh)
+    box = boundingbox(mesh)
+    pmin, pmax = extrema(box)
+    pmax - pmin
+end
+
+function MeshSurface(mesh::SimpleMesh, boxwidths::AbstractVector{T}) where T<:Real
+    part = BlockPartition(boxwidths)
+    blockmesh = partition(mesh, part)
+    MeshSurface(blockmesh)
+end
+
+function MeshSurface(mesh::SimpleMesh, n::Union{Int, AbstractVector{Int}}=8)
+    widths = SVector(_boxwidth(mesh))
+    MeshSurface(mesh, widths./n)
+end
+
+function intersection_points(surf::MeshSurface, pos::T, src::T) where T<:Point
+    intersect_mesh(Segment(pos, src), surf.mesh, surf.boxes)
+end
+
+function getSSD(surf::MeshSurface, pos, src)
+    pt = closest_intersection(pos, src, surf.mesh, surf.boxes)
+    pt===nothing && return Inf
+    norm(pt-src)
+end
+
+function getdepth(surf::MeshSurface, pos::T, src::T) where T<:Point
+    pts = intersection_points(surf, pos, src)
+    length(pts)==0 && return NaN
+
+    push!(pts, pos)
+    sum(@. norm(pts[1:2:end]-pts[2:2:end]))
+end
+getdepth(surf::MeshSurface, pos, src) = getdepth(surf, Point(pos), Point(src))
+
+#--- Linear Surface ------------------------------------------------------------
+
+struct Plane{T}
+    p::SVector{3, T}
+    n::SVector{3, T}
+end
+
+function intersection_point(plane::Plane, p1::SVector{3, T}, p2::SVector{3, T}) where T<:Real
+    v = p2-p1
+    nv = dot(plane.n, v)
+    isapprox(nv, zero(T), atol=T(1e-16)) && return nothing
+    λ = dot(plane.n, plane.p - p1)/nv
+    p1 + λ*v
+end
+
+struct LinearSurface{T<:AbstractInterpolation}
+    params::T
+
+    function LinearSurface(params)
+        @assert length(params)==361 "Distance must be supplied at every degree"
+        I = interpolate(params, BSpline(Linear()))
+        new{typeof(I)}(I)
+    end
+end
+
+LinearSurface(p, n) = LinearSurface(vcat.(p, n))
+
+function LinearSurface(ϕg, p, n)
+    params = vcat.(p, n)
+    I = linear_interpolation(ϕg, params)
+    dist = I.(deg2rad.(0:360))
+    LinearSurface(dist)
 end
 
 """
-    getSSD(surf::MeshSurface, pos, src)
+    LinearSurface(mesh[, SAD=1000, ΔΘ=deg2rad(1)])
 
-When applied to a `MeshSurface`, it returns the smallest distance to the mesh.
+Construct a LinearSurface from a mesh.
 
-Returns `Inf` if no intersection is found. 
+Computes a set of planes parallel to the surface of the mesh.
 """
-getSSD(surf::MeshSurface, pos, src) = getSSD(surf, Point(pos), Point(src))
+function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.), ΔΘ=deg2rad(1)) where {T<:Real}
+    N = 361
+    ϕg = 2π*range(0, 1, length=N)
+    n = Vector{SVector{3, T}}(undef, N)
+    p = Vector{SVector{3, T}}(undef, N)
 
-function getSSD(surf::MeshSurface, pos::Point, src::Point)
-    line = Ray(src, pos-src)
-    pI = intersect_mesh(line, surf.mesh)
-    length(pI)==0 && return Inf
-    minimum(norm.(pI .- Ref(src)))
+    pos = SVector(zeros(T, 3)...)
+    vy = SVector(0., 1., 0.)
+
+    x = SAD*tan(ΔΘ)
+
+    for i in eachindex(ϕg, n, p)
+        src = SAD*SVector(sin(ϕg[i]), zero(T), cos(ϕg[i]))
+
+        v = x*normalize(cross(pos-src, vy))
+
+        pp = pos+v
+        pm = pos-v
+
+        pIc = closest_intersection(src, pos, mesh)
+        pIp = closest_intersection(src, pp, mesh)
+        pIm = closest_intersection(src, pm, mesh)
+
+        p[i] = pIc
+        n[i] = normalize(cross(pIp-pIm, vy))
+    end
+
+    LinearSurface(p, n)
+end
+
+function getplane(surf::LinearSurface, src::SVector{3})
+    ϕg = atand(src[1], src[3])
+    ϕg = mod(ϕg, 360)+1
+    param = surf.params(ϕg)
+
+    p = param[SVector(1, 2, 3)]
+    n = param[SVector(4, 5, 6)]
+
+    Plane(p, n)
+end
+
+function getSSD(surf::LinearSurface, pos, src)
+    plane = getplane(surf, src)
+    pI = intersection_point(plane, pos, src)
+    pI === nothing && return Inf
+    norm(pI-src)
+end
+
+function getdepth(surf::LinearSurface, pos, src)
+    plane = getplane(surf, src)
+    pI = intersection_point(plane, pos, src)
+    pI === nothing && return NaN
+    v = pI-pos
+    sign(dot(plane.n, v))*norm(v)
 end
 
 #--- CylindricalSurface --------------------------------------------------------
@@ -128,82 +254,109 @@ end
 
 A planar external surface at a variable distance from the isocenter.
 """
-struct CylindricalSurface{Ty<:AbstractVector, Tϕ<:AbstractVector, Tdist<:AbstractMatrix, TInterpolation} <: AbstractExternalSurface
-    ϕ::Tϕ
-    y::Ty
-    distance::Tdist
-    I::TInterpolation
-    function CylindricalSurface(ϕ, y, rho)
-        I = linear_interpolation((ϕ, y), rho)
-        new{typeof(ϕ), typeof(y), typeof(rho), typeof(I)}(ϕ, y, rho, I)
-    end
+struct CylindricalSurface{TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
+    y::TRange
+    ϕ::TRange
+    rho::TInterp
 end
 
 # Constructors
+
+function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
+
+    ϕI = 0:minimum(diff(ϕ)):2π
+    yI = y[1]:minimum(diff(y)):y[end]
+
+    rhoI = linear_interpolation((ϕ, y), rho).(ϕI, yI')
+
+    I = interpolate(rhoI, BSpline(Linear()))
+    CylindricalSurface(yI, ϕI, I)
+end
 
 """
     CylindricalSurface
 
 Construct from a mesh.
 """
-function CylindricalSurface(mesh::SimpleMesh; Δϕ°=2., Δy=2.)
-    ϕ = (-180:Δϕ°:180)*pi/180
+function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
+    ϕ = range(0., 2π, length=nϕ)
 
+    L = diagonal(boundingbox(mesh))
+
+    rho = zeros(length(ϕ), length(y))
+
+    meshsurf = MeshSurface(mesh)
+
+    for j in eachindex(y), i in eachindex(ϕ[1:end-1])
+        pos = SVector(0., y[j], 0.)
+        src = SVector(L*sin(ϕ[i]), y[j], L*cos(ϕ[i]))
+        
+        pI = closest_intersection(src, pos, meshsurf.mesh, meshsurf.boxes)
+        if pI===nothing
+            rho[i, j] = NaN
+        else
+            rho[i, j] = √(pI[1]^2+pI[3]^2)
+        end
+    end
+    rho[end, :] .= rho[1, :]
+
+    I = interpolate(rho, BSpline(Linear()))
+    CylindricalSurface(y, ϕ, I)
+end
+
+function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...)
     box = boundingbox(mesh)
-
-    SAD = diagonal(box)
-
     y₀ = coordinates(minimum(box))[2]
     y₁ = coordinates(maximum(box))[2]
     y = y₀:Δy:y₁
     y = 0.5*(y[2:end]+y[1:end-1])
 
-    rho = zeros(length(ϕ), length(y))
-
-    for j in eachindex(y), i in eachindex(ϕ[1:end-1])
-        pos = Point(0., y[j], 0.)
-        src = Point(SAD*sin(ϕ[i]), y[j], SAD*cos(ϕ[i]))
-        
-        line = Ray(src, pos-src)
-        pI = intersect_mesh(line, mesh)
-        if length(pI)==0
-            ρᵢ = Inf
-        else
-            s = argmin(norm.(pI .- Ref(src)))
-            ρᵢ = norm(pI[s]-pos)
-        end
-
-        rho[i, j] = ρᵢ
-    end
-    rho[end, :] .= rho[1, :]
-
-    CylindricalSurface(ϕ, y, rho)
+    CylindricalSurface(mesh, y, args...)
 end
 
 # Methods
-function distance_to_surface(λ, surf, pos, src)
-    r = src + λ*(pos - src)
 
-    ϕ, y = atan(r[1], r[3]), r[2]
-    rho = surf.I(ϕ, y)
+function _interp(surf::CylindricalSurface, r)
+    ϕg = surf.ϕ
+    ϕ = atan(r[1], r[3])
+    i = mod2pi(ϕ)/step(ϕg)+1
+
+    yg = surf.y
+    j = (r[2]-first(yg))/step(yg)
+    j = clamp(j+1, 1, length(yg))
+
+    surf.rho(i, j)
+end
+
+function _distance_to_surface(λ, surf, pos, src)
+    r = pos + λ*(src-pos)
+
+    rho = _interp(surf, r)
 
     idx = SVector(1, 3)
     rho^2 - dot(r[idx], r[idx])
 end
 
-function getSSD(surf::CylindricalSurface, pos, src)
+function getdepth(surf::CylindricalSurface, pos::AbstractVector{T}, src::AbstractVector{T}) where T<:Real
 
-    sign(distance_to_surface(0., surf, pos, src)) == sign(distance_to_surface(1., surf, pos, src)) && return Inf
+    f(x) = _distance_to_surface(x, surf, pos, src)
 
-    λ = find_zero(x->distance_to_surface(x, surf, pos, src), (0., 1.), AlefeldPotraShi())
+    lims = (zero(T), one(T))
+
+    sign(f(lims[1])) == sign(f(lims[2])) && return Inf
+
+    λ = find_zero(f, lims, AlefeldPotraShi())
     λ*norm(src-pos)
 end
 
 function write_vtk(filename::String, surf::CylindricalSurface)
-
-    x = @. surf.distance*sin(surf.ϕ)
+    ϕ = surf.ϕ
     y = surf.y
-    z = @. surf.distance*cos(surf.ϕ)
+    rho = Interpolations.coefficients(surf.rho)
+
+    x = @. rho*sin(ϕ)
+    y = surf.y
+    z = @. rho*cos(ϕ)
 
     xg = reshape(x, size(x)..., 1)
     yg = ones(size(xg)).*y'
@@ -211,13 +364,16 @@ function write_vtk(filename::String, surf::CylindricalSurface)
 
     vtk = vtk_grid(filename, xg, yg, zg)
     vtk_save(vtk)
-    
+
 end
 
 function extent(surf::CylindricalSurface)
-    x = @. surf.distance*sin(surf.ϕ)
+    ϕ = surf.ϕ
     y = surf.y
-    z = @. surf.distance*cos(surf.ϕ)
+    rho = Interpolations.coefficients(surf.rho)
+
+    x = @. rho*sin(ϕ)
+    z = @. rho*cos(ϕ)
     SVector(minimum(x), minimum(y), minimum(z)), SVector(maximum(x), maximum(y), maximum(z))
 end
 
@@ -227,6 +383,5 @@ function isinside(surf::CylindricalSurface, pos::AbstractVector{T}) where T<:Rea
     (y<surf.y[1]||surf.y[end]<=y) && return false
     x^2+z^2 == zero(T) && return true
 
-    ϕ = atan(x, z)
-    x^2+z^2 < surf.I(ϕ, y)^2
+    x^2+z^2 < _interp(surf, pos)^2
 end

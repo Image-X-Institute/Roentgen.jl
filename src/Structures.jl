@@ -49,47 +49,61 @@ Find the intersection points of the `line` and the `mesh`.
 
 Returns a list of intersection points, and an empty list if none present.
 """
-function intersect_mesh(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
-    if(Threads.nthreads()==1)
-        return intersect_mesh_single_threaded(line, mesh)
-    else
-        return intersect_mesh_multi_threaded(line, mesh)
-    end
-end
-
-"""
-    intersect_mesh_single_threaded(s, mesh)
-
-Single-threaded version of `intersect_mesh`.
-"""
-function intersect_mesh_single_threaded(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
-    intersection_points = Point{Dim, T}[]
+function intersect_mesh(line::Segment, mesh::Domain{Dim, T}) where {Dim, T}
+    pI = Point{Dim, T}[]
     for cell in mesh
         pt = intersect(line, cell)
         if(pt !== nothing)
-            push!(intersection_points, pt)
+            push!(pI, pt)
         end
     end
-    intersection_points
+    pI
 end
 
 """
-    intersect_mesh_multi_threaded(s, mesh)
+    intersect_mesh(line::Segment, mesh::Partition[, boxes])
 
-Multi-threaded version of `intersect_mesh`.
+Intersect a partitioned mesh.
+
+Will check intersection with the bounding box of each partition before checking 
+for intersection between each cell. Can pre-compute bounding boxes for extra
+performance. Single threaded.
 """
-function intersect_mesh_multi_threaded(line::Geometry, mesh::Domain{Dim, T}) where {Dim, T}
-    intersection_points = Vector{Vector{Point{Dim, T}}}(undef, Threads.nthreads())
-    for i=1:Threads.nthreads()
-        intersection_points[i] = Point{Dim, T}[]
-    end
-    Threads.@threads for cell in mesh
-        pt = intersect(line, cell)
-        if(pt !== nothing)
-            push!(intersection_points[Threads.threadid()], pt)
+function intersect_mesh(line::Segment{Dim, T}, mesh::Partition{<:Domain{Dim, T}},
+    boxes) where {Dim, T}
+    pI = Point{Dim, T}[]
+    for (i, block) in enumerate(mesh)
+        if hasintersect(line, boxes[i])
+            append!(pI, intersect_mesh(line, block))
         end
     end
-    vcat(intersection_points...)
+    pI
+end
+intersect_mesh(line::Segment, mesh::Partition{<:Domain}) = intersect_mesh(line, mesh, boundingbox.(mesh))
+
+#--- Closest Intersection ------------------------------------------------------
+
+"""
+    closest_intersection(p1, p2, mesh::Domain)
+
+Return the point on the line `p1->p2` and `mesh` closest to `p1`
+
+Finds all points of intersection, then returns the point closest to `p1`.
+If no intersections are found, it returns `nothing`.
+"""
+function closest_intersection(p1, p2, mesh, args...)
+    # Find intersection points
+    segment = Segment(SVector(Point(p1), Point(p2)))
+    pI = intersect_mesh(segment, mesh, args...)
+
+    # If none found, return nothing
+    length(pI)==0 && return nothing
+
+    # Otherwise, return the closest
+    length(pI)==1 && return coordinates(pI[1])
+
+    s = argmin(@. norm(coordinates(pI)-(p1,)))
+    coordinates(pI[s])
 end
 
 #--- File IO ------------------------------------------------------------------

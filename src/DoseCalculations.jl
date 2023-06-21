@@ -34,7 +34,7 @@ using Meshes
 import JSON
 
 # Imports 
-import Base.IndexStyle, Base.show
+import Base.IndexStyle, Base.show, Base.intersect
 
 include("utils/interpolation.jl")
 include("utils/misc.jl")
@@ -67,5 +67,8 @@ export load, save, write_vtk, write_nrrd
 
 export BixelGrid
 export MockKernel
+
+# Structures
+export closest_intersection
 
 end # module

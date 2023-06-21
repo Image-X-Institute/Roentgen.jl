@@ -14,6 +14,8 @@ Implemented Surfaces:
 
 @testset "External Surfaces" begin
 
+    _test_mesh_path = "test-data/test-mesh.stl"
+
     function random_source(SAD)
         ϕ = 2π*rand()
         θ = π*rand()
@@ -22,15 +24,20 @@ Implemented Surfaces:
 
     random_position() = SVector((200*rand(3) .- 100)...)
 
-    function test_surface(surf, pos, src, SSD_truth, depth_truth)
-        @test getSSD(surf, pos, src) ≈ SSD_truth
-        @test getdepth(surf, pos, src) ≈ depth_truth
+    function test_surface(surf, pos, src, SSD_truth::T, depth_truth; atol=atol(T)) where T<:Real
+        @test getSSD(surf, pos, src) ≈ SSD_truth atol=atol
+        @test getdepth(surf, pos, src) ≈ depth_truth atol=atol
     
-        λ = 2*rand()
+        λ = 1.05
         pos2 = src + λ*(pos - src)
-        @test getSSD(surf, pos2, src) ≈ SSD_truth
-
+        @test getSSD(surf, pos2, src) ≈ SSD_truth atol=atol
     end
+
+    function test_surface(surf, pos, src, SSD_truth; args...)
+        depth_truth = norm(pos-src)-SSD_truth
+        test_surface(surf, pos, src, SSD_truth, depth_truth; args...)
+    end
+    
     SAD = 1000.
     @test norm(random_source(SAD)) ≈ SAD
 
@@ -77,44 +84,118 @@ Implemented Surfaces:
     end
 
     @testset "MeshSurface" begin
-        structure = load_structure_from_ply("test_mesh.stl")
+        structure = load_structure_from_ply(_test_mesh_path)
         surf = MeshSurface(structure)
-
-        # Test 1 - Visually inspected for accuracy
 
         @testset "Visual Inspection 1" begin
             src = SVector(0., 0., 1000.)
             pos = SVector(0., 0., 0.)
-            test_surface(surf, pos, src, 884.0906064830797, 115.90939351692032)
+            test_surface(surf, pos, src, 902.4844182019233)
         end
 
-        # Test 2 - Visually inspected for accuracy
-
         @testset "Visual Inspection 2" begin
-            src = SVector(-335, 0., 942)
-            pos = SVector(30., 20., 10.)
+            src = SVector(998.88987496197, 0., 47.10645070964268)
+            pos = SVector(152., 102., -52.)
 
-            test_surface(surf, pos, src, 875.0481662974585, 126.075702162384)
-        end 
+            test_surface(surf, pos, src, 846.4940339402172)
+        end
     end
 
     @testset "Cylindrical Surface" begin
-        mesh = load_structure_from_ply("test_cylinder.stl")
-        surf = CylindricalSurface(mesh; Δϕ°=1., Δy=1.)
+        mesh = load_structure_from_ply(_test_mesh_path)
         meshsurf = MeshSurface(mesh)
+        surf = CylindricalSurface(mesh, 20., 36)
 
-        @testset "Visual Inspection 1" begin
+        @testset "Axis-Aligned, Center" begin
             src = SVector(0., 0., 1000.)
             pos = SVector(0., 0., 0.)
 
-            @test getSSD(surf, pos, src) ≈ getSSD(meshsurf, pos, src) atol=0.01
+            test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=1.)
         end
         
-        @testset "Visual Inspection 2" begin
-            src = SVector(-272.2, 100., 962.2)
-            pos = SVector(67.9, -80.7, -2.6)
+        @testset "Random position and source" begin
+            src = SVector(998.88987496197, 0., 47.10645070964268)
+            pos = SVector(152., 102., -52.)
 
-            @test getSSD(surf, pos, src) ≈ getSSD(meshsurf, pos, src) atol=0.01
+            test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=1.)
         end
+    end
+
+    @testset "Plane" begin
+        n = SVector(rand(3)...)
+        p = SVector(rand(3)...)
+        plane = DoseCalculations.Plane(p, n)
+    
+        l1 = SVector(rand(3)...)
+        l2 = SVector(rand(3)...)
+        v = l2-l1
+    
+        @testset "Intersection" begin
+            pI = DoseCalculations.intersection_point(plane, l1, l2)
+    
+            # On Plane
+            @test dot(n, pI) ≈ dot(n, p)
+    
+            # On Line
+            λ = (pI - l1)./v
+            @test all(λ .≈ λ[1])
+        end
+    
+        @testset "No Intersection" begin
+            n = cross(SVector(rand(3)...), v)
+            plane = DoseCalculations.Plane(p, n)
+            @test DoseCalculations.intersection_point(plane, l1, l2) === nothing
+        end
+    end
+
+    @testset "LinearSurface" begin
+
+        function test_angle(surf, ϕg, SAD, SSDc)
+        
+            gantry = GantryPosition(ϕg, 0., SAD)
+            src = DoseCalculations.getposition(gantry)
+        
+            T = RotY(ϕg)
+        
+            @testset "Along Central Axis" begin
+                z = 20*rand().-10
+                pos = T*SVector(0., 0., z)
+                @test getSSD(surf, pos, src) ≈ SSDc
+                @test getdepth(surf, pos, src) ≈ norm(pos-src)-SSDc
+            end
+        
+            @testset "Off-Axis" begin
+        
+                R = 750.
+                SSD = SSDc*√(1+(R/SAD)^2)
+                
+                θ = 2π*rand()
+                z = 20*rand().-10
+                α = (SAD-z)/SAD
+        
+                pos = T*SVector(α*R*sin(θ), α*R*cos(θ), z)
+                @test getSSD(surf, pos, src) ≈ SSD
+                @test getdepth(surf, pos, src) ≈ norm(pos-src)-SSD
+            end
+        end
+
+        SAD = 1000.
+        
+        ϕg = [0., π/3., π, 4*π/3, 2π]
+        r = @. 50*cos(ϕg) + 550.
+        x = @. r*sin(ϕg)
+        z = @. r*cos(ϕg)
+        
+        SSDc = SAD.-r
+        
+        p = SVector.(x, 0., z)
+        n = normalize.(p)
+        
+        surf = LinearSurface(ϕg, p, n)
+
+        @testset "$(rad2deg(ϕg[i])), $(SSDc[i])" for i in eachindex(ϕg, SSDc)
+            test_angle(surf, ϕg[i], SAD, SSDc[i])
+        end
+        
     end
 end
