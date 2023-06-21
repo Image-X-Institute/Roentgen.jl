@@ -50,46 +50,14 @@ Find the intersection points of the `line` and the `mesh`.
 Returns a list of intersection points, and an empty list if none present.
 """
 function intersect_mesh(line::Segment, mesh::Domain{Dim, T}) where {Dim, T}
-    if(Threads.nthreads()==1)
-        return intersect_mesh_single_threaded(line, mesh)
-    else
-        return intersect_mesh_multi_threaded(line, mesh)
-    end
-end
-
-"""
-    intersect_mesh_single_threaded(s, mesh)
-
-Single-threaded version of `intersect_mesh`.
-"""
-function intersect_mesh_single_threaded(line::Segment, mesh::Domain{Dim, T}) where {Dim, T}
-    intersection_points = Point{Dim, T}[]
+    pI = Point{Dim, T}[]
     for cell in mesh
         pt = intersect(line, cell)
         if(pt !== nothing)
-            push!(intersection_points, pt)
+            push!(pI, pt)
         end
     end
-    intersection_points
-end
-
-"""
-    intersect_mesh_multi_threaded(s, mesh)
-
-Multi-threaded version of `intersect_mesh`.
-"""
-function intersect_mesh_multi_threaded(line::Segment, mesh::Domain{Dim, T}) where {Dim, T}
-    intersection_points = Vector{Vector{Point{Dim, T}}}(undef, Threads.nthreads())
-    for i=1:Threads.nthreads()
-        intersection_points[i] = Point{Dim, T}[]
-    end
-    Threads.@threads for cell in mesh
-        pt = intersect(line, cell)
-        if(pt !== nothing)
-            push!(intersection_points[Threads.threadid()], pt)
-        end
-    end
-    vcat(intersection_points...)
+    pI
 end
 
 """
@@ -106,7 +74,7 @@ function intersect_mesh(line::Segment{Dim, T}, mesh::Partition{<:Domain{Dim, T}}
     pI = Point{Dim, T}[]
     for (i, block) in enumerate(mesh)
         if hasintersect(line, boxes[i])
-            append!(pI, intersect_mesh_single_threaded(line, block))
+            append!(pI, intersect_mesh(line, block))
         end
     end
     pI
