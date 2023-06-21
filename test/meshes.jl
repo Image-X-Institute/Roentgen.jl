@@ -24,32 +24,44 @@ It tests three types of "intersections":
 test_intersection_point(p, p_truth, ε) = norm(p - p_truth) < ε
 
 function test_intersections(s, mesh, pts_truth, ε)
-    pts = DoseCalculations.intersect_mesh(s, mesh)
+    pts = DoseCalculations.intersect_mesh_single_threaded(s, mesh)
     @test length(pts) == length(pts_truth)
-    @test all(test_intersection_point.(pts, pts_truth, ε))
+    @testset "$pI, $pIT" for (pI, pIT) in zip(pts, pts_truth)
+        @test test_intersection_point(pI, pIT, ε)
+    end
 end
 
 @testset "Mesh Intersections" begin
-    mesh = load_structure_from_ply("test_mesh.stl")
+    mesh = load_structure_from_ply("test-data/test-mesh.stl")
     ε = 0.1
 
     @testset "Single Intersection" begin
-        s = Segment((63., -15., 2.), (0., 0., 1000.))
-        pts_truth = [Point([57.3, -13.6, 92.6])]
+        p1 = (-271.5, 30.2, -28.5)
+        p2 = (152., 102., -52.)
+        s = Segment(p1, p2)
+
+        pts_truth = [Point(-166.7, 47.9, -34.3)]
         test_intersections(s, mesh, pts_truth, ε)
     end
 
     @testset "Double Intersection" begin
-        s = Segment((-73., 7., -191.), (0., 0., 1000.))
+        p1 = (-299.9, -50.6, 139.3)
+        p2 = (273.7, 113., -151.6)
+        s = Segment(p1, p2)
 
-        pts_truth = [Point([-67.0, 6.4, -92.4]),
-                     Point([-54.1, 5.2, 116.9])]
+        DoseCalculations.intersect_mesh_single_threaded(s, mesh)
+
+        pts_truth = [Point(-134.77, -3.50, 55.56)
+                     Point(159.98, 80.57, -93.93)]
                     
         test_intersections(s, mesh, pts_truth, ε)
     end
 
     @testset "No Intersection" begin
-        s = Segment((-189., 53.8, -136.3), (0., 0., 1000.))
+        p1 = (-299.9, -50.6, 139.3)
+        p2 = (206., 100., 164.)
+        s = Segment(p1, p2)
+
         pts = DoseCalculations.intersect_mesh(s, mesh)
         @test length(pts) == 0
     end
