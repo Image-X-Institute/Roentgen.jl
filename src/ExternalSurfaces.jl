@@ -256,27 +256,32 @@ A planar external surface at a variable distance from the isocenter.
 """
 struct CylindricalSurface{TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
     y::TRange
-    I::TInterp
+    ϕ::TRange
+    rho::TInterp
 end
 
 # Constructors
+
+function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
+
+    ϕI = 0:minimum(diff(ϕ)):2π
+    yI = y[1]:minimum(diff(y)):y[end]
+
+    rhoI = linear_interpolation((ϕ, y), rho).(ϕI, yI')
+
+    I = interpolate(rhoI, BSpline(Linear()))
+    CylindricalSurface(yI, ϕI, I)
+end
 
 """
     CylindricalSurface
 
 Construct from a mesh.
 """
-function CylindricalSurface(mesh::SimpleMesh, y)
-    ϕ = range(0., 2π, length=361)
+function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
+    ϕ = range(0., 2π, length=nϕ)
 
-    box = boundingbox(mesh)
-
-    SAD = diagonal(box)
-
-    # y₀ = coordinates(minimum(box))[2]
-    # y₁ = coordinates(maximum(box))[2]
-    # y = y₀:Δy:y₁
-    # y = 0.5*(y[2:end]+y[1:end-1])
+    L = diagonal(boundingbox(mesh))
 
     rho = zeros(length(ϕ), length(y))
 
@@ -284,7 +289,7 @@ function CylindricalSurface(mesh::SimpleMesh, y)
 
     for j in eachindex(y), i in eachindex(ϕ[1:end-1])
         pos = SVector(0., y[j], 0.)
-        src = SVector(SAD*sin(ϕ[i]), y[j], SAD*cos(ϕ[i]))
+        src = SVector(L*sin(ϕ[i]), y[j], L*cos(ϕ[i]))
         
         pI = closest_intersection(src, pos, meshsurf.mesh, meshsurf.boxes)
         if pI===nothing
@@ -296,20 +301,31 @@ function CylindricalSurface(mesh::SimpleMesh, y)
     rho[end, :] .= rho[1, :]
 
     I = interpolate(rho, BSpline(Linear()))
-    CylindricalSurface(y, I)
+    CylindricalSurface(y, ϕ, I)
+end
+
+function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...)
+    box = boundingbox(mesh)
+    y₀ = coordinates(minimum(box))[2]
+    y₁ = coordinates(maximum(box))[2]
+    y = y₀:Δy:y₁
+    y = 0.5*(y[2:end]+y[1:end-1])
+
+    CylindricalSurface(mesh, y, args...)
 end
 
 # Methods
 
 function _interp(surf::CylindricalSurface, r)
-    ϕ = atand(r[1], r[3])
-    i = mod(ϕ, 360)+1
+    ϕg = surf.ϕ
+    ϕ = atan(r[1], r[3])
+    i = mod2pi(ϕ)/step(ϕg)+1
 
     yg = surf.y
     j = (r[2]-first(yg))/step(yg)
     j = clamp(j+1, 1, length(yg))
 
-    surf.I(i, j)
+    surf.rho(i, j)
 end
 
 function _distance_to_surface(λ, surf, pos, src)
@@ -334,10 +350,13 @@ function getdepth(surf::CylindricalSurface, pos::AbstractVector{T}, src::Abstrac
 end
 
 function write_vtk(filename::String, surf::CylindricalSurface)
-
-    x = @. surf.distance*sin(surf.ϕ)
+    ϕ = surf.ϕ
     y = surf.y
-    z = @. surf.distance*cos(surf.ϕ)
+    rho = Interpolations.coefficients(surf.rho)
+
+    x = @. rho*sin(ϕ)
+    y = surf.y
+    z = @. rho*cos(ϕ)
 
     xg = reshape(x, size(x)..., 1)
     yg = ones(size(xg)).*y'
@@ -349,9 +368,12 @@ function write_vtk(filename::String, surf::CylindricalSurface)
 end
 
 function extent(surf::CylindricalSurface)
-    x = @. surf.distance*sin(surf.ϕ)
+    ϕ = surf.ϕ
     y = surf.y
-    z = @. surf.distance*cos(surf.ϕ)
+    rho = Interpolations.coefficients(surf.rho)
+
+    x = @. rho*sin(ϕ)
+    z = @. rho*cos(ϕ)
     SVector(minimum(x), minimum(y), minimum(z)), SVector(maximum(x), maximum(y), maximum(z))
 end
 
