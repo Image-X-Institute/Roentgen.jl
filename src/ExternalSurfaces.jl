@@ -300,8 +300,8 @@ function CylindricalSurface(mesh::SimpleMesh, y)
 end
 
 # Methods
-function distance_to_surface(λ, surf, pos, src)
-    r = src + λ*(pos - src)
+function _distance_to_surface(λ, surf, pos, src)
+    r = pos + λ*(src-pos)
 
     ϕ = atand(r[1], r[3])
     i = mod(ϕ, 360)+1
@@ -316,16 +316,17 @@ function distance_to_surface(λ, surf, pos, src)
     rho^2 - dot(r[idx], r[idx])
 end
 
-function getSSD(surf::CylindricalSurface, pos, src)
+function getdepth(surf::CylindricalSurface, pos::AbstractVector{T}, src::AbstractVector{T}) where T<:Real
 
-    f(x) = distance_to_surface(x, surf, pos, src)
+    f(x) = _distance_to_surface(x, surf, pos, src)
 
-    sign(f(0)) == sign(f(1.)) && return Inf
+    lims = (zero(T), one(T))
 
-    λ = find_zero(f, (0., 1.), AlefeldPotraShi()) #verbose=true
+    sign(f(lims[1])) == sign(f(lims[2])) && return Inf
+
+    λ = find_zero(f, lims, AlefeldPotraShi())
     λ*norm(src-pos)
 end
-getdepth(surf::CylindricalSurface, pos, src) = norm(pos - src) - getSSD(surf, pos, src)
 
 function write_vtk(filename::String, surf::CylindricalSurface)
 
