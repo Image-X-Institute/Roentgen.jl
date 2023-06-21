@@ -254,15 +254,9 @@ end
 
 A planar external surface at a variable distance from the isocenter.
 """
-struct CylindricalSurface{Ty<:AbstractVector, Tϕ<:AbstractVector, Tdist<:AbstractMatrix, TInterpolation} <: AbstractExternalSurface
-    ϕ::Tϕ
-    y::Ty
-    distance::Tdist
-    I::TInterpolation
-    function CylindricalSurface(ϕ, y, rho)
-        I = linear_interpolation((ϕ, y), rho)
-        new{typeof(ϕ), typeof(y), typeof(rho), typeof(I)}(ϕ, y, rho, I)
-    end
+struct CylindricalSurface{TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
+    y::TRange
+    I::TInterp
 end
 
 # Constructors
@@ -272,17 +266,17 @@ end
 
 Construct from a mesh.
 """
-function CylindricalSurface(mesh::SimpleMesh; Δϕ°=2., Δy=2.)
-    ϕ = (-180:Δϕ°:180)*pi/180
+function CylindricalSurface(mesh::SimpleMesh, y)
+    ϕ = range(0., 2π, length=361)
 
     box = boundingbox(mesh)
 
     SAD = diagonal(box)
 
-    y₀ = coordinates(minimum(box))[2]
-    y₁ = coordinates(maximum(box))[2]
-    y = y₀:Δy:y₁
-    y = 0.5*(y[2:end]+y[1:end-1])
+    # y₀ = coordinates(minimum(box))[2]
+    # y₁ = coordinates(maximum(box))[2]
+    # y = y₀:Δy:y₁
+    # y = 0.5*(y[2:end]+y[1:end-1])
 
     rho = zeros(length(ϕ), length(y))
 
@@ -301,15 +295,22 @@ function CylindricalSurface(mesh::SimpleMesh; Δϕ°=2., Δy=2.)
     end
     rho[end, :] .= rho[1, :]
 
-    CylindricalSurface(ϕ, y, rho)
+    I = interpolate(rho, BSpline(Linear()))
+    CylindricalSurface(y, I)
 end
 
 # Methods
 function distance_to_surface(λ, surf, pos, src)
     r = src + λ*(pos - src)
 
-    ϕ, y = atan(r[1], r[3]), r[2]
-    rho = surf.I(ϕ, y)
+    ϕ = atand(r[1], r[3])
+    i = mod(ϕ, 360)+1
+
+    yg = surf.y
+    j = (r[2]-first(yg))/step(yg)
+    j = clamp(j+1, 1, length(yg))
+
+    rho = surf.I(i, j)
 
     idx = SVector(1, 3)
     rho^2 - dot(r[idx], r[idx])
@@ -321,7 +322,7 @@ function getSSD(surf::CylindricalSurface, pos, src)
 
     sign(f(0)) == sign(f(1.)) && return Inf
 
-    λ = find_zero(f, (0.5, 1.), AlefeldPotraShi()) #verbose=true
+    λ = find_zero(f, (0., 1.), AlefeldPotraShi()) #verbose=true
     λ*norm(src-pos)
 end
 getdepth(surf::CylindricalSurface, pos, src) = norm(pos - src) - getSSD(surf, pos, src)
