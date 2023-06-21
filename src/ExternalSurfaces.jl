@@ -64,6 +64,7 @@ regardless of `pos`.
 """
 getSSD(surf::ConstantSurface, pos, src) = surf.source_surface_distance
 
+getdepth(surf::ConstantSurface, pos, src) = norm(pos-src)-getSSD(surf, pos, src)
 
 #--- PlaneSurface -------------------------------------------------------------
 
@@ -92,8 +93,9 @@ hypotenuse(a, b) = √(dot(a,a)*dot(b,b))/dot(a,b)
 When applied to a `PlaneSurface`, it returns the distance to the plane.
 """
 getSSD(surf::PlaneSurface, pos, src) = surf.source_surface_distance*hypotenuse(src, src - pos)
-
 getSSD(surf::PlaneSurface, pos::Point, src) = getSSD(surf, coordinates(pos), src)
+
+getdepth(surf::PlaneSurface, pos, src) = norm(pos-src)-getSSD(surf, pos, src)
 
 #--- MeshSurface --------------------------------------------------------------
 
