@@ -12,7 +12,7 @@ Implemented Surfaces:
     - MeshSurface (uses the same mesh and visual inspection as detailed in meshes.jl)
 =#
 
-@testset "External Surfaces" begin
+# @testset "External Surfaces" begin
 
     function random_source(SAD)
         ϕ = 2π*rand()
@@ -98,14 +98,14 @@ Implemented Surfaces:
         surf = CylindricalSurface(mesh; Δϕ°=1., Δy=1.)
         meshsurf = MeshSurface(mesh)
 
-        @testset "Visual Inspection 1" begin
+        @testset "Axis-Aligned, Center" begin
             src = SVector(0., 0., 1000.)
             pos = SVector(0., 0., 0.)
 
             @test getSSD(surf, pos, src) ≈ getSSD(meshsurf, pos, src) atol=0.01
         end
         
-        @testset "Visual Inspection 2" begin
+        @testset "Random position and source" begin
             src = SVector(-272.2, 100., 962.2)
             pos = SVector(67.9, -80.7, -2.6)
 
@@ -184,7 +184,7 @@ Implemented Surfaces:
         n = normalize.(p)
         
         surf = LinearSurface(ϕg, p, n)
-        
+
         @testset "$(rad2deg(ϕg[i])), $(SSDc[i])" for i in eachindex(ϕg, SSDc)
             test_angle(surf, ϕg[i], SAD, SSDc[i])
         end

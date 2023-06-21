@@ -284,20 +284,18 @@ function CylindricalSurface(mesh::SimpleMesh; Δϕ°=2., Δy=2.)
 
     rho = zeros(length(ϕ), length(y))
 
-    for j in eachindex(y), i in eachindex(ϕ[1:end-1])
-        pos = Point(0., y[j], 0.)
-        src = Point(SAD*sin(ϕ[i]), y[j], SAD*cos(ϕ[i]))
-        
-        line = Ray(src, pos-src)
-        pI = intersect_mesh(line, mesh)
-        if length(pI)==0
-            ρᵢ = Inf
-        else
-            s = argmin(norm.(pI .- Ref(src)))
-            ρᵢ = norm(pI[s]-pos)
-        end
+    meshsurf = MeshSurface(mesh)
 
-        rho[i, j] = ρᵢ
+    for j in eachindex(y), i in eachindex(ϕ[1:end-1])
+        pos = SVector(0., y[j], 0.)
+        src = SVector(SAD*sin(ϕ[i]), y[j], SAD*cos(ϕ[i]))
+        
+        pI = closest_intersection(src, pos, meshsurf.mesh, meshsurf.boxes)
+        if pI===nothing
+            rho[i, j] = NaN
+        else
+            rho[i, j] = √(pI[1]^2+pI[3]^2)
+        end
     end
     rho[end, :] .= rho[1, :]
 
@@ -338,7 +336,7 @@ function write_vtk(filename::String, surf::CylindricalSurface)
 
     vtk = vtk_grid(filename, xg, yg, zg)
     vtk_save(vtk)
-    
+
 end
 
 function extent(surf::CylindricalSurface)
