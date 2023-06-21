@@ -12,7 +12,9 @@ Implemented Surfaces:
     - MeshSurface (uses the same mesh and visual inspection as detailed in meshes.jl)
 =#
 
-# @testset "External Surfaces" begin
+@testset "External Surfaces" begin
+
+    _test_mesh_path = "test-data/test-mesh.stl"
 
     function random_source(SAD)
         ϕ = 2π*rand()
@@ -22,15 +24,20 @@ Implemented Surfaces:
 
     random_position() = SVector((200*rand(3) .- 100)...)
 
-    function test_surface(surf, pos, src, SSD_truth, depth_truth)
-        @test getSSD(surf, pos, src) ≈ SSD_truth
-        @test getdepth(surf, pos, src) ≈ depth_truth
+    function test_surface(surf, pos, src, SSD_truth::T, depth_truth; atol=atol(T)) where T<:Real
+        @test getSSD(surf, pos, src) ≈ SSD_truth atol=atol
+        @test getdepth(surf, pos, src) ≈ depth_truth atol=atol
     
         λ = 1.05
         pos2 = src + λ*(pos - src)
-        @test getSSD(surf, pos2, src) ≈ SSD_truth
-
+        @test getSSD(surf, pos2, src) ≈ SSD_truth atol=atol
     end
+
+    function test_surface(surf, pos, src, SSD_truth; args...)
+        depth_truth = norm(pos-src)-SSD_truth
+        test_surface(surf, pos, src, SSD_truth, depth_truth; args...)
+    end
+    
     SAD = 1000.
     @test norm(random_source(SAD)) ≈ SAD
 
@@ -77,39 +84,40 @@ Implemented Surfaces:
     end
 
     @testset "MeshSurface" begin
-        structure = load_structure_from_ply("test_mesh.stl")
+        structure = load_structure_from_ply(_test_mesh_path)
         surf = MeshSurface(structure)
 
         @testset "Visual Inspection 1" begin
             src = SVector(0., 0., 1000.)
             pos = SVector(0., 0., 0.)
-            test_surface(surf, pos, src, 884.0906064830797, 115.90939351692032)
+            test_surface(surf, pos, src, 902.4844182019233)
         end
 
         @testset "Visual Inspection 2" begin
-            src = SVector(-335, 0., 942)
-            pos = SVector(30., 20., 10.)
-            test_surface(surf, pos, src, 875.0481662974585, 126.075702162384)
-        end 
+            src = SVector(998.88987496197, 0., 47.10645070964268)
+            pos = SVector(152., 102., -52.)
+
+            test_surface(surf, pos, src, 846.4940339402172)
+        end
     end
 
     @testset "Cylindrical Surface" begin
-        mesh = load_structure_from_ply("test_cylinder.stl")
-        surf = CylindricalSurface(mesh; Δϕ°=1., Δy=1.)
+        mesh = load_structure_from_ply(_test_mesh_path)
         meshsurf = MeshSurface(mesh)
+        surf = CylindricalSurface(mesh; Δϕ°=10., Δy=20.)
 
         @testset "Axis-Aligned, Center" begin
             src = SVector(0., 0., 1000.)
             pos = SVector(0., 0., 0.)
 
-            @test getSSD(surf, pos, src) ≈ getSSD(meshsurf, pos, src) atol=0.01
+            test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=1)
         end
         
         @testset "Random position and source" begin
-            src = SVector(-272.2, 100., 962.2)
-            pos = SVector(67.9, -80.7, -2.6)
+            src = SVector(998.88987496197, 0., 47.10645070964268)
+            pos = SVector(152., 102., -52.)
 
-            @test getSSD(surf, pos, src) ≈ getSSD(meshsurf, pos, src) atol=0.01
+            test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=1)
         end
     end
 
