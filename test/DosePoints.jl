@@ -27,43 +27,42 @@
     end
 
     @testset "SurfaceBounds" begin
-        ϕ = deg2rad(-180):deg2rad(45.):deg2rad(180.)
+        ϕ = 0.:π/4:2π
         y = -12.:2.:18.
-        ρval = 10.
-        ρ = fill(ρval, length(ϕ), length(y))
-        y1, y2 = y[[1,end]]
+        rhoval = 10.
+        rho = fill(rhoval, length(ϕ), length(y))
         
-        surf = CylindricalSurface(ϕ, y, ρ)
+        surf = CylindricalSurface(ϕ, y, rho)
         bounds = SurfaceBounds(surf)
         
         pmin, pmax = DoseCalculations.extent(bounds)
-        @test pmin == [-ρval, y1, -ρval]
-        @test pmax == [ ρval, y2,  ρval]
+        @test pmin == [-rhoval, y[1], -rhoval]
+        @test pmax == [ rhoval, y[end],  rhoval]
 
         # Inside
         
         @test DoseCalculations.within(bounds, zeros(3))
         
-        function rand_pos(ρlim, ylim)    
-            ϕ = 2π*rand()
-            y = (ylim[end]-ylim[1])*rand()+ylim[1]
-            ρ = (ρlim[end]-ρlim[1])*rand()+ρlim[1]
-            [ρ*cos(ϕ), y, ρ*sin(ϕ)]
+        function rand_pos(rho1, rho2, y1, y2)
+            ϕi = 2π*rand()
+            yi = (y2-y1)*rand()+y1
+            rhoi = (rho2-rho1)*rand()+rho1
+            [rhoi*cos(ϕi), yi, rhoi*sin(ϕi)]
         end
         
-        @test DoseCalculations.within(bounds, rand_pos([0, 1]*ρval, y))
+        p = rand_pos(0., rhoval, y[1], y[end])
+        @test DoseCalculations.within(bounds, p)
 
         # Outside Radially
-        @test !DoseCalculations.within(bounds, rand_pos([1, 2]*ρval, y))
+        p = rand_pos(rhoval, 2*rhoval, y[1], y[end])
+        @test !DoseCalculations.within(bounds, p)
         
         # Outside Axially
-        ϕi, ρi = (2π, ρval).*rand(2)
-        x, z = ρi*cos(ϕi), ρi*sin(ϕi)
-        @test !DoseCalculations.within(bounds, [x, y1-1., z])
+        p = rand_pos(0, rhoval, y[1], y[1]-1)
+        @test !DoseCalculations.within(bounds, p)
 
-        ϕi, ρi = (2π, ρval).*rand(2)
-        x, z = ρi*cos(ϕi), ρi*sin(ϕi)
-        @test !DoseCalculations.within(bounds, [x, y2+1., z])
+        p = rand_pos(0, rhoval, y[end], y[end]+1)
+        @test !DoseCalculations.within(bounds, p)
     end
 end
 
