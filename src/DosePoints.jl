@@ -230,8 +230,8 @@ end
 write_vtk(filename::String, pos::DoseGrid, data::Dict) =  write_vtk(filename, pos, data...)
 
 function get_nrrd_props(pos::AbstractDoseGrid)
-    origin = tuple(pos[1, 1, 1]...)
     x, y, z = getaxes(pos)
+    origin = x[1], y[1], z[1]
     directions = (step(x), 0, 0), (0, step(y), 0), (0, 0, step(z))
     
     Dict("space origin"=>origin,
