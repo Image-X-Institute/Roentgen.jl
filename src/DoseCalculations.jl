@@ -52,6 +52,8 @@ include("ExternalSurfaces.jl")
 
 include("DosePoints.jl")
 
+include("DoseVolume.jl")
+
 include("Fluence.jl")
 include("DoseCalculationAlgorithms/DoseCalculationAlgorithms.jl")
 
