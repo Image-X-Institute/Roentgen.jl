@@ -11,3 +11,14 @@ end
 getpositions(vol::DoseVolume) = vol.positions
 getsurface(vol::DoseVolume) = vol.surface
 
+function dose_fluence_matrix!(D, vol::AbstractDoseVolume, beamlets, calc; kwargs...)
+    dose_fluence_matrix!(D, getpositions(vol), beamlets, getpositions(surf), calc;
+        kwargs...)
+end
+
+function dose_fluence_matrix(T, vol::AbstractDoseVolume, beamlets, calc; kwargs...)
+    dose_fluence_matrix(T, getpositions(vol), beamlets, getpositions(surf), calc;
+        kwargs...)
+end
+
+Adapt.@adapt_structure DoseVolume
