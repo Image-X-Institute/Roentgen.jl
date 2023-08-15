@@ -72,9 +72,12 @@ performance. Single threaded.
 function intersect_mesh(line::Segment{Dim, T}, mesh::Partition{<:Domain{Dim, T}},
     boxes) where {Dim, T}
     pI = Point{Dim, T}[]
+    ray = Ray(line(0.), line(1.)-line(0.))
     for (i, block) in enumerate(mesh)
-        if hasintersect(line, boxes[i])
-            append!(pI, intersect_mesh(line, block))
+        intersection(ray, boxes[i]) do I
+            if type(I) != NotIntersecting
+                append!(pI, intersect_mesh(line, block))
+            end
         end
     end
     pI
@@ -93,7 +96,7 @@ If no intersections are found, it returns `nothing`.
 """
 function closest_intersection(p1, p2, mesh, args...)
     # Find intersection points
-    segment = Segment(SVector(Point(p1), Point(p2)))
+    segment = Segment(Point(p1), Point(p2))
     pI = intersect_mesh(segment, mesh, args...)
 
     # If none found, return nothing
