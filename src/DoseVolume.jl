@@ -25,7 +25,7 @@ getsurface(vol::DoseVolume) = vol.surface
 Gets positions and surface from `vol`
 """
 function dose_fluence_matrix!(D, vol::AbstractDoseVolume, beamlets, calc; kwargs...)
-    dose_fluence_matrix!(D, getpositions(vol), beamlets, getpositions(surf), calc;
+    dose_fluence_matrix!(D, vec(getpositions(vol)), beamlets, getsurface(vol), calc;
         kwargs...)
 end
 
@@ -35,7 +35,7 @@ end
 Gets positions and surface from `vol`
 """
 function dose_fluence_matrix(T, vol::AbstractDoseVolume, beamlets, calc; kwargs...)
-    dose_fluence_matrix(T, getpositions(vol), beamlets, getpositions(surf), calc;
+    dose_fluence_matrix(T, vec(getpositions(vol)), beamlets, getsurface(vol), calc;
         kwargs...)
 end
 
