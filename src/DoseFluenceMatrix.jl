@@ -20,7 +20,7 @@ See `dose_fluence_matrix!` for implementation.
 function dose_fluence_matrix(T::Type{<:AbstractMatrix}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                              kwargs...)
-    D = T{Float64}(undef, length(pos), length(beamlets))
+    D = zeros(length(pos), length(beamlets))
     dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
 end
 
@@ -105,7 +105,7 @@ end
 
 Ensures size of D is correct
 """
-_assert_size(D, pos, beamlets) = @assert size(D) == (length(pos), length(beamlets))
+_assert_size(D, pos, beamlets) = @assert size(D) == (size(pos, 1), size(beamlets, 1))
 
 function point_dose(pos::SVector{3, T}, beamlet, surf, calc, maxradius) where T<:Number
     src = source_position(beamlet)

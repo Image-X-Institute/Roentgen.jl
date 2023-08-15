@@ -83,6 +83,6 @@ end
 
     Dsaved = JLD2.load("test-data/dose_fluence_matrix.jld2", "mock-kernel")
 
-    @test Dsaved == dose_fluence_matrix(Matrix, pos, beamlets, surf, calc; maxradius=5.)
-    @test Dsaved == dose_fluence_matrix(SparseMatrixCSC, pos, beamlets, surf, calc; maxradius=5.)
+    @test Dsaved == dose_fluence_matrix(Matrix, vec(pos), vec(beamlets), surf, calc; maxradius=5.)
+    @test Dsaved == dose_fluence_matrix(SparseMatrixCSC, vec(pos), vec(beamlets), surf, calc; maxradius=5.)
 end

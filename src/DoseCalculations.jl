@@ -59,11 +59,15 @@ include("DoseFluenceMatrix.jl")
 
 include("Structures.jl")
 
+include("DoseVolume.jl")
+
 include("DoseReconstructions.jl")
 
 export calibrate!
 
 export load, save, write_vtk, write_nrrd
+
+export DoseVolume, getpositions, getsurface
 
 export BixelGrid
 export MockKernel
