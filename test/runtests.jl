@@ -14,6 +14,7 @@ using QuadGK, HCubature
     include("DosePoints.jl")
     include("DoseFluenceMatrix.jl")
     include("ExternalSurfaces.jl")
+    include("DoseVolume.jl")
     include("meshes.jl")
     include("Bixels.jl")
     include("Beamlet.jl")
