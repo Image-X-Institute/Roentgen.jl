@@ -10,6 +10,10 @@ makedocs(
             "DosePositions.md",
             "ExternalSurfaces.md"
         ],
+        "Computing Dose"=>[
+            "Fluence.md",
+            "DoseFluenceMatrix.md"
+        ],
         "Dose Calculation Algorithms"=>["ScaledIsoplaneKernel.md",],
         "Utilties"=>[
             "Structures.md"
