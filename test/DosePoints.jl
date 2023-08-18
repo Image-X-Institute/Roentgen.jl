@@ -8,22 +8,22 @@
         # Compare the two constructors
         @test CylinderBounds(d, h, zeros(3)) == CylinderBounds(d, h)
     
-        pmin, pmax = DoseCalculations.extent(bounds)
+        pmin, pmax = Roentgen.extent(bounds)
         @test 0.5*(pmin+pmax) ≈ c
         @test pmax-pmin ≈ [d, d, h]
     
         # At center (inside)
-        @test DoseCalculations.within(bounds, c)
+        @test Roentgen.within(bounds, c)
     
         # Random position inside
         function rand_pos(α)
             θ = 2π*rand()
             @. c + 0.5*α*[d, d, h]*[cos(θ), sin(θ), 1.]
         end
-        @test DoseCalculations.within(bounds, rand_pos(0.8))
+        @test Roentgen.within(bounds, rand_pos(0.8))
     
         # Random position outside
-        @test !DoseCalculations.within(bounds,  rand_pos(1.2))
+        @test !Roentgen.within(bounds,  rand_pos(1.2))
     end
 
     @testset "SurfaceBounds" begin
@@ -35,13 +35,13 @@
         surf = CylindricalSurface(ϕ, y, rho)
         bounds = SurfaceBounds(surf)
         
-        pmin, pmax = DoseCalculations.extent(bounds)
+        pmin, pmax = Roentgen.extent(bounds)
         @test pmin == [-rhoval, y[1], -rhoval]
         @test pmax == [ rhoval, y[end],  rhoval]
 
         # Inside
         
-        @test DoseCalculations.within(bounds, zeros(3))
+        @test Roentgen.within(bounds, zeros(3))
         
         function rand_pos(rho1, rho2, y1, y2)
             ϕi = 2π*rand()
@@ -51,18 +51,18 @@
         end
         
         p = rand_pos(0., rhoval, y[1], y[end])
-        @test DoseCalculations.within(bounds, p)
+        @test Roentgen.within(bounds, p)
 
         # Outside Radially
         p = rand_pos(rhoval, 2*rhoval, y[1], y[end])
-        @test !DoseCalculations.within(bounds, p)
+        @test !Roentgen.within(bounds, p)
         
         # Outside Axially
         p = rand_pos(0, rhoval, y[1], y[1]-1)
-        @test !DoseCalculations.within(bounds, p)
+        @test !Roentgen.within(bounds, p)
 
         p = rand_pos(0, rhoval, y[end], y[end]+1)
-        @test !DoseCalculations.within(bounds, p)
+        @test !Roentgen.within(bounds, p)
     end
 end
 
@@ -139,7 +139,7 @@ end
         # Constructor with bounds
         bounds = CylinderBounds(13., 12., SVector(rand(3)...))
         pos = DoseGridMasked(6., bounds)
-        @test all(DoseCalculations.within.(Ref(bounds), pos))
+        @test all(Roentgen.within.(Ref(bounds), pos))
         
     end
 end

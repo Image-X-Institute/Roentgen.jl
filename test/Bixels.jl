@@ -101,7 +101,7 @@ end
         x = -12.:2.:8.
         y = -3.:3.:9.
         Δx, Δy = 5., 2.
-        xsnap, ysnap = DoseCalculations.snapped_range.((x, y), (Δx, Δy))
+        xsnap, ysnap = Roentgen.snapped_range.((x, y), (Δx, Δy))
     
         bixels = BixelGrid(x, y, Δx, Δy)
 

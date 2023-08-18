@@ -97,7 +97,7 @@ getSSD(surf::PlaneSurface, pos::Point, src) = getSSD(surf, coordinates(pos), src
 
 getdepth(surf::PlaneSurface, pos, src) = norm(pos-src)-getSSD(surf, pos, src)
 
-#--- MeshSurface --------------------------------------------------------------
+#--- MeshSurface ---------------------------------------------------------------
 
 """
     MeshSurface
@@ -110,6 +110,9 @@ struct MeshSurface{TMesh, TBox} <: AbstractExternalSurface
 
     function MeshSurface(mesh::Partition)
         boxes = boundingbox.(mesh)
+        new{typeof(mesh), eltype(boxes)}(mesh, boxes)
+    end
+    function MeshSurface(mesh::Partition, boxes)
         new{typeof(mesh), eltype(boxes)}(mesh, boxes)
     end
 end
@@ -165,15 +168,20 @@ function intersection_point(plane::Plane, p1::SVector{3, T}, p2::SVector{3, T}) 
     p1 + λ*v
 end
 
-struct LinearSurface{T<:AbstractInterpolation}
+struct LinearSurface{T<:AbstractInterpolation} <: AbstractExternalSurface
     params::T
 
-    function LinearSurface(params)
+    function LinearSurface(params::AbstractVector)
         @assert length(params)==361 "Distance must be supplied at every degree"
         I = interpolate(params, BSpline(Linear()))
         new{typeof(I)}(I)
     end
+    function LinearSurface(I::AbstractInterpolation)
+        new{typeof(I)}(I)
+    end
 end
+
+Adapt.@adapt_structure LinearSurface
 
 LinearSurface(p, n) = LinearSurface(vcat.(p, n))
 
@@ -302,6 +310,11 @@ function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
 
     I = interpolate(rho, BSpline(Linear()))
     CylindricalSurface(y, ϕ, I)
+end
+
+function Adapt.adapt_structure(to, surf::CylindricalSurface)
+    cu_rho = Adapt.adapt_structure(to, surf.rho)
+    CylindricalSurface(surf.y, surf.ϕ, cu_rho)
 end
 
 function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...)

@@ -15,9 +15,9 @@
         @test getϕg(gantry) ≈ ϕg
         @test getθb(gantry) ≈ θb
         @test getSAD(gantry) ≈ SAD
-        @test DoseCalculations.beamaxis(gantry) ≈ a
+        @test Roentgen.beamaxis(gantry) ≈ a
 
-        @test DoseCalculations.getposition(gantry) ≈ a*SAD
+        @test Roentgen.getposition(gantry) ≈ a*SAD
 
         fixed_to_bld(gantry) ≈ fixed_to_bld(ϕg, θb, SAD)
         bld_to_fixed(gantry) ≈ bld_to_fixed(ϕg, θb, SAD)

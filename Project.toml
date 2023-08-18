@@ -1,4 +1,4 @@
-name = "DoseCalculations"
+name = "Roentgen"
 uuid = "b0d14063-c48a-4081-83d5-5a5ab48cb495"
 authors = ["lmejn <33491793+lmejn@users.noreply.github.com>"]
 version = "0.13.0"

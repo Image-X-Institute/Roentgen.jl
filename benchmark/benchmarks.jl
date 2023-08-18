@@ -2,7 +2,7 @@
 #   Benchmarks for Calculating Dose-Fluence Matrices
 #
 
-using DoseCalculations
+using Roentgen
 using BenchmarkTools, StaticArrays
 
 create_bixels() = bixel_grid([-50., 50.], [-50., 50.], 1.)

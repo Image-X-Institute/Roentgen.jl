@@ -12,7 +12,7 @@ These tests load a sample mesh from an stl file, then compares the output of
     test_intersection_point(p, p_truth, ε) = norm(p - p_truth) < ε
 
     function test_intersections(s, mesh, pts_truth, ε)
-        pts = DoseCalculations.intersect_mesh(s, mesh)
+        pts = Roentgen.intersect_mesh(s, mesh)
         @test length(pts) == length(pts_truth)
 
         s = sortperm(getindex.(coordinates.(pts), 1))
@@ -53,7 +53,7 @@ These tests load a sample mesh from an stl file, then compares the output of
             p2 = (206., 100., 164.)
             s = Segment(p1, p2)
 
-            pts = DoseCalculations.intersect_mesh(s, mesh)
+            pts = Roentgen.intersect_mesh(s, mesh)
             @test length(pts) == 0
         end
 
@@ -61,14 +61,14 @@ These tests load a sample mesh from an stl file, then compares the output of
 
     @testset "Partitioned Mesh Intersections" begin
 
-        widths = DoseCalculations._boxwidth(mesh)./2
+        widths = Roentgen._boxwidth(mesh)./2
 
         parts = partition(mesh, BlockPartition(widths...))
 
         p1 = (-299.9, -50.6, 139.3)
         p2 = (273.7, 113., -151.6)
         s = Segment(p1, p2)
-        pts_truth = DoseCalculations.intersect_mesh(s, mesh)
+        pts_truth = Roentgen.intersect_mesh(s, mesh)
 
         test_intersections(s, parts, pts_truth, atol(Float64))
     end

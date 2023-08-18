@@ -1,4 +1,4 @@
-module DoseCalculations
+module Roentgen
 
 # Arrays
 using SparseArrays
