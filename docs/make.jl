@@ -4,8 +4,10 @@ makedocs(
     modules = [Roentgen],
     sitename="Roentgen.jl Documentation",
     pages = [
-        "Dose Volume"=>["ExternalSurfaces.md",
-                        "Structures.md"],
+        "Dose Volume"=>[
+            "DoseVolume.md",
+            "ExternalSurfaces.md",
+            "Structures.md"],
         "Dose Calculation Algorithms"=>["ScaledIsoplaneKernel.md",],
         "API"=>["API.md",]
     ]
