@@ -1,4 +1,4 @@
-# Dose Calculations
+# Roentgen
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://acrf-image-x-institute.github.io/Roentgen.jl/stable/)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://acrf-image-x-institute.github.io/Roentgen.jl/dev/)
 [![CI](https://github.com/ACRF-Image-X-Institute/Roentgen.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/ACRF-Image-X-Institute/Roentgen.jl/actions/workflows/CI.yml)
@@ -29,23 +29,7 @@ You can then use the package by entering:
 using Roentgen
 ```
 
-There are examples for dose calculations in the `examples/` folder
-
-## Running the Examples
-
-The `examples/` directory contains its own environment to ensure you have all the packages required to run the code.
-
-1. Navigate to `examples/` in your terminal
-
-2. Modify `path/to/data` strings in the example file to point to the required data.
-
-3. Run the following command, swapping out `{example_file}` with the name of the file:
-
-    ```sh
-    julia --project=. {example_file}.jl
-    ```
-
-**Note:** Julia is a Just-In-Time (JIT) compiled language. This means that every time you run the scripts from the terminal, it re-compiles the code, causing the code to run slower than expected. If you want to run these scripts multiple times, a better way to run this code would be to use the REPL or Visual Studio Code with the Julia Extension.
+There are examples for simple use cases and features in the [examples](https://github.com/ACRF-Image-X-Institute/Roentgen.jl/tree/main/examples) folder.
 
 ## Documentation
 
