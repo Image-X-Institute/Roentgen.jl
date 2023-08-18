@@ -6,6 +6,7 @@ makedocs(
     pages = [
         "Dose Volume"=>[
             "DoseVolume.md",
+            "DosePositions.md",
             "ExternalSurfaces.md",
             "Structures.md"],
         "Dose Calculation Algorithms"=>["ScaledIsoplaneKernel.md",],

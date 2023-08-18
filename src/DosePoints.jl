@@ -1,4 +1,4 @@
-import Base.+, Base.length, Base.getindex, Base.eachindex
+import Base.+, Base.length, Base.getindex, Base.eachindex, Base.show
 
 export save, DoseGrid, DoseGridMasked, CylinderBounds, gridsize, MeshBounds, SurfaceBounds
 
@@ -143,7 +143,9 @@ Whether `p` is within the mesh
 """
 within(bounds::SurfaceBounds, p) = isinside(bounds.surf, p)
 
-#--- AbstractDoseGrid ----------------------------------------------------------------------------------------------------------
+#--- AbstractDosePositions ---------------------------------------------------------------------------------------------
+
+abstract type AbstractDosePositions{T, N} <: AbstractArray{T, N} end
 
 """
     AbstractDoseGrid
@@ -152,7 +154,7 @@ A type of Dose Positions on a regular grid.
 
 Must have `axes` field defined.
 """
-abstract type AbstractDoseGrid{T, N} <: AbstractArray{SVector{3, T}, N} end
+abstract type AbstractDoseGrid{T, N} <: AbstractDosePositions{T, N} end
 
 """
     getaxes(pos::AbstractDoseGrid[, dim])
@@ -212,6 +214,8 @@ for op in (:+, :-, :*, :/)
         end
     end)
 end
+
+Base.display(pos::DoseGrid) = display(getaxes(pos))
 
 #-- IO 
 
