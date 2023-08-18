@@ -8,7 +8,7 @@ See src/DoseCalculationAlgorithms/ScaledIsoplaneKernel.jl
     @testset "Sub-division" begin
 
         function test_subdivision(x, Δx, δxmax)
-            x0, δx, nx = DoseCalculations.subdivide(x, Δx, δxmax)
+            x0, δx, nx = Roentgen.subdivide(x, Δx, δxmax)
             xsub = @. x0 + δx*(0:nx-1)
             
             @test δx <= δxmax
@@ -44,7 +44,7 @@ See src/DoseCalculationAlgorithms/ScaledIsoplaneKernel.jl
         calc = ScaledIsoplaneKernel("src/DoseCalculationAlgorithms/sample-kernel-data/6x/", 280.)
 
         function get_dose(Δx, Δy)
-            bixels = DoseCalculations.BixelGrid(jaws, Δx, Δy)
+            bixels = Roentgen.BixelGrid(jaws, Δx, Δy)
             sum(dose_fluence_matrix(pos, vec(bixels), surf, calc))
         end
 

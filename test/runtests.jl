@@ -1,12 +1,12 @@
 using Test
-using DoseCalculations
+using Roentgen
 using JLD2
 using StaticArrays, SparseArrays
 using Meshes
 using LinearAlgebra, Rotations
 using QuadGK, HCubature
 
-@testset "DoseCalculations" begin
+@testset "Roentgen" begin
     include("utils.jl")
     include("interpolation.jl")
     include("CoordinateSystems.jl")

@@ -15,7 +15,7 @@ end
     ϕg, θb, SAD, ΔMU, dose_rate = rand(5)
     isocenter = SVector(rand(3)...)
 
-    pt = DoseCalculations.ControlPoint(mlc, jaws, ϕg, θb, SAD, ΔMU, dose_rate, isocenter)
+    pt = Roentgen.ControlPoint(mlc, jaws, ϕg, θb, SAD, ΔMU, dose_rate, isocenter)
 
     @testset "Methods" begin
         @test getmlc(pt) == mlc
@@ -87,7 +87,7 @@ end
 end
 
 @testset "Fix Angle" begin
-    @test DoseCalculations.fixangle(0.4π) == 0.4π
-    @test DoseCalculations.fixangle(π) == π
-    @test DoseCalculations.fixangle(1.3π) == (1.3-2)π
+    @test Roentgen.fixangle(0.4π) == 0.4π
+    @test Roentgen.fixangle(π) == π
+    @test Roentgen.fixangle(1.3π) == (1.3-2)π
 end

@@ -124,14 +124,14 @@ Implemented Surfaces:
     @testset "Plane" begin
         n = SVector(rand(3)...)
         p = SVector(rand(3)...)
-        plane = DoseCalculations.Plane(p, n)
+        plane = Roentgen.Plane(p, n)
     
         l1 = SVector(rand(3)...)
         l2 = SVector(rand(3)...)
         v = l2-l1
     
         @testset "Intersection" begin
-            pI = DoseCalculations.intersection_point(plane, l1, l2)
+            pI = Roentgen.intersection_point(plane, l1, l2)
     
             # On Plane
             @test dot(n, pI) ≈ dot(n, p)
@@ -143,8 +143,8 @@ Implemented Surfaces:
     
         @testset "No Intersection" begin
             n = cross(SVector(rand(3)...), v)
-            plane = DoseCalculations.Plane(p, n)
-            @test DoseCalculations.intersection_point(plane, l1, l2) === nothing
+            plane = Roentgen.Plane(p, n)
+            @test Roentgen.intersection_point(plane, l1, l2) === nothing
         end
     end
 
@@ -153,7 +153,7 @@ Implemented Surfaces:
         function test_angle(surf, ϕg, SAD, SSDc)
         
             gantry = GantryPosition(ϕg, 0., SAD)
-            src = DoseCalculations.getposition(gantry)
+            src = Roentgen.getposition(gantry)
         
             T = RotY(ϕg)
         

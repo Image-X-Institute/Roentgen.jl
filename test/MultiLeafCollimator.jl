@@ -112,8 +112,8 @@
     end
 
     @testset "REPL IO" begin
-        @test length(DoseCalculations._str_closedaperture(10, 80)) == 80
-        @test length(DoseCalculations._str_aperture(10, [10, 20], 80)) == 80
+        @test length(Roentgen._str_closedaperture(10, 80)) == 80
+        @test length(Roentgen._str_aperture(10, [10, 20], 80)) == 80
     end
 
 end

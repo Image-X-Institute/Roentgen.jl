@@ -1,8 +1,8 @@
-using Documenter, DoseCalculations
+using Documenter, Roentgen
 
 makedocs(
-    modules = [DoseCalculations],
-    sitename="DoseCalculations.jl Documentation",
+    modules = [Roentgen],
+    sitename="Roentgen.jl Documentation",
     pages = [
         "Dose Volume"=>["ExternalSurfaces.md",
                         "Structures.md"],
@@ -12,5 +12,5 @@ makedocs(
     )
 
 deploydocs(
-    repo = "github.com/ACRF-Image-X-Institute/DoseCalculations.jl.git",
+    repo = "github.com/ACRF-Image-X-Institute/Roentgen.jl.git",
     )

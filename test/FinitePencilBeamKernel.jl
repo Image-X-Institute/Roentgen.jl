@@ -2,14 +2,14 @@
     # Tests if profile is continuous
     @testset "Continuity" begin
         u, x₀ = [0.5, 7.]
-        @test DoseCalculations.fpbk_profile_left(-x₀, u, x₀) ≈ DoseCalculations.fpbk_profile_center(-x₀, u, x₀)
-        @test DoseCalculations.fpbk_profile_right(x₀, u, x₀) ≈ DoseCalculations.fpbk_profile_center(x₀, u, x₀)
+        @test Roentgen.fpbk_profile_left(-x₀, u, x₀) ≈ Roentgen.fpbk_profile_center(-x₀, u, x₀)
+        @test Roentgen.fpbk_profile_right(x₀, u, x₀) ≈ Roentgen.fpbk_profile_center(x₀, u, x₀)
     end
 
     # Tests Eq. 4 in paper
     @testset "1D Profile Integration" begin
         u, x₀ = [0.5, 7.]
-        F = x->DoseCalculations.fpbk_profile(x, u, x₀)
+        F = x->Roentgen.fpbk_profile(x, u, x₀)
         I, ε = quadgk(F, -Inf, Inf) # quadgk returns integral and upper bound of error
         @test norm(I - 2*x₀) < ε
     end
@@ -21,7 +21,7 @@
         ux = [0.5, 0.04]
         uy = [0.4, 0.03]
         x₀, y₀ = [7., 6.]
-        F = (x)->DoseCalculations.fpbk_dose(x[1], x[2], w, ux, uy, x₀, y₀)
+        F = (x)->Roentgen.fpbk_dose(x[1], x[2], w, ux, uy, x₀, y₀)
         
         lb, ub = -1e3, 1e3
         integral, ε = hcubature(F, fill(lb, 2), fill(ub, 2))
@@ -61,7 +61,7 @@ end
         depth, tanθ, calc = setup_calc(wfun, uxfun, uyfun, Afun)
         
         d = depth[end]*rand()
-        w, ux, uy = DoseCalculations.getparams(calc, d) 
+        w, ux, uy = Roentgen.getparams(calc, d) 
                 
         @test w ≈ wfun(d)
         @test ux ≈ uxfun(d)
@@ -70,7 +70,7 @@ end
         d = depth[end]*rand()
         t = tanθ[end]*rand()
         
-        A = DoseCalculations.getscalingfactor(calc, d, t)
+        A = Roentgen.getscalingfactor(calc, d, t)
         @test A ≈ Afun(d, t)
     end
 

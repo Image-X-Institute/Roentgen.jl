@@ -19,7 +19,7 @@ All surfaces are assumed to be in the IEC BLD coordinate system. This means that
 A simple plane surface, positioned at a constant source-surface distance along the central beam axis with normal pointed towards the source. It accounts the fact that SSD increases with off-axis position.
 
 ```@repl
-using DoseCalculations
+using Roentgen
 surf = PlaneSurface(800.)
 getSSD(surf, [0., 0., 810.])
 getSSD(surf, [10., 20., 810.])
@@ -35,7 +35,7 @@ MeshSurface(mesh)
 ```
 which can be read from a `.ply` file, as described in [Structures](@ref)
 
-This is considered a slow method: for each position in the dose volume, it iterates through every face in the mesh (see [`DoseCalculations.intersect_mesh`](@ref)). A better alternative would be to create an [Isoplane Surface](@ref).
+This is considered a slow method: for each position in the dose volume, it iterates through every face in the mesh (see [`Roentgen.intersect_mesh`](@ref)). A better alternative would be to create an [Isoplane Surface](@ref).
 
 
 ### Isoplane Surface
@@ -54,7 +54,7 @@ IsoplaneSurface(pos, Δx, Δy, SAD)
 ```
 In this case, the extent of the grid is computed from dose volume positions.
 
-The SSD values on the plane are computed from a `mesh_surf::DoseCalculations.MeshSurface`,
+The SSD values on the plane are computed from a `mesh_surf::Roentgen.MeshSurface`,
 ```julia
 compute_SSD!(surf, mesh_surf)
 ```
@@ -64,7 +64,7 @@ compute_SSD!(surf, mesh_surf)
 A constant surface simply returns the provided source-surface distance, regardless of position.
 
 ```@repl
-using DoseCalculations
+using Roentgen
 surf = ConstantSurface(800.)
 getSSD(surf, [0., 0., 810.])
 getSSD(surf, [10., 20., 810.])

@@ -10,19 +10,19 @@
         r_inside = [SVector(1.,0.,1.), SVector(-2.,0.,3.), SVector(3.,0.,4.)]
         r_outside = [SVector(4.,0.,2.), SVector(2.,0.,1.), SVector(-6.,0.,3.)]
         for r in r_inside
-            @test DoseCalculations.kernel_size(r, a, maxradius/SAD)
+            @test Roentgen.kernel_size(r, a, maxradius/SAD)
         end
         for r in r_outside
-            @test !DoseCalculations.kernel_size(r, a, maxradius/SAD)
+            @test !Roentgen.kernel_size(r, a, maxradius/SAD)
         end
 
         for r in r_inside
             trans = RotYZX(2*π*rand(3)...)
-            @test DoseCalculations.kernel_size(trans*r, trans*a, maxradius/SAD)
+            @test Roentgen.kernel_size(trans*r, trans*a, maxradius/SAD)
         end
         for r in r_outside
             trans = RotYZX(2*π*rand(3)...)
-            @test !DoseCalculations.kernel_size(trans*r, trans*a, maxradius/SAD)
+            @test !Roentgen.kernel_size(trans*r, trans*a, maxradius/SAD)
         end
     end
 
@@ -35,7 +35,7 @@
     # Any r along a will return true
     a = random_vector()
     r = 2*rand()*a
-    @test DoseCalculations.kernel_size(r, a, rand())
+    @test Roentgen.kernel_size(r, a, rand())
 
     random_perp_vector(a) = normalize(cross(a, rand_centred(3)))
     function rand_setup(α)
@@ -57,11 +57,11 @@
 
     # Test inside radius
     a, r, SAD, maxradius = rand_setup(0.9)
-    @test DoseCalculations.kernel_size(r, a, maxradius/SAD)
+    @test Roentgen.kernel_size(r, a, maxradius/SAD)
 
     # Test outside radius
     a, r, SAD, maxradius = rand_setup(1.1)
-    @test !DoseCalculations.kernel_size(r, a, maxradius/SAD)
+    @test !Roentgen.kernel_size(r, a, maxradius/SAD)
 
 end
 

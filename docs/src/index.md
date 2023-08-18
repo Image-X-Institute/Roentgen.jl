@@ -1,4 +1,4 @@
-# DoseCalculations.jl
+# Roentgen.jl
 
 This is a Julia package for computing radiotherapy doses.
 The aim of this package is to provide a general and extensible means to include dose calculations into research.
