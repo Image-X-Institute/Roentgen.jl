@@ -206,7 +206,9 @@ function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T};
     bixels = Bixel{T}[]
 
     @inbounds for i in eachindex(mlc)
-        ((xL, xU), (yL, yU)) = mlc[i]
+        rect = mlc[i]
+        xL, xU = getx(rect)
+        yL, yU = gety(rect)
         
         xL = max(xL, jaws.x[1])
         xU = min(xU, jaws.x[2])
@@ -309,7 +311,7 @@ end
 
 From the Jaws.
 """
-fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, jaws.x, jaws.y)
+fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, getx(jaws), gety(jaws))
 
 #--- Fluence from an MLC Aperture --------------------------------------------------------------------------------------
 
@@ -327,7 +329,7 @@ function fluence(bixel::Bixel{T}, mlc::MultiLeafCollimator) where T<:AbstractFlo
 
     Ψ = zero(T)
     @inbounds for j=i1:i2
-        Ψ += fluence_from_rectangle(bixel, mlc[j]...)
+        Ψ += fluence(bixel, mlc[j])
     end
     Ψ
 end

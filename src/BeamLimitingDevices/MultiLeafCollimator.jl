@@ -90,9 +90,8 @@ Base.eachindex(mlc::MultiLeafCollimator) = Base.OneTo(mlc.n)
 
 #--- Indexing
 
-function Base.getindex(mlc::MultiLeafCollimator, i::Int)
-    mlc.positions[:, i], mlc.edges[i:i+1]
-end
+Base.getindex(mlc::MultiLeafCollimator, i::Int) = Jaws(mlc.positions[:, i], mlc.edges[i:i+1])
+
 function Base.getindex(mlc::MultiLeafCollimator, i::UnitRange{Int})
     MultiLeafCollimator(mlc.positions[:, i], mlc.edges[i[1]:i[end]+1])
 end
@@ -116,7 +115,10 @@ getedges(mlc::MultiLeafCollimator, i::UnitRange{Int}) = mlc.edges[i[1]:i[end]+1]
 getpositions(mlc::MultiLeafCollimator) = mlc.positions
 getpositions(mlc::MultiLeafCollimator, i) = mlc.positions[:, i]
 
-setpositions!(mlc::MultiLeafCollimator, x) = mlc.positions .= x
+function setpositions!(mlc::MultiLeafCollimator, x)
+    mlc.positions .= x
+    mlc
+end
 
 closeleaves!(mlc::MultiLeafCollimator) = setpositions!(mlc, zeros(2, length(mlc)))
 
@@ -148,28 +150,33 @@ end
 function Base.show(io::IO, mlc::MultiLeafCollimator)
     println(io, size(mlc.positions, 1), "x", size(mlc.positions, 2), " MultiLeafCollimator")
 
-    lw = 80
-    prevline = false
-    for i in eachindex(mlc)
+    maxlines = 20
+    linewidth = min(80, displaysize(stdout)[2])
+
+    N = length(mlc)
+
+    truncate_io = N > maxlines
+
+    nlines = min(maxlines, N)
+
+    if truncate_io 
+        println(io, "  ⋮")
+        indices = max(1, N):min(N, nlines*3÷4)
+    else
+        indices = eachindex(mlc)
+    end
+
+    for i in indices
         pos = mlc.positions[:, i]
-        linepos = _io_conv.(pos, lw)
-
-        if pos[1]!=pos[2]
-
-            if !prevline
-                println(io, "  ⋮")
-                println(io, _str_closedaperture(i-1, lw))
-            end
-            println(io, _str_aperture(i, linepos, lw))
-
-            prevline=true
+        linepos = _io_conv.(pos, linewidth)
+        if pos[1] < pos[2]
+            println(io, _str_aperture(i, linepos, linewidth))
         else
-            if prevline
-                println(io, _str_closedaperture(i, lw))
-                println(io, "  ⋮")
-            end
-            prevline=false
+            println(io, _str_closedaperture(i, linewidth))
         end
+    end
 
+    if truncate_io
+        println(io, "  ⋮")
     end
 end
