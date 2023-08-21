@@ -283,6 +283,13 @@ limiting device.
 """
 fluence(bixels::AbstractArray{<:AbstractBixel}, args...) = fluence.(bixels, Ref.(args)...)
 
+"""
+    fluence!(Ψ::AbstractArray{<:AbstractFloat}, bixels::AbstractArray{<:AbstractBixel}, args...)
+
+Compute the fluence on a collection of bixels, storing the result in Ψ.
+
+See `fluence(bixels::AbstractArray{<:AbstractBixel}, args...)` for details.
+"""
 fluence!(Ψ::AbstractArray{<:AbstractFloat}, bixels::AbstractArray{<:AbstractBixel}, args...) = Ψ .= fluence.(bixels, Ref.(args)...)
 
 
@@ -298,6 +305,11 @@ the particular beam limiting device
 """
 fluence(bixels::AbstractArray{<:AbstractBixel}, index::AbstractArray{Int}, args...) = fluence.(bixels, index, Ref.(args)...)
 
+"""
+    fluence!(Ψ::AbstractArray{<:AbstractFloat}, bixels::AbstractArray{<:AbstractBixel}, index::AbstractArray{Int}, args...)
+
+Stores the result in Ψ. See `fluence(bixels::AbstractArray{<:AbstractBixel}, index::AbstractArray{Int}, args...)` for details
+"""
 function fluence!(Ψ::AbstractArray{<:AbstractFloat}, bixels::AbstractArray{<:AbstractBixel}, index::AbstractArray{Int}, args...)
     Ψ .= fluence.(bixels, index, Ref.(args)...)
 end

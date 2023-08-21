@@ -116,3 +116,15 @@ getaxes(bixels, 1)
 
 ## Fluence
 
+Fluence is computed using the [`fluence`](@ref) method with bixel and beam-limiting devices as inputs,
+```@repl abc 
+fluence(bixel, jaws)
+```
+These are available for all beam-limiting devices.
+
+Fluence maps similarly are generated [`fluence`](@ref) and [`fluence!`](@ref) methods,
+```@repl abc
+Ψ = fluence(bixels, mlc)
+fluence!(Ψ, bixels, mlc)
+```
+They can also be computed in-place with [`fluence!`](@ref), avoiding memory allocation.
