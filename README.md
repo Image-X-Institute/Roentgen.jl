@@ -53,7 +53,7 @@ From the project directory, run
 ```sh
 julia --project=docs docs/liveserver.jl
 ```
-This will usually serve the docs at [http:://localhost:8000](http:://localhost:8000), which you can view in your web browser.
+This will usually serve the docs at [http://localhost:8000](http://localhost:8000), which you can view in your web browser.
 
 ## Directory Structure
 
