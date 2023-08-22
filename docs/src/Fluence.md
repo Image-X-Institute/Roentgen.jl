@@ -114,6 +114,13 @@ getaxes(bixels)
 getaxes(bixels, 1)
 ```
 
+### Bixels from Beam-Limiting Devices
+
+In addition to the creation of bixel grids from beam-limiting devices, [`bixels_from_bld`](@ref) creates a vector of bixels that span the open aperture of the beam-limiting device, *e.g.*
+```@repl abc
+bixels = bixels_from_bld(mlc, jaws)
+```
+
 ## Fluence
 
 Fluence is computed using the [`fluence`](@ref) method with bixel and beam-limiting devices as inputs,
