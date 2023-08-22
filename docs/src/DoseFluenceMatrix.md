@@ -2,18 +2,18 @@
 using Roentgen
 ```
 
-# Dose Fluence Matrix
+# Dose-Fluence Matrix
 
 Dose-fluence matrices are precomputed doses for each beamlet used in the treatment.
 In dose calculations, it is typical for a broad radiation beam to be split up into a number of beamlets.
 These beamlets can then be "turned on/off" depending on whether that beamlet is obscured by a beam-limiting device.
 
-Hence, dose computed through use of a dose-fluence matrix takes ? steps:
+Hence, dose computed through use of a dose-fluence matrix requires four steps:
 
 1. Select the beamlets that are to be used in the treatment
-2. Compute the dose at `n` dose positions for `m` beamlets, and store it in a `nxm` matrix.
-3. Compute the fluence and meterset increment for each beamlet, and store it in an `m` length vector.
-4. Compute the final dose by multiplying the dose-fluence matrix (step 2) by the weight vector (step 4)
+2. Compute the dose at `n` dose positions for `m` beamlets, and store it in a `nxm` matrix, $D$.
+3. Compute the fluence and meterset increment for each beamlet, and store in an `m` length vector, $w$.
+4. Compute the final dose by multiplying the dose-fluence matrix $D$ by $w$: $\mathrm{dose}=Dw$
 
 An example can be found in the [Dose From Aperture](https://github.com/Image-X-Institute/Roentgen.jl/blob/main/examples/Dose%20from%20Aperture.ipynb) notebook.
 
@@ -45,7 +45,7 @@ beamlets = Beamlet.(bixels, (gantry,))
 ## Creating Dose-Fluence Matrices
 
 Dose-fluence matrices are computed using the [`dose_fluence_matrix`](@ref) and [`dose_fluence_matrix!`](@ref) functions.
-These take a dose volume ([Dose Volumes](@ref)), vector of beamlets ([Beamlets](@ref)) and dose calculation algorithm ([Dose Calculation Algorithm](@ref)) and compute the corresponding dose for each position in the volume,
+These take a dose volume ([Dose Volumes](@ref)), vector of beamlets ([Beamlets](@ref)) and dose calculation algorithm ([Dose Calculation Algorithms](@ref)) and compute the corresponding dose for each position in the volume,
 ```julia
 dose_fluence_matrix(T, vol, beamlets, calc; maxradius=100)
 ```

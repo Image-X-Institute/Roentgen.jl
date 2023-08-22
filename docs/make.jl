@@ -14,11 +14,16 @@ makedocs(
             "Fluence.md",
             "DoseFluenceMatrix.md"
         ],
-        "Dose Calculation Algorithms"=>["ScaledIsoplaneKernel.md",],
+        "Dose Calculation Algorithms"=>[
+            "DoseCalculationAlgorithms.md",
+            "ScaledIsoplaneKernel.md",
+            ],
         "Utilties"=>[
             "Structures.md"
         ],
-        "API"=>["API.md",]
+        "API"=>[
+            "API.md"
+        ]
     ]
     )
 
