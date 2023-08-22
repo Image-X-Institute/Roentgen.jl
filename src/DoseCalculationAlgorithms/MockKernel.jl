@@ -1,3 +1,8 @@
+"""
+    MockKernel
+
+A mock dose algorithm used as an example and tests
+"""
 struct MockKernel <: AbstractDoseAlgorithm end
 
 calibrate!(calc::MockKernel, args...) = nothing
