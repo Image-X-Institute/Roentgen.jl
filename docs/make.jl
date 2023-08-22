@@ -12,9 +12,7 @@ makedocs(
         ],
         "Computing Dose"=>[
             "Fluence.md",
-            "DoseFluenceMatrix.md"
-        ],
-        "Dose Calculation Algorithms"=>[
+            "DoseFluenceMatrix.md",
             "DoseCalculationAlgorithms.md",
             ],
         "Utilties"=>[
