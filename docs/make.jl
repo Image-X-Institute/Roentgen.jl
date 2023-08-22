@@ -16,7 +16,6 @@ makedocs(
         ],
         "Dose Calculation Algorithms"=>[
             "DoseCalculationAlgorithms.md",
-            "ScaledIsoplaneKernel.md",
             ],
         "Utilties"=>[
             "Structures.md"
