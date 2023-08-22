@@ -23,5 +23,5 @@ makedocs(
     )
 
 deploydocs(
-    repo = "github.com/ACRF-Image-X-Institute/Roentgen.jl.git",
+    repo = "github.com/Image-X-Institute/Roentgen.jl.git",
     )
