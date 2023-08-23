@@ -1,8 +1,8 @@
 # Roentgen
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://acrf-image-x-institute.github.io/Roentgen.jl/stable/)
-[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://acrf-image-x-institute.github.io/Roentgen.jl/dev/)
-[![CI](https://github.com/ACRF-Image-X-Institute/Roentgen.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/ACRF-Image-X-Institute/Roentgen.jl/actions/workflows/CI.yml)
-[![codecov](https://codecov.io/gh/ACRF-Image-X-Institute/Roentgen.jl/branch/main/graph/badge.svg?token=FBOJ3CMLN9)](https://codecov.io/gh/ACRF-Image-X-Institute/Roentgen.jl)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://image-x-institute.github.io/Roentgen.jl/stable/)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://image-x-institute.github.io/Roentgen.jl/dev/)
+[![CI](https://github.com/Image-X-Institute/Roentgen.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/Image-X-Institute/Roentgen.jl/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/Image-X-Institute/Roentgen.jl/branch/main/graph/badge.svg?token=FBOJ3CMLN9)](https://codecov.io/gh/Image-X-Institute/Roentgen.jl)
 
 *Lars Mejnertsen*
 
@@ -18,7 +18,7 @@ To add the package to your environment, open the Julia REPL and type the `]` to 
 Add the package by entering:
 
 ```julia
-add https://github.com/ACRF-Image-X-Institute/Roentgen.jl
+add https://github.com/Image-X-Institute/Roentgen.jl
 ```
 
 Once completed, you can exit the package manager by pressing Backspace.
@@ -29,7 +29,7 @@ You can then use the package by entering:
 using Roentgen
 ```
 
-There are examples for simple use cases and features in the [examples](https://github.com/ACRF-Image-X-Institute/Roentgen.jl/tree/main/examples) folder.
+There are examples for simple use cases and features in the [examples](https://github.com/Image-X-Institute/Roentgen.jl/tree/main/examples) folder.
 
 ## Documentation
 
