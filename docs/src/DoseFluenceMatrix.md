@@ -45,7 +45,7 @@ beamlets = Beamlet.(bixels, (gantry,))
 ## Creating Dose-Fluence Matrices
 
 Dose-fluence matrices are computed using the [`dose_fluence_matrix`](@ref) and [`dose_fluence_matrix!`](@ref) functions.
-These take a dose volume ([Dose Volumes](@ref)), vector of beamlets ([Beamlets](@ref)) and dose calculation algorithm ([Dose Calculation Algorithms](@ref)) and compute the corresponding dose for each position in the volume,
+These take a [dose volume}(@ref DoseVolumes), vector of beamlets ([Beamlets](@ref)) and [dose calculation algorithm](@ref DoseAlgorithms) and compute the corresponding dose for each position in the volume,
 ```julia
 dose_fluence_matrix(T, vol, beamlets, calc; maxradius=100)
 ```

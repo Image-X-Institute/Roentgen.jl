@@ -1,4 +1,4 @@
-# Dose Calculation Algorithms
+# [Dose Calculation Algorithms](@id DoseAlgorithms)
 
 Dose calculation algorithms specify how exactly to compute the dose at a given position from a given beamlet.
 

@@ -1,4 +1,4 @@
-# Dose Volumes
+# [Dose Volumes](@id DoseVolumes)
 
 Dose volumes comprise of two objects, [Dose Positions](@ref) and [External Surfaces](@ref).
 
