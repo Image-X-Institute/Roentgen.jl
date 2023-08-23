@@ -2,7 +2,7 @@
 using Roentgen
 ```
 
-# Types of Dose Positions
+# Dose Positions
 
 Dose positions are positions in the patient volume where dose is computed.
 While this could span the whole patient volume, for some applications a smaller dose volume is preferred which target various regions or structures in the body.
@@ -17,9 +17,7 @@ Dose grids are a subtype of dose positions where each position is located on a C
 Each axis need not be uniform, they can take any vector of positions. 
 These are useful as they reduce memory usage, and allow for easy export to visualisation software.
 
-### DoseGrid
-
-`DoseGrid` is a simple Cartesian grid where dose is computed on every point in the box.
+[`DoseGrid`](@ref) is a simple Cartesian grid where dose is computed on every point in the box.
 
 They are constructed by supplying grid axes:
 ```@repl abc
@@ -45,7 +43,7 @@ pos[1, 2, 3]
 Masked dose grids are Cartesian grids where points can be masked such that they are not used when iterating through the grid.
 This is an efficient implementation of sparse-like grids which maintain their 3D grid structure while avoiding computations on unnecessary positions.
 
-Masked dose grids can be constructed by suppling grid axes and a vector of `CartesianIndex` where the points are enabled:
+Masked dose grids ([`DoseGridMasked`](@ref)) can be constructed by suppling grid axes and a vector of `CartesianIndex` where the points are enabled:
 ```@repl abc
 indices = [CartesianIndex(1, 1, 1), CartesianIndex(2, 4, 1)]
 pos = DoseGridMasked(axes, indices);
@@ -72,7 +70,7 @@ For example the following will work,
 pos[2]
 pos[1,1,1]
 ```
-But this will throw an `BoundsError` error,
+Suppling an index where the point is masked will throw a `BoundsError`,
 ```@repl abc
 pos[1,2,1]
 ```
