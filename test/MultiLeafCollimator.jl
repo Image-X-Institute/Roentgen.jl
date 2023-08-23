@@ -61,7 +61,7 @@
 
     @testset "Indexing" begin
         i = 3
-        @test mlc[i] == (mlc.positions[:, i], mlc.edges[i:i+1])
+        @test mlc[i] == Jaws(mlc.positions[:, i], mlc.edges[i:i+1])
 
         i = 2:6
         x = mlc.positions[:, i]

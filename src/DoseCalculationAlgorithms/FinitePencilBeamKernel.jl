@@ -186,6 +186,11 @@ function fpbk_dose(x, y, w, ux, uy, x₀, y₀)
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
 
+"""
+    point_dose(..., calc::FinitePencilBeamKernel)
+
+Using the Finite Pencil Beam Kernel algorithm
+"""
 function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSurface, calc::FinitePencilBeamKernel) where T<:AbstractFloat
     ax, ay, a = beamlet_axes(beamlet)
 

@@ -71,10 +71,9 @@ getdepth(surf::ConstantSurface, pos, src) = norm(pos-src)-getSSD(surf, pos, src)
 """
     PlaneSurface
 
-A planar external surface at a constant distance from the source.
+A plane at a constant distance from and normal towards the source
 
-It assumes the external surface is a plane located at a distance of `surf.source_surface_distance`
-away from the source with normal from isocenter to source.
+The source-surface distance is stored in `surf.source_surface_distance`
 """
 struct PlaneSurface{T} <: AbstractExternalSurface
     source_surface_distance::T
@@ -153,6 +152,8 @@ function getdepth(surf::MeshSurface, pos::T, src::T) where T<:Point
 end
 getdepth(surf::MeshSurface, pos, src) = getdepth(surf, Point(pos), Point(src))
 
+write_vtk(filename::String, surf::MeshSurface) = write_vtk(filename, surf.mesh)
+
 #--- Linear Surface ------------------------------------------------------------
 
 struct Plane{T}
@@ -168,6 +169,14 @@ function intersection_point(plane::Plane, p1::SVector{3, T}, p2::SVector{3, T}) 
     p1 + λ*v
 end
 
+"""
+    LinearSurface(I::AbstractInterpolation})
+
+Linear approximation of a general surface by gantry angle
+
+Constructed with an interpolator which returns the plane position and normal
+vectors at a given gantry angle.
+"""
 struct LinearSurface{T<:AbstractInterpolation} <: AbstractExternalSurface
     params::T
 
@@ -176,10 +185,16 @@ struct LinearSurface{T<:AbstractInterpolation} <: AbstractExternalSurface
         I = interpolate(params, BSpline(Linear()))
         new{typeof(I)}(I)
     end
-    function LinearSurface(I::AbstractInterpolation)
-        new{typeof(I)}(I)
-    end
+    LinearSurface(I::AbstractInterpolation) = new{typeof(I)}(I)
 end
+
+"""
+    LinearSurface(params::AbstractVector)
+
+Constructed with a vector of 6 element parameters corresponding to the plane 
+position and normal at gantry angles.
+"""
+LinearSurface
 
 Adapt.@adapt_structure LinearSurface
 
@@ -199,7 +214,7 @@ Construct a LinearSurface from a mesh.
 
 Computes a set of planes parallel to the surface of the mesh.
 """
-function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.), ΔΘ=deg2rad(1)) where {T<:Real}
+function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.), Δϕ=deg2rad(1)) where {T<:Real}
     N = 361
     ϕg = 2π*range(0, 1, length=N)
     n = Vector{SVector{3, T}}(undef, N)
@@ -208,7 +223,7 @@ function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.), ΔΘ=deg2rad(1)) wh
     pos = SVector(zeros(T, 3)...)
     vy = SVector(0., 1., 0.)
 
-    x = SAD*tan(ΔΘ)
+    x = SAD*tan(Δϕ)
 
     for i in eachindex(ϕg, n, p)
         src = SAD*SVector(sin(ϕg[i]), zero(T), cos(ϕg[i]))
@@ -258,9 +273,9 @@ end
 #--- CylindricalSurface --------------------------------------------------------
 
 """
-    CylindricalSurface
+    CylindricalSurface(y::TRange, ϕ::TRange, rho::TInterp)
 
-A planar external surface at a variable distance from the isocenter.
+Surface stored on a cylindrical-polar grid.
 """
 struct CylindricalSurface{TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
     y::TRange
@@ -270,7 +285,14 @@ end
 
 # Constructors
 
+"""
+    CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
+
+Constructed using vectors for ϕ, y, and rho.
+"""
 function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
+
+    @assert (length(ϕ),length(y))==size(rho) "size(rho)!=(length(ϕ), length(y))"
 
     ϕI = 0:minimum(diff(ϕ)):2π
     yI = y[1]:minimum(diff(y)):y[end]
@@ -282,9 +304,11 @@ function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::Abstract
 end
 
 """
-    CylindricalSurface
+    CylindricalSurface(mesh::SimpleMesh, y::AbstractRange[, nϕ=181])
 
-Construct from a mesh.
+Construct from `mesh` over axial axis `y`.
+
+Defaults to a 2° azimuthal spacing (nϕ=181).
 """
 function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
     ϕ = range(0., 2π, length=nϕ)
@@ -317,6 +341,14 @@ function Adapt.adapt_structure(to, surf::CylindricalSurface)
     CylindricalSurface(surf.y, surf.ϕ, cu_rho)
 end
 
+"""
+    CylindricalSurface(mesh::SimpleMesh, Δy::Real[, nϕ=181])
+
+Construct from `mesh` over with axial spacing `y`.
+
+Uses the mesh bounds to compute the axial range.
+Defaults to a 2° azimuthal spacing (nϕ=181).
+"""
 function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...)
     box = boundingbox(mesh)
     y₀ = coordinates(minimum(box))[2]

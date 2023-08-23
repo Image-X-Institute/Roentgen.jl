@@ -7,18 +7,23 @@ High-level functions to compute dose reconstructions from a given set of beams.
 export reconstruct_dose
 
 """
-    reconstruct_dose(pos, surf, plan, calc; Δx=1., show_progess=true)
+    reconstruct_dose(vol::AbstractDoseVolume, plan::AbstractTreatmentPlan,
+        calc::AbstractDoseAlgorithm; Δx=5., show_progress=true)
 
-Reconstruct the dose.
+Dose reconstruction from a treatment plan.
 
-Requires dose positions (`pos`), an external surface (`surf`), a set of beams
-(`plan`), and the dose calculation algorithm (`calc`). Optional arguments
-include:
+Requires a dose volume (`vol`), a treatment plan (`plan`), and a dose calculation\
+algorithm (`calc`). 
+Optional arguments include:
 - `Δx`: Size of each bixel in the fluence grid (defaults to 5.)
-- `ΔMU`: Meterset increments (defaults to 2.)
-- `show_progess`: Whether to display the progress (defaults to `true`)
+- `show_progress`: If true (default), displays the progress
 """
-function reconstruct_dose(pos, surf, plan, calc; Δx=5., show_progress=true)
+function reconstruct_dose(vol::AbstractDoseVolume, plan::AbstractTreatmentPlan,
+    calc::AbstractDoseAlgorithm; Δx=5., show_progress=true)
+
+    pos = getpositions(vol)
+    surf = getsurface(vol)
+
     dose = zeros(length(pos))
     Ψ = zeros(1)
 

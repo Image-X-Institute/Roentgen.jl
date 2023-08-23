@@ -206,7 +206,9 @@ function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T};
     bixels = Bixel{T}[]
 
     @inbounds for i in eachindex(mlc)
-        ((xL, xU), (yL, yU)) = mlc[i]
+        rect = mlc[i]
+        xL, xU = getx(rect)
+        yL, yU = gety(rect)
         
         xL = max(xL, jaws.x[1])
         xU = min(xU, jaws.x[2])
@@ -281,6 +283,13 @@ limiting device.
 """
 fluence(bixels::AbstractArray{<:AbstractBixel}, args...) = fluence.(bixels, Ref.(args)...)
 
+"""
+    fluence!(Ψ::AbstractArray{<:AbstractFloat}, bixels::AbstractArray{<:AbstractBixel}, args...)
+
+Compute the fluence on a collection of bixels, storing the result in Ψ.
+
+See `fluence(bixels::AbstractArray{<:AbstractBixel}, args...)` for details.
+"""
 fluence!(Ψ::AbstractArray{<:AbstractFloat}, bixels::AbstractArray{<:AbstractBixel}, args...) = Ψ .= fluence.(bixels, Ref.(args)...)
 
 
@@ -296,6 +305,11 @@ the particular beam limiting device
 """
 fluence(bixels::AbstractArray{<:AbstractBixel}, index::AbstractArray{Int}, args...) = fluence.(bixels, index, Ref.(args)...)
 
+"""
+    fluence!(Ψ::AbstractArray{<:AbstractFloat}, bixels::AbstractArray{<:AbstractBixel}, index::AbstractArray{Int}, args...)
+
+Stores the result in Ψ. See `fluence(bixels::AbstractArray{<:AbstractBixel}, index::AbstractArray{Int}, args...)` for details
+"""
 function fluence!(Ψ::AbstractArray{<:AbstractFloat}, bixels::AbstractArray{<:AbstractBixel}, index::AbstractArray{Int}, args...)
     Ψ .= fluence.(bixels, index, Ref.(args)...)
 end
@@ -309,7 +323,7 @@ end
 
 From the Jaws.
 """
-fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, jaws.x, jaws.y)
+fluence(bixel::Bixel, jaws::Jaws) = fluence_from_rectangle(bixel, getx(jaws), gety(jaws))
 
 #--- Fluence from an MLC Aperture --------------------------------------------------------------------------------------
 
@@ -327,7 +341,7 @@ function fluence(bixel::Bixel{T}, mlc::MultiLeafCollimator) where T<:AbstractFlo
 
     Ψ = zero(T)
     @inbounds for j=i1:i2
-        Ψ += fluence_from_rectangle(bixel, mlc[j]...)
+        Ψ += fluence(bixel, mlc[j])
     end
     Ψ
 end

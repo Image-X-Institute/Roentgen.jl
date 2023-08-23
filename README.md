@@ -43,6 +43,18 @@ To build:
 
 This will generate the documentation HTML in `docs/build`.
 
+### Developing the Documentation
+
+For developing the documentation, we recommend using LiveServer.jl.
+LiverServer.jl will build the docs locally and update them in real-time as they are being edited, serving them on a local webpage.
+This is not added to the docs enviroment so it will need to be installed.
+
+From the project directory, run
+```sh
+julia --project=docs docs/liveserver.jl
+```
+This will usually serve the docs at [http://localhost:8000](http://localhost:8000), which you can view in your web browser.
+
 ## Directory Structure
 
 ```
