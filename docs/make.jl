@@ -17,7 +17,8 @@ makedocs(
             "DoseCalculationAlgorithms.md",
             ],
         "Utilties"=>[
-            "Structures.md"
+            "Structures.md",
+            "TreatmentPlan.md"
         ],
         "API.md"
     ]

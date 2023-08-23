@@ -55,6 +55,11 @@ end
 
 #--- Control Point ------------------------------------------------------------
 
+"""
+    ControlPoint
+
+Elements of a TreatmentField
+"""
 struct ControlPoint{T<:AbstractFloat, TMLC<:AbstractMultiLeafCollimator} <: AbstractTreatmentField
     # Beam Limiting Devices
     mlc::TMLC
