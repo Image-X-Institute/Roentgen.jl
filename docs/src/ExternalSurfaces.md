@@ -34,13 +34,13 @@ These store the surface information and provides the implementation of the `getS
 
 The choice of which type to use is largely dependent on your use case, whether you prefer  accuracy or speed.
 
-- Where accuracy is prefered over speed, [`CylindricalSurface`](@ref) and [`MeshSurface`](@ref) provide accurate source-surface and depth computations. Generally [`CylindricalSurface`](@ref) is recommended over [`MeshSurface`](@ref).
+- Where accuracy is preferred over speed, [`CylindricalSurface`](@ref) and [`MeshSurface`](@ref) provide accurate source-surface and depth computations. Generally [`CylindricalSurface`](@ref) is recommended over [`MeshSurface`](@ref).
 - In the case of beam commissioning, [`PlaneSurface`](@ref) is recommended.
 - For specialised setups, it may be best to implement a custom external surface.
 
 ### Plane Surface
 
-A simple plane surface, positioned at a constant source-surface distance along the central beam axis with normal pointed towards the source.
+A simple plane surface ([`PlaneSurface`](@ref)), positioned at a constant source-surface distance along the central beam axis with normal pointed towards the source.
 Construct by supplying a source-surface distance, *e.g.* 800mm:
 ```julia
 surf = PlaneSurface(800.)
@@ -57,35 +57,34 @@ This setup is common in beam commissioning, where dose in computed in a water ta
 The [`CylindricalSurface`](@ref) stores the external surface on a [cylindrical-polar](https://en.wikipedia.org/wiki/Cylindrical_coordinate_system) grid.
 This coordinate system is aligned to the IEC Fixed coordinate system, defined by the following convention:
 
-- `rho`: Axial distance from the IEC fixed y axis.
-- `y`: Signed distance along the IEC fixed y axis.
-- `ϕ`: Equivalent to the gantry angle.
+- `rho`: radial distance from the IEC fixed y axis.
+- `y`: axial position along the IEC fixed y axis.
+- `ϕ`: azimuthal position, equivalent to the gantry angle.
 
 This a faster way of computing mesh intersections, recommended over using a [Mesh Surface](@ref).
 
-`CylindricalSurface` can be constructed by directly supplying the cylindrical-polar surface: `y`, `ϕ` and `rho`.
-In this example, a surface as defined by `fun` is created:
-```julia
-ϕ = (-180:2.:180)*π/180
+[`CylindricalSurface`](@ref) can be constructed by directly supplying the cylindrical-polar surface: `y`, `ϕ` and `rho`,
+```@example extsurf
+ϕ = 0:deg2rad(2.):2π
 y = -100.:2.:100.
-fun(ϕ, y) = (80+20*sin(ϕ))*(1-(y/200)^2)
-rho = fun.(ϕ, y')
+rho = @. (80+20*sin(ϕ))*(1-(y'/200)^2)
 surf = CylindricalSurface(ϕ, y, rho)
 ```
 
-`CylindricalSurface` can also be constructed using a mesh:
+`CylindricalSurface` can also be constructed using a mesh,
 ```julia
 mesh = load_structure_from_ply("path/to/stl-or-ply")
-surf = CylindricalSurface(mesh; Δϕ°=2., Δy=2.)
+surf = CylindricalSurface(mesh, Δy)
 ```
-It will automatically select the bounds in the `y` direction in order to encompass the whole mesh.
-Resolutions of the `ϕ` and `y` axes are specified by specifying `Δϕ°` and `Δy`.
+In this example, the bounds in the `y` direction will encompass the whole mesh with spacing of `Δy`.
+The axial `y` axis can be provided instead of a spacing, allowing finer control of the extent of the surface.
+See [`CylindricalSurface`](@ref) for further details.
 !!! note
     `CylindricalSurface` assumes the mesh can be well defined in a cylindrical-polar coordinate system.
     It is up to the user to ensure this, which may require rotating the mesh such.
     See [Coordinate Transformations](@ref) for more information on rotating meshes.
 
-`CylindricalSurface` can be written to the VTK file format for visualisation:
+[`CylindricalSurface`](@ref) can be written to the VTK file format for visualisation:
 ```julia
 write_vtk("surface", surf)
 ```
@@ -104,13 +103,13 @@ surf = MeshSurface(mesh)
     This is considered a slow method - the ray-tracing method is inefficient as it iterates through every face in the mesh (see [`Roentgen.intersect_mesh`](@ref)) - and should only be used if the mesh is small, computation time is not important, or a better surface is not available.
     A better alternative would be to create an [Cylindrical Surface](@ref).
 
-`MeshSurface` can be written to the VTK file format for visualisation:
+[`MeshSurface`](@ref) can be written to the VTK file format for visualisation:
 ```julia
 write_vtk("surface", surf)
 ```
 
 ### Constant Surface
 
-A constant surface returns constant source-surface distance.
+A constant surface ([`ConstantSurface`](@ref)) returns constant source-surface distance.
 Depth is computed as the distance from point to source minus the source-surface distance.
 Generally only used for testing purposes.

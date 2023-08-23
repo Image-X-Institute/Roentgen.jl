@@ -259,7 +259,7 @@ write_vtk(filename::String, surf::MeshSurface) = write_vtk(filename, surf.mesh)
 #--- CylindricalSurface --------------------------------------------------------
 
 """
-    CylindricalSurface
+    CylindricalSurface(y::TRange, ϕ::TRange, rho::TInterp)
 
 Surface stored on a cylindrical-polar grid.
 """
@@ -271,7 +271,14 @@ end
 
 # Constructors
 
+"""
+    CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
+
+Constructed using vectors for ϕ, y, and rho.
+"""
 function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
+
+    @assert (length(ϕ),length(y))==size(rho) "size(rho)!=(length(ϕ), length(y))"
 
     ϕI = 0:minimum(diff(ϕ)):2π
     yI = y[1]:minimum(diff(y)):y[end]
@@ -283,9 +290,11 @@ function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::Abstract
 end
 
 """
-    CylindricalSurface
+    CylindricalSurface(mesh::SimpleMesh, y::AbstractRange[, nϕ=181])
 
-Construct from a mesh.
+Construct from `mesh` over axial axis `y`.
+
+Defaults to a 2° azimuthal spacing (nϕ=181).
 """
 function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
     ϕ = range(0., 2π, length=nϕ)
@@ -318,6 +327,14 @@ function Adapt.adapt_structure(to, surf::CylindricalSurface)
     CylindricalSurface(surf.y, surf.ϕ, cu_rho)
 end
 
+"""
+    CylindricalSurface(mesh::SimpleMesh, Δy::Real[, nϕ=181])
+
+Construct from `mesh` over with axial spacing `y`.
+
+Uses the mesh bounds to compute the axial range.
+Defaults to a 2° azimuthal spacing (nϕ=181).
+"""
 function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...)
     box = boundingbox(mesh)
     y₀ = coordinates(minimum(box))[2]
