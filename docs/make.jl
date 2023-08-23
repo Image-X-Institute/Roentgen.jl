@@ -18,9 +18,7 @@ makedocs(
         "Utilties"=>[
             "Structures.md"
         ],
-        "API"=>[
-            "API.md"
-        ]
+        "API.md"
     ]
     )
 
