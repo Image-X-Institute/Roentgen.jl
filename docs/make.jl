@@ -11,6 +11,7 @@ makedocs(
             "ExternalSurfaces.md"
         ],
         "Computing Dose"=>[
+            "DoseReconstruction.md",
             "Fluence.md",
             "DoseFluenceMatrix.md",
             "DoseCalculationAlgorithms.md",

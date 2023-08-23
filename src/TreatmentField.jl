@@ -13,6 +13,8 @@ Abstract treatment field, basis for containing multiple treatment types (e.g. VM
 """
 abstract type AbstractTreatmentField end
 
+const AbstractTreatmentPlan = AbstractVector{AbstractTreatmentField}
+
 show_angle(angle, digits=2) = "$(round(rad2deg(angle); digits=digits))°"
 
 """
@@ -22,9 +24,7 @@ Iteration of a treatment field, returning ControlPoint every time iterate is cal
 """
 Base.iterate(field::AbstractTreatmentField) = Base.iterate(field, 1)
 function Base.iterate(field::AbstractTreatmentField, i)
-    if(length(field)<i)
-        return nothing
-    end
+    length(field)<i && return nothing
     field[i], i+1
 end
 

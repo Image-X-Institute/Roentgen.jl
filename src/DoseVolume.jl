@@ -3,8 +3,8 @@ abstract type AbstractDoseVolume end
 """
     DoseVolume
 
-Struct to store dose positions and external surface
-""" 
+Stores dose positions and an external surface
+"""
 struct DoseVolume{TPos<:AbstractArray, TSurf<:AbstractExternalSurface} <: AbstractDoseVolume
     positions::TPos
     surface::TSurf
