@@ -152,6 +152,8 @@ function getdepth(surf::MeshSurface, pos::T, src::T) where T<:Point
 end
 getdepth(surf::MeshSurface, pos, src) = getdepth(surf, Point(pos), Point(src))
 
+write_vtk(filename::String, surf::MeshSurface) = write_vtk(filename, surf.mesh)
+
 #--- Linear Surface ------------------------------------------------------------
 
 struct Plane{T}
@@ -167,6 +169,14 @@ function intersection_point(plane::Plane, p1::SVector{3, T}, p2::SVector{3, T}) 
     p1 + λ*v
 end
 
+"""
+    LinearSurface(I::AbstractInterpolation})
+
+Linear approximation of a general surface by gantry angle
+
+Constructed with an interpolator which returns the plane position and normal
+vectors at a given gantry angle.
+"""
 struct LinearSurface{T<:AbstractInterpolation} <: AbstractExternalSurface
     params::T
 
@@ -175,10 +185,16 @@ struct LinearSurface{T<:AbstractInterpolation} <: AbstractExternalSurface
         I = interpolate(params, BSpline(Linear()))
         new{typeof(I)}(I)
     end
-    function LinearSurface(I::AbstractInterpolation)
-        new{typeof(I)}(I)
-    end
+    LinearSurface(I::AbstractInterpolation) = new{typeof(I)}(I)
 end
+
+"""
+    LinearSurface(params::AbstractVector)
+
+Constructed with a vector of 6 element parameters corresponding to the plane 
+position and normal at gantry angles.
+"""
+LinearSurface
 
 Adapt.@adapt_structure LinearSurface
 
@@ -198,7 +214,7 @@ Construct a LinearSurface from a mesh.
 
 Computes a set of planes parallel to the surface of the mesh.
 """
-function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.), ΔΘ=deg2rad(1)) where {T<:Real}
+function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.), Δϕ=deg2rad(1)) where {T<:Real}
     N = 361
     ϕg = 2π*range(0, 1, length=N)
     n = Vector{SVector{3, T}}(undef, N)
@@ -207,7 +223,7 @@ function LinearSurface(mesh::SimpleMesh{3, T}; SAD=T(1000.), ΔΘ=deg2rad(1)) wh
     pos = SVector(zeros(T, 3)...)
     vy = SVector(0., 1., 0.)
 
-    x = SAD*tan(ΔΘ)
+    x = SAD*tan(Δϕ)
 
     for i in eachindex(ϕg, n, p)
         src = SAD*SVector(sin(ϕg[i]), zero(T), cos(ϕg[i]))
@@ -253,8 +269,6 @@ function getdepth(surf::LinearSurface, pos, src)
     v = pI-pos
     sign(dot(plane.n, v))*norm(v)
 end
-
-write_vtk(filename::String, surf::MeshSurface) = write_vtk(filename, surf.mesh)
 
 #--- CylindricalSurface --------------------------------------------------------
 

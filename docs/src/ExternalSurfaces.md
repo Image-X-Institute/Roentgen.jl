@@ -34,8 +34,10 @@ These store the surface information and provides the implementation of the `getS
 
 The choice of which type to use is largely dependent on your use case, whether you prefer  accuracy or speed.
 
-- Where accuracy is preferred over speed, [`CylindricalSurface`](@ref) and [`MeshSurface`](@ref) provide accurate source-surface and depth computations. Generally [`CylindricalSurface`](@ref) is recommended over [`MeshSurface`](@ref).
-- In the case of beam commissioning, [`PlaneSurface`](@ref) is recommended.
+- Where accuracy is preferred over speed, [Cylindrical Surface](@ref) and [Mesh Surface](@ref) provide accurate source-surface and depth computations.
+  Generally Cylindrical Surface is recommended over Mesh Surface.
+- In the case of beam commissioning or water-tank doses, [Plane Surface](@ref) is recommended.
+- Where speed is preferred, consider using [Linear Surface](@ref)
 - For specialised setups, it may be best to implement a custom external surface.
 
 ### Plane Surface
@@ -49,7 +51,7 @@ surf = PlaneSurface(800.)
 This surface is best used in two scenarios:
 
 1. The external surface is a box and the source does not rotate.
-This setup is common in beam commissioning, where dose in computed in a water tank.
+   This setup is common in beam commissioning, where dose in computed in a water tank.
 2. Accuracy is less important than speed: this method computes source-surface distance or depth much faster than other methods.
 
 ### Cylindrical Surface
@@ -64,7 +66,7 @@ This coordinate system is aligned to the IEC Fixed coordinate system, defined by
 This a faster way of computing mesh intersections, recommended over using a [Mesh Surface](@ref).
 
 [`CylindricalSurface`](@ref) can be constructed by directly supplying the cylindrical-polar surface: `y`, `ϕ` and `rho`,
-```@example extsurf
+```julia
 ϕ = 0:deg2rad(2.):2π
 y = -100.:2.:100.
 rho = @. (80+20*sin(ϕ))*(1-(y'/200)^2)
@@ -107,6 +109,19 @@ surf = MeshSurface(mesh)
 ```julia
 write_vtk("surface", surf)
 ```
+
+### Linear Surface
+
+[`LinearSurface`](@ref) is a linear approximation to a general surface.
+It computes a set of planes normal to a general surface at the intersection of the line between the iso-center and source positions.
+
+It is recommended to construct from a mesh,
+```julia
+mesh = load_structure_from_ply("path/to/stl-or-ply")
+surf = LinearSurface(mesh)
+```
+where it computes the plane position and normal for each degree of gantry angle. 
+See [`LinearSurface`](@ref) for further details.
 
 ### Constant Surface
 
