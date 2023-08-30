@@ -277,10 +277,11 @@ end
 
 Surface stored on a cylindrical-polar grid.
 """
-struct CylindricalSurface{TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
+struct CylindricalSurface{TVector<:AbstractVector, TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
     y::TRange
     ϕ::TRange
     rho::TInterp
+    center::TVector
 end
 
 # Constructors
@@ -290,7 +291,8 @@ end
 
 Constructed using vectors for ϕ, y, and rho.
 """
-function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
+function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix,
+    center::AbstractVector)
 
     @assert (length(ϕ),length(y))==size(rho) "size(rho)!=(length(ϕ), length(y))"
 
@@ -300,7 +302,7 @@ function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::Abstract
     rhoI = linear_interpolation((ϕ, y), rho).(ϕI, yI')
 
     I = interpolate(rhoI, BSpline(Linear()))
-    CylindricalSurface(yI, ϕI, I)
+    CylindricalSurface(yI, ϕI, I, center)
 end
 
 """
@@ -310,30 +312,35 @@ Construct from `mesh` over axial axis `y`.
 
 Defaults to a 2° azimuthal spacing (nϕ=181).
 """
-function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
+function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181, εy=1e-3)
     ϕ = range(0., 2π, length=nϕ)
 
-    L = diagonal(boundingbox(mesh))
+    center = centroid(mesh)
 
-    rho = zeros(length(ϕ), length(y))
+    y = y.-coordinates(center)[2]
 
-    meshsurf = MeshSurface(mesh)
+    rho = fill(Inf, length(ϕ), length(y)-1)
 
-    for j in eachindex(y), i in eachindex(ϕ[1:end-1])
-        pos = SVector(0., y[j], 0.)
-        src = SVector(L*sin(ϕ[i]), y[j], L*cos(ϕ[i]))
-        
-        pI = closest_intersection(src, pos, meshsurf.mesh, meshsurf.boxes)
-        if pI===nothing
-            rho[i, j] = NaN
-        else
-            rho[i, j] = √(pI[1]^2+pI[3]^2)
+    for face in mesh
+        xi, yi, zi = centroid(face)-center
+
+        n = normalize(normal(face))
+
+        if y[1]<=yi<=y[end] && 1-abs(n[2])>εy
+            ϕi = mod2pi(atan(xi, zi))
+            rhoi = √(xi^2+zi^2)
+    
+            i = searchsortedlast(ϕ, ϕi)
+            j = searchsortedlast(y, yi)
+
+            rho[i, j] = min(rho[i, j], rhoi)
         end
     end
     rho[end, :] .= rho[1, :]
 
     I = interpolate(rho, BSpline(Linear()))
-    CylindricalSurface(y, ϕ, I)
+    yc = 0.5*(y[2:end]+y[1:end-1])
+    CylindricalSurface(yc, ϕ, I, coordinates(center))
 end
 
 function Adapt.adapt_structure(to, surf::CylindricalSurface)
@@ -353,8 +360,7 @@ function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...)
     box = boundingbox(mesh)
     y₀ = coordinates(minimum(box))[2]
     y₁ = coordinates(maximum(box))[2]
-    y = y₀:Δy:y₁
-    y = 0.5*(y[2:end]+y[1:end-1])
+    y = snapped_range(y₀, y₁, Δy)
 
     CylindricalSurface(mesh, y, args...)
 end
@@ -398,10 +404,12 @@ function write_vtk(filename::String, surf::CylindricalSurface)
     ϕ = surf.ϕ
     y = surf.y
     rho = Interpolations.coefficients(surf.rho)
+    @. rho[isinf(rho)] = NaN
+    xc, yc, zc = surf.center
 
-    x = @. rho*sin(ϕ)
-    y = surf.y
-    z = @. rho*cos(ϕ)
+    x = @. xc + rho*sin(ϕ)
+    y = @. yc + surf.y
+    z = @. zc + rho*cos(ϕ)
 
     xg = reshape(x, size(x)..., 1)
     yg = ones(size(xg)).*y'
@@ -414,11 +422,12 @@ end
 
 function extent(surf::CylindricalSurface)
     ϕ = surf.ϕ
-    y = surf.y
     rho = Interpolations.coefficients(surf.rho)
+    xc, yc, zc = surf.center
 
-    x = @. rho*sin(ϕ)
-    z = @. rho*cos(ϕ)
+    x = @. xc + rho*sin(ϕ)
+    y = @. yc + surf.y
+    z = @. zc + rho*cos(ϕ)
     SVector(minimum(x), minimum(y), minimum(z)), SVector(maximum(x), maximum(y), maximum(z))
 end
 
