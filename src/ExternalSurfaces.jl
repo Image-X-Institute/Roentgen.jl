@@ -272,6 +272,8 @@ end
 
 #--- CylindricalSurface --------------------------------------------------------
 
+_cylsurf_size_assert(ϕ, y, rho) = @assert (length(ϕ),length(y))==size(rho) "size(rho)!=(length(ϕ), length(y))"
+
 """
     CylindricalSurface(y::TRange, ϕ::TRange, rho::TInterp)
 
@@ -286,6 +288,8 @@ end
 
 # Constructors
 
+_check_rho(rho) = any(@. !isfinite(rho) && rho<0)
+
 """
     CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
 
@@ -294,7 +298,7 @@ Constructed using vectors for ϕ, y, and rho.
 function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix,
     center::AbstractVector)
 
-    @assert (length(ϕ),length(y))==size(rho) "size(rho)!=(length(ϕ), length(y))"
+    _cylsurf_size_assert(ϕ, y, rho)
 
     ϕI = 0:minimum(diff(ϕ)):2π
     yI = y[1]:minimum(diff(y)):y[end]
@@ -312,7 +316,7 @@ Construct from `mesh` over axial axis `y`.
 
 Defaults to a 2° azimuthal spacing (nϕ=181).
 """
-function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181, εy=1e-3)
+function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181; εy=1e-3)
     ϕ = range(0., 2π, length=nϕ)
 
     center = centroid(mesh)
@@ -338,6 +342,12 @@ function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181, ε
     end
     rho[end, :] .= rho[1, :]
 
+    if _check_rho(rho)
+        @warn "rho contains negative values, Inf or NaNs. Ensure that the input
+        mesh can be well defined in cylindrical coordinate system with the axial
+        direction along the y axis"
+    end
+
     I = interpolate(rho, BSpline(Linear()))
     yc = 0.5*(y[2:end]+y[1:end-1])
     CylindricalSurface(yc, ϕ, I, coordinates(center))
@@ -356,13 +366,13 @@ Construct from `mesh` over with axial spacing `y`.
 Uses the mesh bounds to compute the axial range.
 Defaults to a 2° azimuthal spacing (nϕ=181).
 """
-function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...)
+function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...; kwargs...)
     box = boundingbox(mesh)
     y₀ = coordinates(minimum(box))[2]
     y₁ = coordinates(maximum(box))[2]
-    y = snapped_range(y₀, y₁, Δy)
+    y = snapped_range(y₀, y₁, Δy)[2:end-1]
 
-    CylindricalSurface(mesh, y, args...)
+    CylindricalSurface(mesh, y, args...; kwargs...)
 end
 
 # Methods
