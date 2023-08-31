@@ -436,10 +436,12 @@ function extent(surf::CylindricalSurface)
 end
 
 function isinside(surf::CylindricalSurface, pos::AbstractVector{T}) where T<:Real
-    x, y, z = pos
+    x, y, z = pos-surf.center
 
     (y<surf.y[1]||surf.y[end]<=y) && return false
-    x^2+z^2 == zero(T) && return true
 
-    x^2+z^2 < _interp(surf, pos)^2
+    ρ² = x^2+z^2
+    ρ² == zero(T) && return true
+
+    ρ²<_interp(surf, pos-surf.center)^2
 end

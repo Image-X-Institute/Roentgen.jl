@@ -119,6 +119,42 @@ Implemented Surfaces:
             pos = SVector(52., 102., -52.)
             test_surface(surf, pos, src, 869.5; atol=1.)
         end
+
+        @testset "isinside" begin
+            ϕ = range(0, 2π, length=7)
+            y = range(-1, 1, length=5)
+            rho = 1 .+ rand(length(ϕ), length(y))
+            @. rho[end, :] = rho[1, :]
+            pc = SVector(rand(3)...)
+        
+            surf = CylindricalSurface(ϕ, y, rho, pc)
+        
+            ϕᵢ = 2π*rand()
+            yᵢ = (y[end]-y[1])*rand()+y[1]
+        
+            ρᵢ = Roentgen._interp(surf, ϕᵢ, yᵢ)
+        
+            from_cyl_coords(rho, ϕ, y) = SVector(rho*cos(ϕ), y, rho*sin(ϕ)) + pc
+        
+            @testset "Inside" begin
+                @test Roentgen.isinside(surf, pc)
+                @test Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, yᵢ))
+            end 
+        
+            @testset "Outside Radially" begin
+                @test !Roentgen.isinside(surf, from_cyl_coords(rand()+ρᵢ, ϕᵢ, yᵢ))
+            end
+        
+            @testset "Outside Axially" begin
+                @test !Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, y[1]-rand()))
+                @test !Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, y[end]+rand()))
+            end
+        
+            @testset "Outside Both" begin
+                @test !Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, y[1]-rand()))
+                @test !Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, y[end]+rand()))
+            end
+        end
     end
 
     @testset "Plane" begin
