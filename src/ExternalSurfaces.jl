@@ -272,7 +272,15 @@ end
 
 #--- CylindricalSurface --------------------------------------------------------
 
-_cylsurf_size_assert(ϕ, y, rho) = @assert (length(ϕ),length(y))==size(rho) "size(rho)!=(length(ϕ), length(y))"
+_assert_cylsurf_size(ϕ, y, rho) = @assert size(rho) == (length(ϕ), length(y))
+function _warn_cylsurf_rho(rho)
+    if any(@. !isfinite(rho) || rho<0)
+        @warn "rho contains negative values, Inf or NaNs. Ensure that the surface
+        is well defined in cylindrical coordinate system with the axial direction
+        along the y axis. This may be fixed by lowering the resolution in the `y`
+        and `ϕ` axes"
+    end
+end
 
 """
     CylindricalSurface(y::TRange, ϕ::TRange, rho::TInterp)
@@ -280,25 +288,29 @@ _cylsurf_size_assert(ϕ, y, rho) = @assert (length(ϕ),length(y))==size(rho) "si
 Surface stored on a cylindrical-polar grid.
 """
 struct CylindricalSurface{TVector<:AbstractVector, TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
-    y::TRange
     ϕ::TRange
+    y::TRange
     rho::TInterp
     center::TVector
+    function CylindricalSurface(ϕ::TRange, y::TRange, rho::TInterp, center::TVector) where {
+        TVector<:AbstractVector, TRange<:AbstractRange, TInterp<:AbstractInterpolation}
+        _assert_cylsurf_size(ϕ, y, rho)
+        _warn_cylsurf_rho(rho)
+        new{TVector, TRange, TInterp}(ϕ, y, rho, center)
+    end
 end
 
 # Constructors
 
-_check_rho(rho) = any(@. !isfinite(rho) && rho<0)
 
 """
     CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
 
 Constructed using vectors for ϕ, y, and rho.
 """
-function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix,
-    center::AbstractVector)
+function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix, center::AbstractVector)
 
-    _cylsurf_size_assert(ϕ, y, rho)
+    _assert_cylsurf_size(ϕ, y, rho)
 
     ϕI = 0:minimum(diff(ϕ)):2π
     yI = y[1]:minimum(diff(y)):y[end]
@@ -306,7 +318,7 @@ function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::Abstract
     rhoI = linear_interpolation((ϕ, y), rho).(ϕI, yI')
 
     I = interpolate(rhoI, BSpline(Linear()))
-    CylindricalSurface(yI, ϕI, I, center)
+    CylindricalSurface(ϕI, yI, I, center)
 end
 
 """
@@ -342,15 +354,9 @@ function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181; ε
     end
     rho[end, :] .= rho[1, :]
 
-    if _check_rho(rho)
-        @warn "rho contains negative values, Inf or NaNs. Ensure that the input
-        mesh can be well defined in cylindrical coordinate system with the axial
-        direction along the y axis"
-    end
-
     I = interpolate(rho, BSpline(Linear()))
     yc = 0.5*(y[2:end]+y[1:end-1])
-    CylindricalSurface(yc, ϕ, I, coordinates(center))
+    CylindricalSurface(ϕ, yc, I, coordinates(center))
 end
 
 function Adapt.adapt_structure(to, surf::CylindricalSurface)
