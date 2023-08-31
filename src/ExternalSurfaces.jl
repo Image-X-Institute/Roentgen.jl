@@ -367,20 +367,24 @@ end
 
 # Methods
 
-function _interp(surf::CylindricalSurface, r)
+function _interp(surf::CylindricalSurface, ϕ, y)
     ϕg = surf.ϕ
-    ϕ = atan(r[1], r[3])
     i = mod2pi(ϕ)/step(ϕg)+1
 
     yg = surf.y
-    j = (r[2]-first(yg))/step(yg)
+    j = (y-first(yg))/step(yg)
     j = clamp(j+1, 1, length(yg))
 
     surf.rho(i, j)
 end
 
+function _interp(surf::CylindricalSurface, r)
+    ϕ = atan(r[1], r[3])
+    _interp(surf, ϕ, r[2])
+end
+
 function _distance_to_surface(λ, surf, pos, src)
-    r = pos + λ*(src-pos)
+    r = pos + λ*(src-pos) - surf.center
 
     rho = _interp(surf, r)
 

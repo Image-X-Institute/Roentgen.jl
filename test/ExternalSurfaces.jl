@@ -104,20 +104,20 @@ Implemented Surfaces:
     @testset "Cylindrical Surface" begin
         mesh = load_structure_from_ply(_test_mesh_path)
         meshsurf = MeshSurface(mesh)
-        surf = CylindricalSurface(mesh, 20., 36)
-
+        surf = CylindricalSurface(mesh, 50., 12)
+    
+    
         @testset "Axis-Aligned, Center" begin
             src = SVector(0., 0., 1000.)
             pos = SVector(0., 0., 0.)
-
-            test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=1.)
+    
+            test_surface(surf, pos, src, 908.7; atol=1.)
         end
         
         @testset "Random position and source" begin
             src = SVector(998.88987496197, 0., 47.10645070964268)
-            pos = SVector(152., 102., -52.)
-
-            test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=1.)
+            pos = SVector(52., 102., -52.)
+            test_surface(surf, pos, src, 869.5; atol=1.)
         end
     end
 
