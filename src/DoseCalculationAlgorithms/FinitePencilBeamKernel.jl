@@ -186,6 +186,8 @@ function fpbk_dose(x, y, w, ux, uy, x₀, y₀)
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
 
+_depth_check(depth) = depth < zero(typeof(depth)) || !isfinite(depth)
+
 """
     point_dose(..., calc::FinitePencilBeamKernel)
 
@@ -206,6 +208,7 @@ function point_dose(p::SVector{3, T}, beamlet::Beamlet, surf::AbstractExternalSu
     pₐ = rₐ + s
 
     depth = getdepth(surf, pₐ, s)
+    _depth_check(depth) && return zero(T)
 
     δ = SAD*(r-rₐ)/Rₐ
     x = dot(δ, ax)
