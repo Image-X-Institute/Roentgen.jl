@@ -186,7 +186,7 @@ function fpbk_dose(x, y, w, ux, uy, x₀, y₀)
     w*fx[1]*fy[1] + (1-w)*fx[2]*fy[2]
 end
 
-_depth_check(depth) = depth < zero(typeof(depth)) || isinf(depth)
+_depth_check(depth) = depth < zero(typeof(depth)) || !isfinite(depth)
 
 """
     point_dose(..., calc::FinitePencilBeamKernel)

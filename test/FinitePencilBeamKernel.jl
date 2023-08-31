@@ -51,14 +51,14 @@ end
         depth, tanθ, FinitePencilBeamKernel(parameters, scalingfactor, depth, tanθ)
     end
 
-    @testset "Parameters and Scaling Factor" begin
+    wfun(x) = linear(x, 0.001, 0.4)
+    uxfun(x) = [0.5, 0.04].*linear(x, 0.001, 0.4)
+    uyfun(x) = [0.4, 0.03].*linear(x, 0.001, 0.4)
+    Afun(x, y) = linear(x, 0.001, 0.4)*linear(y, 0.1, 0.1)
+    
+    depth, tanθ, calc = setup_calc(wfun, uxfun, uyfun, Afun)
 
-        wfun(x) = linear(x, 0.001, 0.4)
-        uxfun(x) = [0.5, 0.04].*linear(x, 0.001, 0.4)
-        uyfun(x) = [0.4, 0.03].*linear(x, 0.001, 0.4)
-        Afun(x, y) = linear(x, 0.001, 0.4)*linear(y, 0.1, 0.1)
-        
-        depth, tanθ, calc = setup_calc(wfun, uxfun, uyfun, Afun)
+    @testset "Parameters and Scaling Factor" begin
         
         d = depth[end]*rand()
         w, ux, uy = Roentgen.getparams(calc, d) 
@@ -74,9 +74,26 @@ end
         @test A ≈ Afun(d, t)
     end
 
+    @testset "Depth Check" begin
+        T = Float64
+        @test !Roentgen._depth_check(zero(T))
+        @test !Roentgen._depth_check(eps(T))
+        @test Roentgen._depth_check(-eps(T))
+        @test Roentgen._depth_check(Inf)
+        @test Roentgen._depth_check(NaN)
+    
+        λ = 100.
+        surf = ConstantSurface(λ)
+        gantry = GantryPosition(2π*rand(), 0., λ)
+        beamlet = Beamlet(Bixel(0., 0., 1., 1.), gantry)
+
+        src = Roentgen.getposition(gantry)
+
+        posfun(λ) = src - λ*normalize(src)
+        @test Roentgen.point_dose(posfun(1.1*λ), beamlet, surf, calc) > 0.
+        @test Roentgen.point_dose(posfun(λ), beamlet, surf, calc) > 0.
+        @test Roentgen.point_dose(posfun(0.9*λ), beamlet, surf, calc) ≈ 0.
+
+    end
+
 end
-# 
-
-
-# 28.5 -> 30
-# 34.8% -> 63.4
