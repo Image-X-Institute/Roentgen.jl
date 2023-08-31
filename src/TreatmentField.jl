@@ -13,7 +13,7 @@ Abstract treatment field, basis for containing multiple treatment types (e.g. VM
 """
 abstract type AbstractTreatmentField end
 
-const AbstractTreatmentPlan = AbstractVector{AbstractTreatmentField}
+const AbstractTreatmentPlan = AbstractVector{<:AbstractTreatmentField}
 
 show_angle(angle, digits=2) = "$(round(rad2deg(angle); digits=digits))°"
 

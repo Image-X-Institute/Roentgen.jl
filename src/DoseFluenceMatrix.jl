@@ -105,7 +105,7 @@ end
 
 Ensures size of D is correct
 """
-_assert_size(D, pos, beamlets) = @assert size(D) == (size(pos, 1), size(beamlets, 1))
+_assert_size(D, pos, beamlets) = @assert size(D) == (length(pos), length(beamlets))
 
 function point_dose(pos::SVector{3, T}, beamlet, surf, calc, maxradius) where T<:Number
     src = source_position(beamlet)

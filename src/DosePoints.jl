@@ -145,7 +145,7 @@ within(bounds::SurfaceBounds, p) = isinside(bounds.surf, p)
 
 #--- AbstractDosePositions ---------------------------------------------------------------------------------------------
 
-abstract type AbstractDosePositions{T, N} <: AbstractArray{T, N} end
+abstract type AbstractDosePositions{T, N} <: AbstractArray{SVector{3, T}, N} end
 
 """
     AbstractDoseGrid
