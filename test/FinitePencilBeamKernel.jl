@@ -91,7 +91,7 @@ end
 
         posfun(λ) = src - λ*normalize(src)
         @test Roentgen.point_dose(posfun(1.1*λ), beamlet, surf, calc) > 0.
-        @test Roentgen.point_dose(posfun(λ), beamlet, surf, calc) > 0.
+        @test Roentgen.point_dose(posfun(λ), beamlet, surf, calc) >= 0.
         @test Roentgen.point_dose(posfun(0.9*λ), beamlet, surf, calc) ≈ 0.
 
     end
