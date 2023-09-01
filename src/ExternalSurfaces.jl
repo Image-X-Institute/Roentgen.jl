@@ -328,35 +328,41 @@ Construct from `mesh` over axial axis `y`.
 
 Defaults to a 2° azimuthal spacing (nϕ=181).
 """
-function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181; εy=1e-3)
+function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
+    # Compute azimuthal range
     ϕ = range(0., 2π, length=nϕ)
 
-    center = centroid(mesh)
+    # Set the length of the line used in computing the intersect
+    L = 2*diagonal(boundingbox(mesh))
 
-    y = y.-coordinates(center)[2]
+    # Center the y axis on the mesh center
+    center = coordinates(centroid(mesh))
+    y = y .- center[2]
 
-    rho = fill(Inf, length(ϕ), length(y)-1)
+    rho = fill(Inf, length(ϕ), length(y))
 
-    for face in mesh
-        xi, yi, zi = centroid(face)-center
+    for j in eachindex(y), i in eachindex(ϕ[1:end-1])
 
-        n = normalize(normal(face))
+        # Create line along the axial axis, spanning radially out
+        p1 = SVector(0., y[j], 0.) + center
+        p2 = SVector(L*sin(ϕ[i]), y[j], L*cos(ϕ[i])) + center
 
-        if y[1]<=yi<=y[end] && 1-abs(n[2])>εy
-            ϕi = mod2pi(atan(xi, zi))
-            rhoi = √(xi^2+zi^2)
-    
-            i = searchsortedlast(ϕ, ϕi)
-            j = searchsortedlast(y, yi)
+        # Find the closest intersection along this line on the mesh
+        pI = closest_intersection(p1, p2, mesh)
 
-            rho[i, j] = min(rho[i, j], rhoi)
-        end
+        # Move back into mesh coords
+        x, _, z = pI-center
+
+        # Compute distance from axis (radius)
+        rho[i, j] = √(x^2+z^2)
+
     end
+    # ϕ=0° and ϕ=360° are the same point
     rho[end, :] .= rho[1, :]
 
+    # Interpolate, and return CylindricalSurface
     I = interpolate(rho, BSpline(Linear()))
-    yc = 0.5*(y[2:end]+y[1:end-1])
-    CylindricalSurface(ϕ, yc, I, coordinates(center))
+    CylindricalSurface(ϕ, y, I, center)
 end
 
 function Adapt.adapt_structure(to, surf::CylindricalSurface)
