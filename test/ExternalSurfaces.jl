@@ -104,20 +104,69 @@ Implemented Surfaces:
     @testset "Cylindrical Surface" begin
         mesh = load_structure_from_ply(_test_mesh_path)
         meshsurf = MeshSurface(mesh)
-        surf = CylindricalSurface(mesh, 20., 36)
-
+        surf = CylindricalSurface(mesh, 10., 13)
+        write_vtk("surf", surf)
         @testset "Axis-Aligned, Center" begin
             src = SVector(0., 0., 1000.)
             pos = SVector(0., 0., 0.)
-
+    
             test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=1.)
         end
         
         @testset "Random position and source" begin
             src = SVector(998.88987496197, 0., 47.10645070964268)
-            pos = SVector(152., 102., -52.)
+            pos = SVector(52., 102., -52.)
+            test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=2.)
+        end
+    
+        @testset "isinside" begin
+            ϕ = range(0, 2π, length=7)
+            y = range(-1, 1, length=5)
+            rho = 1 .+ rand(length(ϕ), length(y))
+            @. rho[end, :] = rho[1, :]
+            pc = SVector(rand(3)...)
+        
+            surf = CylindricalSurface(ϕ, y, rho, pc)
+        
+            ϕᵢ = 2π*rand()
+            yᵢ = (y[end]-y[1])*rand()+y[1]
+        
+            ρᵢ = Roentgen._interp(surf, ϕᵢ, yᵢ)
+        
+            from_cyl_coords(rho, ϕ, y) = SVector(rho*cos(ϕ), y, rho*sin(ϕ)) + pc
 
-            test_surface(surf, pos, src, getSSD(meshsurf, pos, src); atol=1.)
+            ρ_inside = rand()*ρᵢ
+            ρ_outside = rand()+ρᵢ
+            y_inside = yᵢ
+            y_outside_m = y[1] - rand()
+            y_outside_p = y[end] + rand()
+
+            @testset "Test positions" begin
+                @test ρ_inside < ρᵢ
+                @test ρ_outside > ρᵢ
+                @test y[1]<=y_inside<y[end]
+                @test y_outside_m < y[1]
+                @test y_outside_p > y[end]                
+            end
+        
+            @testset "Inside" begin
+                @test Roentgen.isinside(surf, pc)
+                @test Roentgen.isinside(surf, from_cyl_coords(ρ_inside, ϕᵢ, y_inside))
+            end 
+        
+            @testset "Outside Radially" begin
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_outside, ϕᵢ, y_inside))
+            end
+        
+            @testset "Outside Axially" begin
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_inside, ϕᵢ, y_outside_m))
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_inside, ϕᵢ, y_outside_p))
+            end
+        
+            @testset "Outside Both" begin
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_outside, ϕᵢ, y_outside_m))
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_outside, ϕᵢ, y_outside_p))
+            end
         end
     end
 

@@ -32,7 +32,7 @@
         rhoval = 10.
         rho = fill(rhoval, length(ϕ), length(y))
         
-        surf = CylindricalSurface(ϕ, y, rho)
+        surf = CylindricalSurface(ϕ, y, rho, [0., 0., 0.])
         bounds = SurfaceBounds(surf)
         
         pmin, pmax = Roentgen.extent(bounds)

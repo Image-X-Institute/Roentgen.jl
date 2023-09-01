@@ -272,27 +272,45 @@ end
 
 #--- CylindricalSurface --------------------------------------------------------
 
+_assert_cylsurf_size(ϕ, y, rho) = @assert size(rho) == (length(ϕ), length(y))
+function _warn_cylsurf_rho(rho)
+    if any(@. !isfinite(rho) || rho<0)
+        @warn "rho contains negative values, Inf or NaNs. Ensure that the surface
+        is well defined in cylindrical coordinate system with the axial direction
+        along the y axis. This may be fixed by lowering the resolution in the `y`
+        and `ϕ` axes"
+    end
+end
+
 """
     CylindricalSurface(y::TRange, ϕ::TRange, rho::TInterp)
 
 Surface stored on a cylindrical-polar grid.
 """
-struct CylindricalSurface{TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
-    y::TRange
+struct CylindricalSurface{TVector<:AbstractVector, TRange<:AbstractRange, TInterp<:AbstractInterpolation} <: AbstractExternalSurface
     ϕ::TRange
+    y::TRange
     rho::TInterp
+    center::TVector
+    function CylindricalSurface(ϕ::TRange, y::TRange, rho::TInterp, center::TVector) where {
+        TVector<:AbstractVector, TRange<:AbstractRange, TInterp<:AbstractInterpolation}
+        _assert_cylsurf_size(ϕ, y, rho)
+        _warn_cylsurf_rho(rho)
+        new{TVector, TRange, TInterp}(ϕ, y, rho, center)
+    end
 end
 
 # Constructors
+
 
 """
     CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
 
 Constructed using vectors for ϕ, y, and rho.
 """
-function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix)
+function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::AbstractMatrix, center::AbstractVector)
 
-    @assert (length(ϕ),length(y))==size(rho) "size(rho)!=(length(ϕ), length(y))"
+    _assert_cylsurf_size(ϕ, y, rho)
 
     ϕI = 0:minimum(diff(ϕ)):2π
     yI = y[1]:minimum(diff(y)):y[end]
@@ -300,7 +318,7 @@ function CylindricalSurface(ϕ::AbstractVector, y::AbstractVector, rho::Abstract
     rhoI = linear_interpolation((ϕ, y), rho).(ϕI, yI')
 
     I = interpolate(rhoI, BSpline(Linear()))
-    CylindricalSurface(yI, ϕI, I)
+    CylindricalSurface(ϕI, yI, I, center)
 end
 
 """
@@ -311,29 +329,40 @@ Construct from `mesh` over axial axis `y`.
 Defaults to a 2° azimuthal spacing (nϕ=181).
 """
 function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
+    # Compute azimuthal range
     ϕ = range(0., 2π, length=nϕ)
 
-    L = diagonal(boundingbox(mesh))
+    # Set the length of the line used in computing the intersect
+    L = 2*diagonal(boundingbox(mesh))
 
-    rho = zeros(length(ϕ), length(y))
+    # Center the y axis on the mesh center
+    center = coordinates(centroid(mesh))
+    y = y .- center[2]
 
-    meshsurf = MeshSurface(mesh)
+    rho = fill(Inf, length(ϕ), length(y))
 
     for j in eachindex(y), i in eachindex(ϕ[1:end-1])
-        pos = SVector(0., y[j], 0.)
-        src = SVector(L*sin(ϕ[i]), y[j], L*cos(ϕ[i]))
-        
-        pI = closest_intersection(src, pos, meshsurf.mesh, meshsurf.boxes)
-        if pI===nothing
-            rho[i, j] = NaN
-        else
-            rho[i, j] = √(pI[1]^2+pI[3]^2)
-        end
+
+        # Create line along the axial axis, spanning radially out
+        p1 = SVector(0., y[j], 0.) + center
+        p2 = SVector(L*sin(ϕ[i]), y[j], L*cos(ϕ[i])) + center
+
+        # Find the closest intersection along this line on the mesh
+        pI = closest_intersection(p1, p2, mesh)
+
+        # Move back into mesh coords
+        x, _, z = pI-center
+
+        # Compute distance from axis (radius)
+        rho[i, j] = √(x^2+z^2)
+
     end
+    # ϕ=0° and ϕ=360° are the same point
     rho[end, :] .= rho[1, :]
 
+    # Interpolate, and return CylindricalSurface
     I = interpolate(rho, BSpline(Linear()))
-    CylindricalSurface(y, ϕ, I)
+    CylindricalSurface(ϕ, y, I, center)
 end
 
 function Adapt.adapt_structure(to, surf::CylindricalSurface)
@@ -349,32 +378,35 @@ Construct from `mesh` over with axial spacing `y`.
 Uses the mesh bounds to compute the axial range.
 Defaults to a 2° azimuthal spacing (nϕ=181).
 """
-function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...)
+function CylindricalSurface(mesh::SimpleMesh, Δy::Real, args...; kwargs...)
     box = boundingbox(mesh)
     y₀ = coordinates(minimum(box))[2]
     y₁ = coordinates(maximum(box))[2]
-    y = y₀:Δy:y₁
-    y = 0.5*(y[2:end]+y[1:end-1])
+    y = snapped_range(y₀, y₁, Δy)[2:end-1]
 
-    CylindricalSurface(mesh, y, args...)
+    CylindricalSurface(mesh, y, args...; kwargs...)
 end
 
 # Methods
 
-function _interp(surf::CylindricalSurface, r)
+function _interp(surf::CylindricalSurface, ϕ, y)
     ϕg = surf.ϕ
-    ϕ = atan(r[1], r[3])
     i = mod2pi(ϕ)/step(ϕg)+1
 
     yg = surf.y
-    j = (r[2]-first(yg))/step(yg)
+    j = (y-first(yg))/step(yg)
     j = clamp(j+1, 1, length(yg))
 
     surf.rho(i, j)
 end
 
+function _interp(surf::CylindricalSurface, r)
+    ϕ = atan(r[1], r[3])
+    _interp(surf, ϕ, r[2])
+end
+
 function _distance_to_surface(λ, surf, pos, src)
-    r = pos + λ*(src-pos)
+    r = pos + λ*(src-pos) - surf.center
 
     rho = _interp(surf, r)
 
@@ -398,10 +430,12 @@ function write_vtk(filename::String, surf::CylindricalSurface)
     ϕ = surf.ϕ
     y = surf.y
     rho = Interpolations.coefficients(surf.rho)
+    @. rho[isinf(rho)] = NaN
+    xc, yc, zc = surf.center
 
-    x = @. rho*sin(ϕ)
-    y = surf.y
-    z = @. rho*cos(ϕ)
+    x = @. xc + rho*sin(ϕ)
+    y = @. yc + surf.y
+    z = @. zc + rho*cos(ϕ)
 
     xg = reshape(x, size(x)..., 1)
     yg = ones(size(xg)).*y'
@@ -414,19 +448,22 @@ end
 
 function extent(surf::CylindricalSurface)
     ϕ = surf.ϕ
-    y = surf.y
     rho = Interpolations.coefficients(surf.rho)
+    xc, yc, zc = surf.center
 
-    x = @. rho*sin(ϕ)
-    z = @. rho*cos(ϕ)
+    x = @. xc + rho*sin(ϕ)
+    y = @. yc + surf.y
+    z = @. zc + rho*cos(ϕ)
     SVector(minimum(x), minimum(y), minimum(z)), SVector(maximum(x), maximum(y), maximum(z))
 end
 
 function isinside(surf::CylindricalSurface, pos::AbstractVector{T}) where T<:Real
-    x, y, z = pos
+    x, y, z = pos-surf.center
 
     (y<surf.y[1]||surf.y[end]<=y) && return false
-    x^2+z^2 == zero(T) && return true
 
-    x^2+z^2 < _interp(surf, pos)^2
+    ρ² = x^2+z^2
+    ρ² == zero(T) && return true
+
+    ρ²<_interp(surf, pos-surf.center)^2
 end
