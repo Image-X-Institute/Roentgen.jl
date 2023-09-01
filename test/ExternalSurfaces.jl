@@ -137,21 +137,21 @@ Implemented Surfaces:
         
             @testset "Inside" begin
                 @test Roentgen.isinside(surf, pc)
-                @test Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, yᵢ))
+                @test Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, yᵢ))
             end 
         
             @testset "Outside Radially" begin
-                @test !Roentgen.isinside(surf, from_cyl_coords(rand()+ρᵢ, ϕᵢ, yᵢ))
+                @test !Roentgen.isinside(surf, from_cyl_coords(0.5+ρᵢ, ϕᵢ, yᵢ))
             end
         
             @testset "Outside Axially" begin
-                @test !Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, y[1]-rand()))
-                @test !Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, y[end]+rand()))
+                @test !Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, y[1]-0.5))
+                @test !Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, y[end]+0.5))
             end
         
             @testset "Outside Both" begin
-                @test !Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, y[1]-rand()))
-                @test !Roentgen.isinside(surf, from_cyl_coords(rand()*ρᵢ, ϕᵢ, y[end]+rand()))
+                @test !Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, y[1]-0.5))
+                @test !Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, y[end]+0.5))
             end
         end
     end
