@@ -134,24 +134,38 @@ Implemented Surfaces:
             ρᵢ = Roentgen._interp(surf, ϕᵢ, yᵢ)
         
             from_cyl_coords(rho, ϕ, y) = SVector(rho*cos(ϕ), y, rho*sin(ϕ)) + pc
+
+            ρ_inside = rand()*ρᵢ
+            ρ_outside = rand()+ρᵢ
+            y_inside = yᵢ
+            y_outside_m = y[1] - rand()
+            y_outside_p = y[end] + rand()
+
+            @testset "Test positions" begin
+                @test ρ_inside < ρᵢ
+                @test ρ_outside > ρᵢ
+                @test y[1]<=y_inside<y[end]
+                @test y_outside_m < y[1]
+                @test y_outside_p > y[end]                
+            end
         
             @testset "Inside" begin
                 @test Roentgen.isinside(surf, pc)
-                @test Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, yᵢ))
+                @test Roentgen.isinside(surf, from_cyl_coords(ρ_inside, ϕᵢ, y_inside))
             end 
         
             @testset "Outside Radially" begin
-                @test !Roentgen.isinside(surf, from_cyl_coords(0.5+ρᵢ, ϕᵢ, yᵢ))
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_outside, ϕᵢ, y_inside))
             end
         
             @testset "Outside Axially" begin
-                @test !Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, y[1]-0.5))
-                @test !Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, y[end]+0.5))
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_inside, ϕᵢ, y_outside_m))
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_inside, ϕᵢ, y_outside_p))
             end
         
             @testset "Outside Both" begin
-                @test !Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, y[1]-0.5))
-                @test !Roentgen.isinside(surf, from_cyl_coords(0.5*ρᵢ, ϕᵢ, y[end]+0.5))
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_outside, ϕᵢ, y_outside_m))
+                @test !Roentgen.isinside(surf, from_cyl_coords(ρ_outside, ϕᵢ, y_outside_p))
             end
         end
     end
