@@ -31,7 +31,7 @@ WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [compat]
 Adapt = "3"
-CUDA = "4"
+CUDA = "4, 5"
 CoordinateTransformations = "0.6"
 DICOM = "0.10"
 DelimitedFiles = "1"
