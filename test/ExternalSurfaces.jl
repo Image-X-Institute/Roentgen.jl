@@ -135,7 +135,7 @@ Implemented Surfaces:
         
             from_cyl_coords(rho, ϕ, y) = SVector(rho*cos(ϕ), y, rho*sin(ϕ)) + pc
 
-            ρ_inside = rand()*ρᵢ
+            ρ_inside = 0.8*ρᵢ
             ρ_outside = rand()+ρᵢ
             y_inside = yᵢ
             y_outside_m = y[1] - rand()
