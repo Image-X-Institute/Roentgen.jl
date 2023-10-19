@@ -29,15 +29,15 @@ function reconstruct_dose(vol::AbstractDoseVolume, plan::AbstractTreatmentPlan,
     dose = zeros(length(pos))
     Ψ = zeros(1)
 
+    if(show_progress)
+        totalMU = 0.
+        progress = Progress(sum(length.(plan)))
+    end
+
     # Iterate through each field in the plan
     for field in plan
 
         pos_fixed = patient_to_fixed(getisocenter(field)).(pos)
-
-        if(show_progress)
-            totalMU = 0.
-            p = Progress(length(field))
-        end
 
         # Iterate through each control point in the field
         for beam in field
@@ -58,10 +58,10 @@ function reconstruct_dose(vol::AbstractDoseVolume, plan::AbstractTreatmentPlan,
                              dims=2)
             
             if(show_progress)
-                next!(p; showvalues=[(:MU, totalMU+=ΔMU)])
+                next!(progress; showvalues=[(:MU, totalMU+=ΔMU)])
             end
-
         end
+
     end
     dose
 end
