@@ -8,18 +8,20 @@ export reconstruct_dose
 
 """
     reconstruct_dose(vol::AbstractDoseVolume, plan::AbstractTreatmentPlan,
-        calc::AbstractDoseAlgorithm; Δx=5., show_progress=true)
+        calc::AbstractDoseAlgorithm; Δx=5., show_progress=true, maxradius=100.)
 
 Dose reconstruction from a treatment plan.
 
-Requires a dose volume (`vol`), a treatment plan (`plan`), and a dose calculation\
-algorithm (`calc`). 
+Requires a dose volume (`vol`), a treatment plan (`plan`), and a dose calculation
+algorithm (`calc`).
+
 Optional arguments include:
 - `Δx`: Size of each bixel in the fluence grid (defaults to 5.)
 - `show_progress`: If true (default), displays the progress
+- `maxradius`: Kernel truncation radius
 """
 function reconstruct_dose(vol::AbstractDoseVolume, plan::AbstractTreatmentPlan,
-    calc::AbstractDoseAlgorithm; Δx=5., show_progress=true)
+    calc::AbstractDoseAlgorithm; Δx=5., show_progress=true, maxradius=100.)
 
     pos = getpositions(vol)
     surf = getsurface(vol)
@@ -51,7 +53,8 @@ function reconstruct_dose(vol::AbstractDoseVolume, plan::AbstractTreatmentPlan,
             resize!(Ψ, nbixels)
         
             dose .+= ΔMU*sum(dose_fluence_matrix(SparseMatrixCSC, vec(pos_fixed),
-                                                 vec(beamlets), surf, calc);
+                                                 vec(beamlets), surf, calc;
+                                                 maxradius=maxradius);
                              dims=2)
             
             if(show_progress)
