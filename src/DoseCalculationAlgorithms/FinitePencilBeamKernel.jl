@@ -62,6 +62,35 @@ source_position(beamlet::Beamlet) = source_axis_distance(beamlet)*source_axis(be
 
 tanθ_to_source(beamlet::Beamlet) = beamlet.tanθ
 
+# VTK IO
+"""
+    _vtk_beamlet_points(beamlet, L)
+
+Computes the vertices of the pyramid covered by a beamlet.
+
+See `write_vtk(filename, beamlet::Beamlet, L=2)` for further details
+"""
+function _vtk_beamlet_points(beamlet, L)
+    s = Roentgen.source_position(beamlet)
+    D = L*Roentgen.source_axis_distance(beamlet)
+    ax, ay, az = Roentgen.beamlet_axes(beamlet)
+    wx, wy = L.*Roentgen.halfwidth(beamlet)
+
+    (s,) .+ [D*az+wx*ax+wy*ay, D*az-wx*ax+wy*ay, D*az-wx*ax-wy*ay, D*az+wx*ax-wy*ay, zeros(3)]
+end
+
+"""
+    write_vtk(filename, mesh::Beamlet, L=2)
+
+Save a `Beamlet` to a VTK (.vtu) file.
+"""
+function write_vtk(filename, beamlet::Beamlet, L=2)
+    points = _vtk_beamlet_points(beamlet, L)
+    cells = [MeshCell(VTKCellTypes.VTK_PYRAMID, collect(1:5))]
+    vtk = vtk_grid(filename, points, cells)
+    vtk_save(vtk)
+end
+
 """
     FinitePencilBeamKernel(parameters, scalingfactor, depth, tanθ)
 
