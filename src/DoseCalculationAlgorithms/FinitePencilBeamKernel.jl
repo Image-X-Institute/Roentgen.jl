@@ -91,6 +91,19 @@ function write_vtk(filename, beamlet::Beamlet, L=2)
     vtk_save(vtk)
 end
 
+function write_vtk(filename, beamlets::Vector{<:AbstractBeamlet}, L=2)
+    points = SVector{3, Float64}[]
+    for i in eachindex(beamlets)
+        append!(points, _vtk_beamlet_points(beamlets[i], L))
+    end
+
+    indices =  reshape(1:length(bixels)*5, 5, length(bixels))
+    cells = MeshCell.((VTKCellTypes.VTK_PYRAMID,), eachcol(indices))
+
+    vtk = vtk_grid(filename, points, cells)
+    vtk_save(vtk)
+end
+
 """
     FinitePencilBeamKernel(parameters, scalingfactor, depth, tanθ)
 
