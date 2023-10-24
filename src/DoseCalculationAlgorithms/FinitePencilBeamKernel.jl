@@ -83,6 +83,9 @@ end
     write_vtk(filename, mesh::Beamlet, L=2)
 
 Save a `Beamlet` to a VTK (.vtu) file.
+
+The beamlet is drawn from the source position to a length determined by parameter
+`L`. This is the length of the beamlet in units of source-axis distance.
 """
 function write_vtk(filename, beamlet::Beamlet, L=2)
     points = _vtk_beamlet_points(beamlet, L)
@@ -91,13 +94,22 @@ function write_vtk(filename, beamlet::Beamlet, L=2)
     vtk_save(vtk)
 end
 
+"""
+    write_vtk(filename, mesh::Vector{<:AbstractBeamlet}, L=2)
+
+Save a vector of `Beamlet` to a VTK (.vtu) file.
+
+See `write_vtk(filename, beamlet::Beamlet, L=2)` for further details
+"""
 function write_vtk(filename, beamlets::Vector{<:AbstractBeamlet}, L=2)
+    n = length(beamlets)
+
     points = SVector{3, Float64}[]
     for i in eachindex(beamlets)
         append!(points, _vtk_beamlet_points(beamlets[i], L))
     end
 
-    indices =  reshape(1:length(bixels)*5, 5, length(bixels))
+    indices =  reshape(1:n*5, 5, n)
     cells = MeshCell.((VTKCellTypes.VTK_PYRAMID,), eachcol(indices))
 
     vtk = vtk_grid(filename, points, cells)
