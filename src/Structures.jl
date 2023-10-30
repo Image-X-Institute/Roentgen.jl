@@ -109,22 +109,6 @@ function closest_intersection(p1, p2, mesh, args...)
     coordinates(pI[s])
 end
 
-#--- File IO ------------------------------------------------------------------
-
-"""
-    write_vtk(filename, mesh::SimpleMesh)
-
-Save a `SimpleMesh` to a VTK (.vtu) file.
-"""
-function write_vtk(filename, mesh::SimpleMesh)
-    id = [indices(e) for e in elements(topology(mesh))]
-    vtkfile = vtk_grid(filename,
-                       coordinates.(vertices(mesh)), 
-                       MeshCell.(Ref(VTKCellTypes.VTK_TRIANGLE), id))
-    vtk_save(vtkfile)
-end
-
-
 function isinside(testpoint::Point{3,T}, mesh::Mesh{3,T}) where T
     if !(eltype(mesh) <: Triangle)
       error("This function only works for surface meshes with triangles as elements.")
