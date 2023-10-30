@@ -155,4 +155,12 @@ end
 
     bixels = bixels_from_bld(mlc, jaws; Δx=5., snap_to_aperture=false)
     @test bixels == JLD2.load(test_data_path, "snap=false")
+
+    @testset "Issue #87" begin
+        mlc, jaws = load("test-data/issue87.jld2", "mlc", "jaws")
+        bixels = bixels_from_bld(mlc, jaws; snap_to_aperture=true)
+
+        @test all(@. getwidth(bixels, 1)>0)
+        @test all(@. getwidth(bixels, 2)>0)
+    end
 end
