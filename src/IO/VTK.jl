@@ -1,5 +1,7 @@
 
-#--- DoseGrid ----------------------------------------------------------------------------------------------------------
+#= Dose Grids =========================================================================================================#
+
+#--- DoseGrid -----------------------------------------------------------------
 
 """
     write_vtk(filename::String, pos::DoseGrid, data::Union{Vararg, Dict})
@@ -15,7 +17,7 @@ function write_vtk(filename::String, pos::DoseGrid, data::Vararg)
 end
 write_vtk(filename::String, pos::DoseGrid, data::Dict) = write_vtk(filename, pos, data...)
 
-#--- DoseGridMasked ---------------------------------------------------------------------------------------------------------
+#--- DoseGridMasked -----------------------------------------------------------
 
 """
     write_vtk(filename::String, pos::DoseGridMasked, data::Union{Vararg, Dict})
@@ -78,3 +80,31 @@ function _vtk_create_cell(cell)
     n==6 && return MeshCell(VTKCellTypes.VTK_WEDGE, cell)
     n==8 && return MeshCell(VTKCellTypes.VTK_VOXEL, cell)
 end
+
+#= External Surfaces ==================================================================================================#
+
+#--- MeshSurface --------------------------------------------------------------
+
+write_vtk(filename::String, surf::MeshSurface) = write_vtk(filename, surf.mesh)
+
+#--- CylindricalSurface -------------------------------------------------------
+
+function write_vtk(filename::String, surf::CylindricalSurface)
+    ϕ = surf.ϕ
+    y = surf.y
+    rho = Interpolations.coefficients(surf.rho)
+    @. rho[isinf(rho)] = NaN
+    xc, yc, zc = surf.center
+
+    x = @. xc + rho*sin(ϕ)
+    y = @. yc + surf.y
+    z = @. zc + rho*cos(ϕ)
+
+    xg = reshape(x, size(x)..., 1)
+    yg = ones(size(xg)).*y'
+    zg = reshape(z, size(z)..., 1)
+
+    vtk = vtk_grid(filename, xg, yg, zg)
+    vtk_save(vtk)
+end
+

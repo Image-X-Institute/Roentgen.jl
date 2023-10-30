@@ -152,8 +152,6 @@ function getdepth(surf::MeshSurface, pos::T, src::T) where T<:Point
 end
 getdepth(surf::MeshSurface, pos, src) = getdepth(surf, Point(pos), Point(src))
 
-write_vtk(filename::String, surf::MeshSurface) = write_vtk(filename, surf.mesh)
-
 #--- Linear Surface ------------------------------------------------------------
 
 struct Plane{T}
@@ -424,26 +422,6 @@ function getdepth(surf::CylindricalSurface, pos::AbstractVector{T}, src::Abstrac
 
     λ = find_zero(f, lims, AlefeldPotraShi())
     λ*norm(src-pos)
-end
-
-function write_vtk(filename::String, surf::CylindricalSurface)
-    ϕ = surf.ϕ
-    y = surf.y
-    rho = Interpolations.coefficients(surf.rho)
-    @. rho[isinf(rho)] = NaN
-    xc, yc, zc = surf.center
-
-    x = @. xc + rho*sin(ϕ)
-    y = @. yc + surf.y
-    z = @. zc + rho*cos(ϕ)
-
-    xg = reshape(x, size(x)..., 1)
-    yg = ones(size(xg)).*y'
-    zg = reshape(z, size(z)..., 1)
-
-    vtk = vtk_grid(filename, xg, yg, zg)
-    vtk_save(vtk)
-
 end
 
 function extent(surf::CylindricalSurface)
