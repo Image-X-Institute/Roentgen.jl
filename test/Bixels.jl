@@ -19,10 +19,13 @@
     end
 
     @testset "Zero or negative width" begin
-        WX = [0., -1.]
-        WY = [0., -2.]
-        for wx in WX, wy in WY
-            @test_throws AssertionError Bixel(0., 0., wx, wy)
+        widths = [( 0.,  1.),  # wx=0
+                  (-1.,  1.),  # wx<0
+                  ( 1.,  0.),  # wy=0
+                  ( 1., -1.),  # wy<0
+                  (-2., -3.)]  # wx,wy<0
+        for (wx, wy) in widths
+            @test_throws AssertionError Bixel(rand(), rand(), wx, wy)
         end
     end
 
