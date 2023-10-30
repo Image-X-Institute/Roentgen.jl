@@ -18,6 +18,14 @@
         
     end
 
+    @testset "Zero or negative width" begin
+        WX = [0., -1.]
+        WY = [0., -2.]
+        for wx in WX, wy in WY
+            @test_throws AssertionError Bixel(0., 0., wx, wy)
+        end
+    end
+
     @testset "Methods" begin
         pos = SVector(1., 2.)
         width = SVector(3., 4.)
