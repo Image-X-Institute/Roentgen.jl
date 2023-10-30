@@ -108,3 +108,17 @@ function write_vtk(filename::String, surf::CylindricalSurface)
     vtk_save(vtk)
 end
 
+#= Structures =========================================================================================================#
+
+"""
+    write_vtk(filename, mesh::SimpleMesh)
+
+Save a `SimpleMesh` to a VTK (.vtu) file.
+"""
+function write_vtk(filename, mesh::SimpleMesh)
+    id = [indices(e) for e in elements(topology(mesh))]
+    vtkfile = vtk_grid(filename,
+                       coordinates.(vertices(mesh)), 
+                       MeshCell.(Ref(VTKCellTypes.VTK_TRIANGLE), id))
+    vtk_save(vtkfile)
+end
