@@ -218,7 +218,7 @@ function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T};
 
         Δy = yU - yL
 
-        if xU - xL > zero(T)
+        if xU>xL && Δy>0
             x = snapped_range(xL, xU, Δx)
             if snap_to_aperture
                 x = clamp.(x, xL, xU)
