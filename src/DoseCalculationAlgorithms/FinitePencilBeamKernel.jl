@@ -21,6 +21,12 @@ struct Beamlet{T} <: AbstractBeamlet
     beamaxis::SVector{3, T}
     SAD::T
     tanθ::T
+
+    function Beamlet(halfwidth, ax, ay, az, beamaxis, SAD, tanθ)
+        @assert halfwidth[1]>0 && halfwidth[2]>0 "Beamlet has negative or zero width"
+        T = eltype(halfwidth)
+        new{T}(halfwidth, ax, ay, az, beamaxis, SAD, tanθ)
+    end
 end
 
 """

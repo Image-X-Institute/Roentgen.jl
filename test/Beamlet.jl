@@ -32,4 +32,15 @@
     @test Roentgen.halfwidth(beamlet) ≈ 0.5*width
     @test Roentgen.width(beamlet) ≈ width
 
+    @testset "Zero or negative width" begin
+        widths = [( 0.,  1.),  # wx=0
+                  (-1.,  1.),  # wx<0
+                  ( 1.,  0.),  # wy=0
+                  ( 1., -1.),  # wy<0
+                  (-2., -3.)]  # wx,wy<0
+        for (wx, wy) in widths
+            @test_throws AssertionError Beamlet([wx, wy], rand(3), rand(3), rand(3), rand(3), rand(), rand())
+        end
+    end
+
 end
