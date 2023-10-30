@@ -1,12 +1,25 @@
 
+
+"""
+    write_vtk(filename::String, data, args...)
+
+Write a data structure to the VTK file format.
+
+See the individual methods for information.
+"""
+write_vtk
+
 #= Dose Grids =========================================================================================================#
 
 #--- DoseGrid -----------------------------------------------------------------
 
 """
-    write_vtk(filename::String, pos::DoseGrid, data::Union{Vararg, Dict})
+    write_vtk(filename::String, pos::DoseGrid, "data1"=>data1, ...)
 
 Save `DoseGrid` to the VTK Image data (vti) format.
+
+Can add point data to visualise on the 3D grid by chaining `"name"=>data` pairs:
+e.g. `"dose"=>dose, "depth"=>depth`. Also supports `Dict`.
 """
 function write_vtk(filename::String, pos::DoseGrid, data::Vararg)
     vtk_grid(filename, pos.axes...) do vtkfile
@@ -20,9 +33,12 @@ write_vtk(filename::String, pos::DoseGrid, data::Dict) = write_vtk(filename, pos
 #--- DoseGridMasked -----------------------------------------------------------
 
 """
-    write_vtk(filename::String, pos::DoseGridMasked, data::Union{Vararg, Dict})
+    write_vtk(filename::String, pos::DoseGridMasked, "data1"=>data1, ...)
 
 Save `DoseGridMasked` to the VTK Unstructured Grid (vtu) format.
+
+Can add point data to visualise on the 3D grid by chaining `"name"=>data` pairs:
+e.g. `"dose"=>dose, "depth"=>depth`. Also supports `Dict`.
 """
 function write_vtk(filename::String, pos::DoseGridMasked, data::Vararg)
     points = collect(pos)
@@ -35,7 +51,7 @@ function write_vtk(filename::String, pos::DoseGridMasked, data::Vararg)
         end
     end
 end
-write_vtk(filename::String, pos::DoseGridMasked, data::Dict) =  write_vtk(filename, pos, data...)
+write_vtk(filename::String, pos::DoseGridMasked, data::Dict) = write_vtk(filename, pos, data...)
 
 """
     _get_cells(pos)
@@ -85,10 +101,20 @@ end
 
 #--- MeshSurface --------------------------------------------------------------
 
+"""
+    write_vtk(filename, surf::MeshSurface)
+
+Save a `MeshSurface` to a VTK (.vtu) file.
+"""
 write_vtk(filename::String, surf::MeshSurface) = write_vtk(filename, surf.mesh)
 
 #--- CylindricalSurface -------------------------------------------------------
 
+"""
+    write_vtk(filename, surf::CylindricalSurface)
+
+Save a `CylindricalSurface` to a VTK (.vtu) file.
+"""
 function write_vtk(filename::String, surf::CylindricalSurface)
     ϕ = surf.ϕ
     y = surf.y
