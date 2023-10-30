@@ -31,19 +31,19 @@ abstract type AbstractBixel <: AbstractFluenceElement end
 struct Bixel{T} <: AbstractBixel
     position::SVector{2, T}     # Centre position of the bixel
     width::SVector{2, T}   # Size of the bixel
+
+    function Bixel(position::SVector{2, T}, width::SVector{2, T}) where T<:AbstractFloat
+        @assert width[1]>0 && width[2]>0 "Bixel has negative or zero width"
+        new{T}(position, width)
+    end
 end
 
-Bixel(x::T, y::T, wx::T, wy::T) where T<:AbstractFloat = Bixel{T}(SVector(x, y), SVector(wx, wy))
+Bixel(x::T, y::T, wx::T, wy::T) where T<:AbstractFloat = Bixel(SVector(x, y), SVector(wx, wy))
 Bixel(x::T, y::T, w::T) where T<:AbstractFloat = Bixel(x, y, w, w)
-function Bixel(x::AbstractVector, w::AbstractVector)
+function Bixel(x::AbstractVector{<:Real}, w::AbstractVector{<:Real})
     x, w = promote(x, w)
     Bixel(SVector(x...), SVector(w...))
 end
-
-# function Bixel(x::AbstractVector{T}, w::AbstractVector{T}) where T<:AbstractFloat 
-#     Bixel{T}(x[1], x[2], w[1], w[2])
-# end
-
 
 """
     Base.getindex(bixel::Bixel, i::Int)
@@ -218,7 +218,7 @@ function bixels_from_bld(mlc::AbstractMultiLeafCollimator, jaws::Jaws{T};
 
         Δy = yU - yL
 
-        if xU - xL > zero(T)
+        if xU>xL && Δy>0
             x = snapped_range(xL, xU, Δx)
             if snap_to_aperture
                 x = clamp.(x, xL, xU)

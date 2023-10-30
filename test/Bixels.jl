@@ -18,6 +18,17 @@
         
     end
 
+    @testset "Zero or negative width" begin
+        widths = [( 0.,  1.),  # wx=0
+                  (-1.,  1.),  # wx<0
+                  ( 1.,  0.),  # wy=0
+                  ( 1., -1.),  # wy<0
+                  (-2., -3.)]  # wx,wy<0
+        for (wx, wy) in widths
+            @test_throws AssertionError Bixel(rand(), rand(), wx, wy)
+        end
+    end
+
     @testset "Methods" begin
         pos = SVector(1., 2.)
         width = SVector(3., 4.)
@@ -155,4 +166,12 @@ end
 
     bixels = bixels_from_bld(mlc, jaws; Δx=5., snap_to_aperture=false)
     @test bixels == JLD2.load(test_data_path, "snap=false")
+
+    @testset "Issue #87" begin
+        mlc, jaws = load("test-data/issue87.jld2", "mlc", "jaws")
+        bixels = bixels_from_bld(mlc, jaws; snap_to_aperture=true)
+
+        @test all(@. getwidth(bixels, 1)>0)
+        @test all(@. getwidth(bixels, 2)>0)
+    end
 end

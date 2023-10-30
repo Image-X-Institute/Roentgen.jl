@@ -128,7 +128,7 @@ Implemented Surfaces:
         
             surf = CylindricalSurface(ϕ, y, rho, pc)
         
-            ϕᵢ = 2π*rand()
+            ϕᵢ = 0.564π# 2π*rand()
             yᵢ = (y[end]-y[1])*rand()+y[1]
         
             ρᵢ = Roentgen._interp(surf, ϕᵢ, yᵢ)
