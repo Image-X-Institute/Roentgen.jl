@@ -60,6 +60,7 @@ include("DoseVolume.jl")
 include("DoseReconstructions.jl")
 
 include("IO/VTK.jl")
+include("IO/NRRD.jl")
 
 export calibrate!
 
