@@ -44,4 +44,3 @@ function dose_fluence_matrix(T, vol::AbstractDoseVolume, beamlets, calc; kwargs.
         kwargs...)
 end
 
-Adapt.@adapt_structure DoseVolume

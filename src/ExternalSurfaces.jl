@@ -194,8 +194,6 @@ position and normal at gantry angles.
 """
 LinearSurface
 
-Adapt.@adapt_structure LinearSurface
-
 LinearSurface(p, n) = LinearSurface(vcat.(p, n))
 
 function LinearSurface(ϕg, p, n)
@@ -361,11 +359,6 @@ function CylindricalSurface(mesh::SimpleMesh, y::AbstractRange, nϕ::Int=181)
     # Interpolate, and return CylindricalSurface
     I = interpolate(rho, BSpline(Linear()))
     CylindricalSurface(ϕ, y, I, center)
-end
-
-function Adapt.adapt_structure(to, surf::CylindricalSurface)
-    cu_rho = Adapt.adapt_structure(to, surf.rho)
-    CylindricalSurface(surf.y, surf.ϕ, cu_rho)
 end
 
 """
