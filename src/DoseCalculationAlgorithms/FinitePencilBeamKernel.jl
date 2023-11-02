@@ -112,8 +112,6 @@ function FinitePencilBeamKernel(parameters::AbstractMatrix, args...)
     FinitePencilBeamKernel(SVector{5}.(eachcol(parameters)), args...)
 end
 
-Adapt.@adapt_structure FinitePencilBeamKernel
-
 """
     FinitePencilBeamKernel(filename::String)
 

@@ -24,13 +24,6 @@ function dose_fluence_matrix(T::Type{<:AbstractMatrix}, pos, beamlets::AbstractA
     dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
 end
 
-function dose_fluence_matrix(::Type{CuArray}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
-                             surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
-                             kwargs...)
-    D = CUDA.zeros(length(pos), length(beamlets))
-    dose_fluence_matrix!(D, pos, beamlets, surf, calc; kwargs...)
-end
-
 function dose_fluence_matrix(::Type{SparseMatrixCSC}, pos, beamlets::AbstractArray{<:AbstractBeamlet},
                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
                              kwargs...)
@@ -91,13 +84,6 @@ function dose_fluence_matrix!(D::AbstractArray, pos, beamlets::AbstractArray{<:A
         @inbounds D[i, j] = point_dose(pos[i], beamlets[j], surf, calc, maxradius)
     end
     D
-end
-
-function dose_fluence_matrix!(D::CuArray, pos, beamlets::AbstractArray{<:AbstractBeamlet},
-                              surf::AbstractExternalSurface, calc::AbstractDoseAlgorithm;
-                              maxradius=100.)
-    _assert_size(D, pos, beamlets)
-    D .= point_dose.(vec(pos), permutedims(vec(beamlets)), Ref(surf), Ref(calc), maxradius)
 end
 
 """
